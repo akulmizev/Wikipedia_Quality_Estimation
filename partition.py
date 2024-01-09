@@ -90,7 +90,7 @@ class Partition():
             predictions.append(sent.text.strip())
         print(predictions)
         results = perplexity.compute(
-                                     model_id='ai4bharat/IndicBERTv2-MLM-only',
+                                     model_id='xlm-roberta-base',
                                      # model_id='Davlan/afro-xlmr-base',
                                      add_start_token=False,
                                      predictions=predictions)
