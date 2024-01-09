@@ -111,7 +111,7 @@ class Partition():
         tokenizer = transformers.AutoTokenizer.from_pretrained(model_id)
         encodings = tokenizer('\n\n'.join([sent.text.strip() for sent in sents]), return_tensors='pt')
 
-        max_length = model.config.n_positions
+        max_length = 256
         stride = 512
         seq_len = encodings.input_ids.size(1)
 
