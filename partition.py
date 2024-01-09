@@ -99,17 +99,17 @@ class Partition():
     #     print(results['mean_perplexity'])
 
     def perplexity(self):
-        from spacy.lang.hi import Hindi
-        nlp = Hindi()
-        nlp.add_pipe('sentencizer')
-        doc = nlp(self.articles[3])
-        sents = list(doc.sents)
+        # from spacy.lang.hi import Hindi
+        # nlp = Hindi()
+        # nlp.add_pipe('sentencizer')
+        # doc = nlp(self.articles[3])
+        # sents = list(doc.sents)
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         model_id = 'xlm-roberta-base'
         model = transformers.AutoModelForCausalLM.from_pretrained(model_id).to(device)
         tokenizer = transformers.AutoTokenizer.from_pretrained(model_id)
-        encodings = tokenizer('\n\n'.join([sent.text.strip() for sent in sents]), return_tensors='pt')
+        encodings = tokenizer(self.articles[3], return_tensors='pt')
 
         max_length = 256
         stride = 512
