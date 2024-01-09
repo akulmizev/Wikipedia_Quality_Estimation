@@ -138,7 +138,7 @@ class Partition():
             if end_loc == seq_len:
                 break
         ppl = torch.exp(torch.stack(nlls).mean())
-        print(ppl)
+        print(float(ppl))
 
 
 
