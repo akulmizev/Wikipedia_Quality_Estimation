@@ -116,7 +116,6 @@ class Partition():
             with torch.no_grad():
                 loss = model(tensor_input, labels=tensor_input)[0]
             result = np.exp(loss.cpu().detach().numpy())
-            print(result)
             overall_perplexity.append(result)
 
         print("Mean perplexity of articles: ", sum(overall_perplexity) / len(overall_perplexity))
