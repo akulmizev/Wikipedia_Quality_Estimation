@@ -22,12 +22,10 @@ import datasets
 
 def create_arg_parser():
     parser = argparse.ArgumentParser()
-    # parser.add_argument("-l", "--language", default='naija_pcm',
-    #                     type=str, help="Location of folder containing the all_pages.csv file.")
     parser.add_argument("-l", "--language", default=None, type=str, required=True,
                         help="Specify language for extracting Wiki dump. Needs to be in ISO-2 format \
                         (e.g. `pcm` for Naija)")
-    parser.add_argument("-p", "--partition", default='length',
+    parser.add_argument("-p", "--partition", default='length', required=True,
                         type=str, help="Partition function to use. Options: length, links, red_pajamas")
 
     return parser.parse_args()
@@ -73,12 +71,15 @@ class Partition():
             text = example['text']
             counts = Counter(text.split())
             unique_word_counts[example['id']] = len(counts)
-        mean = round(sum(list(unique_word_counts.values())) / len(unique_word_counts))
+        mean = int(np.mean(list(unique_word_counts.values())))
         high_quality = [example['text'] for example in self.dataset if unique_word_counts[example['id']] >= mean]
         low_quality = [example['text'] for example in self.dataset if unique_word_counts[example['id']] < mean]
         print("Mean unique word count of articles: ", mean)
         print("Number of articles in high quality bin: ", len(high_quality))
         print("Number of articles in low quality bin: ", len(low_quality))
+        high_quality = '\n'.join(high_quality)
+        low_quality = '\n'.join(low_quality)
+
         return high_quality, low_quality
 
 
@@ -91,44 +92,46 @@ class Partition():
         overall_perplexity = {}
 
         ## for sentence level perplexity
-        # from spacy.lang.en import English
-        # nlp = English()
-        # nlp.add_pipe("sentencizer")
-        #
-        # for example in tqdm(self.dataset):
-        #     text = example['text'].strip()
-        #     doc = nlp(text)
-        #     sentences = list(doc.sents)
-        #     ex_perp = []
-        #     for sent in sentences:
-        #         sent = str(sent).strip()
-        #         tokenize_input = tokenizer.tokenize(sent, truncation=True, max_length=512)
-        #         tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
-        #         with torch.no_grad():
-        #             loss = model(tensor_input, labels=tensor_input)[0]
-        #         result = np.exp(loss.cpu().detach().numpy())
-        #         ex_perp.append(result)
-        #     overall_perplexity[example['id']] = sum(ex_perp) / len(ex_perp)
+        from spacy.lang.en import English
+        nlp = English()
+        nlp.add_pipe("sentencizer")
+
+        for example in tqdm(self.dataset):
+            text = example['text'].strip()
+            doc = nlp(text)
+            sentences = list(doc.sents)
+            ex_perp = []
+            for sent in sentences:
+                sent = str(sent).strip()
+                tokenize_input = tokenizer.tokenize(sent, truncation=True, max_length=512)
+                tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
+                with torch.no_grad():
+                    loss = model(tensor_input, labels=tensor_input)[0]
+                result = np.exp(loss.cpu().detach().numpy())
+                ex_perp.append(result)
+            overall_perplexity[example['id']] = np.mean(ex_perp)
+
+
 
         # for chunk level perplexity
-        for example in tqdm(self.dataset):
-            text = example['text'].split('\n')
-            ex_perp = []
-            for sent in text:
-                try:
-                    if sent == '' or sent == ' ':
-                        continue
-                    sent = sent.strip()
-                    tokenize_input = tokenizer.tokenize(sent, truncation=True, max_length=512)
-                    tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
-                    with torch.no_grad():
-                        loss = model(tensor_input, labels=tensor_input)[0]
-                    result = np.exp(loss.cpu().detach().numpy())
-                    ex_perp.append(result)
-                except:
-                    print("this is the sentence: ", sent)
-                    continue
-            overall_perplexity[example['id']] = sum(ex_perp) / len(ex_perp)
+        # for example in tqdm(self.dataset):
+        #     text = example['text'].split('\n')
+        #     ex_perp = []
+        #     for sent in text:
+        #         try:
+        #             if sent == '' or sent == ' ':
+        #                 continue
+        #             sent = sent.strip()
+        #             tokenize_input = tokenizer.tokenize(sent, truncation=True, max_length=512)
+        #             tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
+        #             with torch.no_grad():
+        #                 loss = model(tensor_input, labels=tensor_input)[0]
+        #             result = np.exp(loss.cpu().detach().numpy()) ##change this to make it faster
+        #             ex_perp.append(result)
+        #         except:
+        #             print("this is the sentence: ", sent)
+        #             continue
+        #     overall_perplexity[example['id']] = sum(ex_perp) / len(ex_perp)
 
 
         # for article level perplexity
@@ -142,12 +145,16 @@ class Partition():
         #     overall_perplexity[example['id']] = result
 
 
-        mean = round(sum(list(overall_perplexity.values())) / len(overall_perplexity))
+        # mean = round(sum(list(overall_perplexity.values())) / len(overall_perplexity))
+        mean = np.median(list(overall_perplexity.values()))
         high_quality = [example['text'] for example in self.dataset if overall_perplexity[example['id']] >= mean]
         low_quality = [example['text'] for example in self.dataset if overall_perplexity[example['id']] < mean]
         print("Mean perplexity: ", mean)
         print("Number of articles in high quality bin: ", len(high_quality))
         print("Number of articles in low quality bin: ", len(low_quality))
+
+        high_quality = '\n'.join(high_quality)
+        low_quality = '\n'.join(low_quality)
         return high_quality, low_quality
 
 
@@ -160,8 +167,6 @@ def main():
         bins = Partition(args.language).length()
     if args.partition == 'red_pajamas':
         bins = Partition(args.language).red_pajamas()
-    if args.partition == 'links':
-        bins = Partition(args.language).links()
     if args.partition == 'perplexity':
         Partition(args.language).perplexity()
 
