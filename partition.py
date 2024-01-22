@@ -91,35 +91,35 @@ class Partition():
         overall_perplexity = {}
 
         ## for sentence level perplexity
-        from spacy.lang.en import English
-        nlp = English()
-        nlp.add_pipe("sentencizer")
-
-        for example in tqdm(self.dataset):
-            text = example['text'].strip()
-            doc = nlp(text)
-            sentences = list(doc.sents)
-            ex_perp = []
-            for sent in sentences:
-                sent = str(sent).strip()
-                tokenize_input = tokenizer.tokenize(sent, truncation=True, max_length=512)
-                tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
-                with torch.no_grad():
-                    loss = model(tensor_input, labels=tensor_input)[0]
-                result = np.exp(loss.cpu().detach().numpy())
-                ex_perp.append(result)
-            overall_perplexity[example['id']] = sum(ex_perp) / len(ex_perp)
-
-
-        ## for article level perplexity
+        # from spacy.lang.en import English
+        # nlp = English()
+        # nlp.add_pipe("sentencizer")
         #
         # for example in tqdm(self.dataset):
-        #     tokenize_input = tokenizer.tokenize(example['text'], truncation=True, max_length=512)
-        #     tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
-        #     with torch.no_grad():
-        #         loss = model(tensor_input, labels=tensor_input)[0]
-        #     result = np.exp(loss.cpu().detach().numpy())
-        #     overall_perplexity[example['id']] = result
+        #     text = example['text'].strip()
+        #     doc = nlp(text)
+        #     sentences = list(doc.sents)
+        #     ex_perp = []
+        #     for sent in sentences:
+        #         sent = str(sent).strip()
+        #         tokenize_input = tokenizer.tokenize(sent, truncation=True, max_length=512)
+        #         tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
+        #         with torch.no_grad():
+        #             loss = model(tensor_input, labels=tensor_input)[0]
+        #         result = np.exp(loss.cpu().detach().numpy())
+        #         ex_perp.append(result)
+        #     overall_perplexity[example['id']] = sum(ex_perp) / len(ex_perp)
+
+
+        # for article level perplexity
+
+        for example in tqdm(self.dataset):
+            tokenize_input = tokenizer.tokenize(example['text'], truncation=True, max_length=512)
+            tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
+            with torch.no_grad():
+                loss = model(tensor_input, labels=tensor_input)[0]
+            result = np.exp(loss.cpu().detach().numpy())
+            overall_perplexity[example['id']] = result
 
 
         mean = round(sum(list(overall_perplexity.values())) / len(overall_perplexity))
