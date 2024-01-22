@@ -119,7 +119,7 @@ class Partition():
         overall_perplexity = []
         # error_arts = []
         for example in tqdm(self.dataset):
-            tokenize_input = tokenizer.tokenize(example['text'], truncation=True, max_length=512)
+            tokenize_input = tokenizer.tokenize(example['text'], truncation=True, max_length=512).cuda()
             tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
             with torch.no_grad():
                 loss = model(tensor_input, labels=tensor_input)[0]
