@@ -98,11 +98,14 @@ class Partition():
         model.to('cuda')
 
         ## for sentence level perplexity
+        from spacy.lang.en import English
+        nlp = English()
+        nlp.add_pipe("sentencizer")
+
         overall_perplexity_avg = []
         for example in tqdm(self.dataset):
             text = example['text'].strip()
-            #sentence tokenize the text
-            sentences = nltk.sent_tokenize(text)
+            sentences = list(nlp(text).sents)
             ex_perp = []
             for sent in sentences:
                 if sent == '':
