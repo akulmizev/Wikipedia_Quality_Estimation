@@ -24,7 +24,7 @@ def create_arg_parser():
     parser = argparse.ArgumentParser()
     # parser.add_argument("-l", "--language", default='naija_pcm',
     #                     type=str, help="Location of folder containing the all_pages.csv file.")
-    parser.add_argument("--lang", default=None, type=str, required=True,
+    parser.add_argument("-l", "--language", default=None, type=str, required=True,
                         help="Specify language for extracting Wiki dump. Needs to be in ISO-2 format \
                         (e.g. `pcm` for Naija)")
     parser.add_argument("-p", "--partition", default='length',
