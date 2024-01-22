@@ -102,7 +102,7 @@ class Partition():
             ex_perp = []
             for sent in sentences:
                 sent = str(sent).strip()
-                tokenize_input = tokenizer.tokenize(sent)
+                tokenize_input = tokenizer.tokenize(sent, truncation=True, max_length=512)
                 tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
                 with torch.no_grad():
                     loss = model(tensor_input, labels=tensor_input)[0]
