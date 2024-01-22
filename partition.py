@@ -68,15 +68,14 @@ class Partition():
         return high_quality, low_quality
 
     def red_pajamas(self):
-        unique_word_counts = []
-        for article in self.dataset:
-            article = article['text']
-            counts = Counter(article.split())
-            unique_word_counts.append(len(counts))
-        self.df['unique_word_counts'] = unique_word_counts
-        mean = round(unique_word_counts.mean())
-        high_quality = self.df[self.df['unique_word_counts'] >= mean]
-        low_quality = self.df[self.df['unique_word_counts'] < mean]
+        unique_word_counts = {}
+        for example in self.dataset:
+            text = example['text']
+            counts = Counter(text.split())
+            unique_word_counts[example['id']] = len(counts)
+        mean = round(sum(list(unique_word_counts.values())) / len(unique_word_counts))
+        high_quality = [example['text'] for example in self.dataset if unique_word_counts[example['id']] >= mean]
+        low_quality = [example['text'] for example in self.dataset if unique_word_counts[example['id']] < mean]
         print("Mean unique word count of articles: ", mean)
         print("Number of articles in high quality bin: ", len(high_quality))
         print("Number of articles in low quality bin: ", len(low_quality))
@@ -89,39 +88,40 @@ class Partition():
         model.eval()
         model.to('cuda')
 
-        ## for sentence level perplexity
-        from spacy.lang.en import English
-        nlp = English()
-        nlp.add_pipe("sentencizer")
-
-        overall_perplexity_avg = []
-        for example in tqdm(self.dataset):
-            text = example['text'].strip()
-            doc = nlp(text)
-            sentences = list(doc.sents)
-            ex_perp = []
-            for sent in sentences:
-                sent = str(sent).strip()
-                tokenize_input = tokenizer.tokenize(sent, truncation=True, max_length=512)
-                tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
-                with torch.no_grad():
-                    loss = model(tensor_input, labels=tensor_input)[0]
-                result = np.exp(loss.cpu().detach().numpy())
-                ex_perp.append(result)
-            overall_perplexity_avg.append(np.mean(ex_perp))
-        print(overall_perplexity_avg[:5])
-
-        ## for article level perplexity
-        # overall_perplexity = []
-        # for example in tqdm(self.dataset):
-        #     tokenize_input = tokenizer.tokenize(example['text'])
-        #     tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
-        #     with torch.no_grad():
-        #         loss = model(tensor_input, labels=tensor_input)[0]
-        #     result = np.exp(loss.cpu().detach().numpy())
-        #     overall_perplexity.append(result)
+        # ## for sentence level perplexity
+        # from spacy.lang.en import English
+        # nlp = English()
+        # nlp.add_pipe("sentencizer")
         #
-        # print(overall_perplexity[:5])
+        # overall_perplexity_avg = []
+        # for example in tqdm(self.dataset):
+        #     text = example['text'].strip()
+        #     doc = nlp(text)
+        #     sentences = list(doc.sents)
+        #     ex_perp = []
+        #     for sent in sentences:
+        #         sent = str(sent).strip()
+        #         tokenize_input = tokenizer.tokenize(sent, truncation=True, max_length=512)
+        #         tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
+        #         with torch.no_grad():
+        #             loss = model(tensor_input, labels=tensor_input)[0]
+        #         result = np.exp(loss.cpu().detach().numpy())
+        #         ex_perp.append(result)
+        #     overall_perplexity_avg.append(np.mean(ex_perp))
+        # print(overall_perplexity_avg[:5])
+
+        # for article level perplexity
+        overall_perplexity = []
+        for example in tqdm(self.dataset):
+            tokenize_input = tokenizer.tokenize(example['text'])
+            tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
+            with torch.no_grad():
+                loss = model(tensor_input, labels=tensor_input)[0]
+            result = np.exp(loss.cpu().detach().numpy())
+            overall_perplexity.append(result)
+
+        print(overall_perplexity[:5])
+        print("Mean perplexity: ", sum(overall_perplexity) / len(overall_perplexity))
 
 
 
