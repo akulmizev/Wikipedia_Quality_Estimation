@@ -96,8 +96,6 @@ class Partition():
         model = AutoModelForMaskedLM.from_pretrained('Davlan/afro-xlmr-base')
         model.eval()
         model.to('cuda')
-        nlp = spacy.load('en_core_web_sm')
-
 
         ## for sentence level perplexity
         overall_perplexity_avg = []
