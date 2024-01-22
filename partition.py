@@ -96,38 +96,39 @@ class Partition():
         model = AutoModelForMaskedLM.from_pretrained('Davlan/afro-xlmr-base')
         model.eval()
         model.to('cuda')
+        nlp = spacy.load('en_core_web_sm')
+
 
         ## for sentence level perplexity
-
-        # text = self.articles[2].split('\n')
-        # regex = re.compile(r'।')
-        # article = []
-        # for line in text:
-        #     line = line.split('।')
-        #     for sentence in line:
-        #         article.append(sentence.strip())
-        #
-        # for art in article:
-        #     if art != '' and len(art.split(' ')) > 1:
-        #         tokenize_input = tokenizer.tokenize(art)
-        #         tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)])
-        #         with torch.no_grad():
-        #             loss = model(tensor_input, labels=tensor_input)[0]
-        #         result = np.exp(loss.detach().numpy())
-        #         print(result)
+        overall_perplexity_avg = []
+        for example in tqdm(self.dataset):
+            text = example['text'].strip()
+            #sentence tokenize the text
+            sentences = nltk.sent_tokenize(text)
+            ex_perp = []
+            for sent in sentences:
+                if sent == '':
+                    continue
+                tokenize_input = tokenizer.tokenize(sent)
+                tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
+                with torch.no_grad():
+                    loss = model(tensor_input, labels=tensor_input)[0]
+                result = np.exp(loss.cpu().detach().numpy())
+                ex_perp.append(result)
+            overall_perplexity_avg.append(np.mean(ex_perp))
+        print(overall_perplexity_avg[:5])
 
         ## for article level perplexity
-        overall_perplexity = []
-        # error_arts = []
-        for example in tqdm(self.dataset):
-            tokenize_input = tokenizer.tokenize(example['text'])
-            tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
-            with torch.no_grad():
-                loss = model(tensor_input, labels=tensor_input)[0]
-            result = np.exp(loss.cpu().detach().numpy())
-            overall_perplexity.append(result)
-
-        print(overall_perplexity[:5])
+        # overall_perplexity = []
+        # for example in tqdm(self.dataset):
+        #     tokenize_input = tokenizer.tokenize(example['text'])
+        #     tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
+        #     with torch.no_grad():
+        #         loss = model(tensor_input, labels=tensor_input)[0]
+        #     result = np.exp(loss.cpu().detach().numpy())
+        #     overall_perplexity.append(result)
+        #
+        # print(overall_perplexity[:5])
 
 
 
