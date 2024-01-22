@@ -105,7 +105,8 @@ class Partition():
         overall_perplexity_avg = []
         for example in tqdm(self.dataset):
             text = example['text'].strip()
-            sentences = list(nlp(text).sents)
+            doc = nlp(text)
+            sentences = [sent.string.strip() for sent in list(doc.sents)]
             ex_perp = []
             for sent in sentences:
                 if sent == '':
