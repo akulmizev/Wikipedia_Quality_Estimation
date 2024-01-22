@@ -85,6 +85,7 @@ class Partition():
         tokenizer = AutoTokenizer.from_pretrained('Davlan/afro-xlmr-base')
         model = AutoModelForMaskedLM.from_pretrained('Davlan/afro-xlmr-base')
         model.eval()
+        model.cuda()
 
         ## for sentence level perplexity
 
