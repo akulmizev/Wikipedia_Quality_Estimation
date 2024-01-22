@@ -95,6 +95,7 @@ class Partition():
         tokenizer = AutoTokenizer.from_pretrained('Davlan/afro-xlmr-base')
         model = AutoModelForMaskedLM.from_pretrained('Davlan/afro-xlmr-base')
         model.eval()
+        model.to('cuda')
 
         ## for sentence level perplexity
 
@@ -119,7 +120,7 @@ class Partition():
         overall_perplexity = []
         # error_arts = []
         for example in tqdm(self.dataset):
-            tokenize_input = tokenizer.tokenize(example['text'], truncation=True, max_length=512).cuda()
+            tokenize_input = tokenizer.tokenize(example['text'], truncation=True, max_length=512)
             tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
             with torch.no_grad():
                 loss = model(tensor_input, labels=tensor_input)[0]
