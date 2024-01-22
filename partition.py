@@ -98,11 +98,10 @@ class Partition():
         for example in tqdm(self.dataset):
             text = example['text'].strip()
             doc = nlp(text)
-            sentences = [sent.strip() for sent in list(doc.sents)]
+            sentences = list(doc.sents)
             ex_perp = []
             for sent in sentences:
-                if sent == '':
-                    continue
+                sent = str(sent).strip()
                 tokenize_input = tokenizer.tokenize(sent)
                 tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
                 with torch.no_grad():
