@@ -42,7 +42,7 @@ class Partition():
         # if not os.path.exists(self.save_dir):
         #     os.mkdir(self.save_dir)
         self.dataset = datasets.load_dataset("wikimedia/wikipedia", f"20231101.{self.language}",
-                                        streaming=False, cache_dir='wikis_cache/')
+                                        streaming=False, cache_dir='wikis_cache/', split="train")
 
     def length(self):
         a_l = [(article, len(article)) for article in self.articles]
