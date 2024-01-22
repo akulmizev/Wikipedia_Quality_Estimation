@@ -16,13 +16,17 @@ from transformers import AutoTokenizer, AutoModelForMaskedLM
 import numpy as np
 import math
 import re
+import datasets
 
 
 
 def create_arg_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-l", "--language", default='naija_pcm',
-                        type=str, help="Location of folder containing the all_pages.csv file.")
+    # parser.add_argument("-l", "--language", default='naija_pcm',
+    #                     type=str, help="Location of folder containing the all_pages.csv file.")
+    parser.add_argument("--lang", default=None, type=str, required=True,
+                        help="Specify language for extracting Wiki dump. Needs to be in ISO-2 format \
+                        (e.g. `pcm` for Naija)")
     parser.add_argument("-p", "--partition", default='length',
                         type=str, help="Partition function to use. Options: length, links, red_pajamas")
 
@@ -30,9 +34,15 @@ def create_arg_parser():
 
 class Partition():
     def __init__(self, language):
+        # self.language = language
+        # self.df = pd.read_csv('wikis/' + self.language + '/all_pages.csv')
+        # self.articles = self.df['text'].tolist()
         self.language = language
-        self.df = pd.read_csv('wikis/' + self.language + '/all_pages.csv')
-        self.articles = self.df['text'].tolist()
+        self.save_dir = 'wikis_cache/' + self.language + '/'
+        if not os.path.exists(self.save_dir):
+            os.mkdir(self.save_dir)
+        self.dataset = datasets.load_dataset("wikimedia/wikipedia", f"20231101.{self.language}",
+                                        streaming=False, cache_dir=self.save_dir)
 
     def length(self):
         a_l = [(article, len(article)) for article in self.articles]
@@ -85,7 +95,6 @@ class Partition():
         tokenizer = AutoTokenizer.from_pretrained('Davlan/afro-xlmr-base')
         model = AutoModelForMaskedLM.from_pretrained('Davlan/afro-xlmr-base')
         model.eval()
-        model.cuda()
 
         ## for sentence level perplexity
 
@@ -109,16 +118,15 @@ class Partition():
         ## for article level perplexity
         overall_perplexity = []
         # error_arts = []
-        for article in tqdm(self.articles):
-            text = article.strip()
-            tokenize_input = tokenizer.tokenize(text, truncation=True, max_length=512)
+        for example in tqdm(self.dataset):
+            tokenize_input = tokenizer.tokenize(example['text'], truncation=True, max_length=512)
             tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
             with torch.no_grad():
                 loss = model(tensor_input, labels=tensor_input)[0]
             result = np.exp(loss.cpu().detach().numpy())
             overall_perplexity.append(result)
 
-        print("Mean perplexity of articles: ", sum(overall_perplexity) / len(overall_perplexity))
+        print(overall_perplexity[:5])
 
 
 
