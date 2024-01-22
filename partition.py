@@ -116,7 +116,8 @@ class Partition():
             with torch.no_grad():
                 loss = model(tensor_input, labels=tensor_input)[0]
                 print(loss)
-            result = np.exp(loss.detach().numpy().cuda())
+            result = loss.exp()
+            # result = np.exp(loss.detach().numpy())
             print(result)
             overall_perplexity.append(result)
 
