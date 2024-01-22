@@ -69,11 +69,12 @@ class Partition():
 
     def red_pajamas(self):
         unique_word_counts = []
-        for article in self.df['text']:
+        for article in self.dataset:
+            article = article['text']
             counts = Counter(article.split())
             unique_word_counts.append(len(counts))
         self.df['unique_word_counts'] = unique_word_counts
-        mean = round(self.df['unique_word_counts'].mean())
+        mean = round(unique_word_counts.mean())
         high_quality = self.df[self.df['unique_word_counts'] >= mean]
         low_quality = self.df[self.df['unique_word_counts'] < mean]
         print("Mean unique word count of articles: ", mean)
@@ -81,15 +82,6 @@ class Partition():
         print("Number of articles in low quality bin: ", len(low_quality))
         return high_quality, low_quality
 
-    def links(self):
-        mean = round(self.df['links'].mean())
-        high_quality = self.df[self.df['links'] >= mean]
-        low_quality = self.df[self.df['links'] < mean]
-        print("Mean number of links of articles: ", mean)
-        print("Number of articles in high quality bin: ", len(high_quality))
-        print("Number of articles in low quality bin: ", len(low_quality))
-
-        return high_quality, low_quality
 
     def perplexity(self):
         tokenizer = AutoTokenizer.from_pretrained('Davlan/afro-xlmr-base')
@@ -106,7 +98,7 @@ class Partition():
         for example in tqdm(self.dataset):
             text = example['text'].strip()
             doc = nlp(text)
-            sentences = [sent.string.strip() for sent in list(doc.sents)]
+            sentences = [sent.strip() for sent in list(doc.sents)]
             ex_perp = []
             for sent in sentences:
                 if sent == '':
