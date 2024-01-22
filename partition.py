@@ -38,11 +38,11 @@ class Partition():
         # self.df = pd.read_csv('wikis/' + self.language + '/all_pages.csv')
         # self.articles = self.df['text'].tolist()
         self.language = language
-        self.save_dir = 'wikis_cache/' + self.language + '/'
-        if not os.path.exists(self.save_dir):
-            os.mkdir(self.save_dir)
+        # self.save_dir = 'wikis_cache/' + self.language + '/'
+        # if not os.path.exists(self.save_dir):
+        #     os.mkdir(self.save_dir)
         self.dataset = datasets.load_dataset("wikimedia/wikipedia", f"20231101.{self.language}",
-                                        streaming=False, cache_dir=self.save_dir)
+                                        streaming=False, cache_dir='wikis_cache/')
 
     def length(self):
         a_l = [(article, len(article)) for article in self.articles]
