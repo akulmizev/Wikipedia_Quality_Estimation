@@ -1,23 +1,15 @@
-# File takes in a wikipedia dump in the format of links_lengths.csv, and splits it into 2 bins -
-# high quality and low quality - based on the partition functions
 
 import os
-
-import nltk
-import pandas as pd
 import argparse
 from collections import Counter
-# import transformers
-import evaluate
 import torch
-import spacy
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 import numpy as np
 import math
 import re
 import datasets
-
+import string
 
 
 def create_arg_parser():
@@ -26,7 +18,7 @@ def create_arg_parser():
                         help="Specify language for extracting Wiki dump. Needs to be in ISO-2 format \
                         (e.g. `pcm` for Naija)")
     parser.add_argument("-p", "--partition", default='length', required=True,
-                        type=str, help="Partition function to use. Options: length, links, red_pajamas")
+                        type=str, help="Partition function to use. Options: length, links, unique_words")
 
     return parser.parse_args()
 
@@ -65,7 +57,8 @@ class Partition():
 
         return high_quality, low_quality
 
-    def red_pajamas(self):
+
+    def unique_words(self):
         unique_word_counts = {}
         for example in self.dataset:
             text = example['text']
@@ -80,6 +73,138 @@ class Partition():
         high_quality = '\n'.join(high_quality)
         low_quality = '\n'.join(low_quality)
 
+        return high_quality, low_quality
+
+    def n_grams(self):
+        from nltk.util import ngrams
+        total_bigrams = {}
+        total_trigrams = {}
+        for example in self.dataset:
+            text = example['text'].strip()
+            words = text.split()
+            bigrams = list(ngrams(words, 2))
+            trigrams = list(ngrams(words, 3))
+            count_bigrams = Counter(bigrams)
+            count_trigrams = Counter(trigrams)
+            total_bigrams[example['id']] = len(count_bigrams)
+            total_trigrams[example['id']] = len(count_trigrams)
+
+        mean_bigrams = np.mean(list(total_bigrams.values()))
+        mean_trigrams = np.mean(list(total_trigrams.values()))
+
+        #just replace trigrams with bigrams to partition based on unique bigrams
+
+        high_quality = [example['text'] for example in self.dataset if total_trigrams[example['id']] >= mean_trigrams]
+        low_quality = [example['text'] for example in self.dataset if total_trigrams[example['id']] < mean_trigrams]
+        print("Mean unique trigram count of articles: ", mean_trigrams)
+        print("Number of articles in high quality bin: ", len(high_quality))
+        print("Number of articles in low quality bin: ", len(low_quality))
+        high_quality = '\n'.join(high_quality)
+        low_quality = '\n'.join(low_quality)
+
+        return high_quality, low_quality
+
+
+
+
+    def word_length(self):
+        mean_word_length = {}
+        overall_mean_word_length = []
+        for example in self.dataset:
+            text = example['text'].strip()
+            words = text.split()
+            len_words = [len(word) for word in words]
+            for length in len_words:
+                overall_mean_word_length.append(length)
+            mean_len = np.mean(len_words)
+            mean_word_length[example['id']] = mean_len
+        overall_mean = np.mean(overall_mean_word_length)
+        print("Overall mean word length: " + str(overall_mean))
+        high_quality = [example['text'] for example in self.dataset if mean_word_length[example['id']] >= overall_mean]
+        low_quality = [example['text'] for example in self.dataset if mean_word_length[example['id']] < overall_mean]
+        print("Number of articles in high quality bin: ", len(high_quality))
+        print("Number of articles in low quality bin: ", len(low_quality))
+        high_quality = '\n'.join(high_quality)
+        low_quality = '\n'.join(low_quality)
+
+        return high_quality, low_quality
+
+    def english_words(self):
+        english_re = re.compile(r'[A-Za-z]')
+        num_english_chars = 0
+        num_punct_chars = 0
+        total_char_count = 0
+        eng_to_lang_ratio = {}
+        for example in self.dataset:
+            num_example_english_chars = 0
+            num_example_punct_chars = 0
+            example_char_count = 0
+            text = example['text'].strip()
+            words = text.split()
+            for word in words:
+                for char in word:
+                    total_char_count += 1
+                    example_char_count += 1
+                    if english_re.match(char):
+                        num_example_english_chars += 1
+                        num_english_chars +=1
+                    elif char in string.punctuation:
+                        num_example_punct_chars += 1
+                        num_punct_chars += 1
+            eng_to_lang_ratio[example['id']] = num_example_english_chars/example_char_count
+        total_ratio = num_english_chars/total_char_count
+        print(f"Total English to {self.language} ratio is {total_ratio}")
+
+        high_quality = [example['text'] for example in self.dataset if eng_to_lang_ratio[example['id']] <= 0]
+        low_quality = [example['text'] for example in self.dataset if eng_to_lang_ratio[example['id']] > 0]
+        print("Number of articles in high quality bin: ", len(high_quality))
+        print("Number of articles in low quality bin: ", len(low_quality))
+        high_quality = '\n'.join(high_quality)
+        low_quality = '\n'.join(low_quality)
+
+        return high_quality, low_quality
+
+    def stupid_filters(self):
+        print("it's working")
+        english_re = re.compile(r'[A-Za-z]')
+
+        print("""#########################################################\n
+        #### Please ignore the print statements here until prompted otherwise #####\n
+        #####################################################""")
+        _, low_quality_wordlength = self.word_length()
+        _, low_quality_ngrams = self.n_grams()
+        _, low_quality_unique_words = self.unique_words()
+        _, low_quality_length = self.length()
+        low_quality = []
+        high_quality = []
+        for example in self.dataset:
+            text = example['text']
+            if self.language != 'pcm' and english_re.match(text):
+                low_quality.append(text)
+                continue
+            elif text in low_quality_ngrams:
+                low_quality.append(text)
+                continue
+            elif text in low_quality_wordlength:
+                low_quality.append(text)
+                continue
+            elif text in low_quality_unique_words:
+                low_quality.append(text)
+                continue
+            elif text in low_quality_length:
+                low_quality.append(text)
+                continue
+            else:
+                high_quality.append(text)
+
+        print("""#########################################################\n
+            #### This is for the splits generated in this partition function #####\n
+            #####################################################""")
+        print("Number of articles in high quality bin: ", len(high_quality))
+        print("Number of articles in low quality bin: ", len(low_quality))
+        print(high_quality[0])
+        high_quality = '\n'.join(high_quality)
+        low_quality = '\n'.join(low_quality)
         return high_quality, low_quality
 
 
@@ -146,10 +271,10 @@ class Partition():
 
 
         # mean = round(sum(list(overall_perplexity.values())) / len(overall_perplexity))
-        mean = np.median(list(overall_perplexity.values()))
-        high_quality = [example['text'] for example in self.dataset if overall_perplexity[example['id']] >= mean]
-        low_quality = [example['text'] for example in self.dataset if overall_perplexity[example['id']] < mean]
-        print("Mean perplexity: ", mean)
+        median = np.median(list(overall_perplexity.values()))
+        high_quality = [example['text'] for example in self.dataset if overall_perplexity[example['id']] >= median]
+        low_quality = [example['text'] for example in self.dataset if overall_perplexity[example['id']] < median]
+        print("Median perplexity: ", median)
         print("Number of articles in high quality bin: ", len(high_quality))
         print("Number of articles in low quality bin: ", len(low_quality))
 
@@ -164,11 +289,20 @@ class Partition():
 def main():
     args = create_arg_parser()
     if args.partition == 'length':
-        bins = Partition(args.language).length()
-    if args.partition == 'red_pajamas':
-        bins = Partition(args.language).red_pajamas()
+        bins = Partition(args.language).length()  # high quality, low quality
+    if args.partition == 'unique_words':
+        bins = Partition(args.language).unique_words()
     if args.partition == 'perplexity':
-        Partition(args.language).perplexity()
+        bins = Partition(args.language).perplexity()
+    if args.partition == 'n_grams':
+        bins = Partition(args.language).n_grams()
+    if args.partition == 'word_length':
+        bins = Partition(args.language).word_length()
+    if args.partition == 'english_words':
+        bins = Partition(args.language).english_words()
+    if args.partition == 'stupid_filters':
+        Partition(args.language).stupid_filters()
+
 
 
         # with open('wikis/' + args.language + '/' + args.partition + 'high_quality.txt', 'w+') as high_quality:
