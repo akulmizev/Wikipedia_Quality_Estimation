@@ -10,6 +10,9 @@ import math
 import re
 import datasets
 import string
+from nltk.util import ngrams
+import pandas as pd
+from scipy.stats.mstats import gmean
 
 
 def create_arg_parser():
@@ -18,7 +21,7 @@ def create_arg_parser():
                         help="Specify language for extracting Wiki dump. Needs to be in ISO-2 format \
                         (e.g. `pcm` for Naija)")
     parser.add_argument("-p", "--partition", default='length', required=True,
-                        type=str, help="Partition function to use. Options: length, links, unique_words")
+                        type=str, help="Partition function to use. Options: length, unique_words")
 
     return parser.parse_args()
 
@@ -29,8 +32,8 @@ class Partition():
         # self.articles = self.df['text'].tolist()
         self.language = language
         # self.save_dir = 'wikis_cache/' + self.language + '/'
-        # if not os.path.exists(self.save_dir):
-        #     os.mkdir(self.save_dir)
+        if not os.path.exists('wikis_cache/'):
+            os.mkdir('wikis_cache/')
         self.dataset = datasets.load_dataset("wikimedia/wikipedia", f"20231101.{self.language}",
                                         streaming=False, cache_dir='wikis_cache/', split="train")
 
@@ -41,7 +44,7 @@ class Partition():
         total_num_chars = 0
         high_quality = []
         low_quality = []
-        for (article, length) in a_l_sorted:
+        for (article, length) in tqdm(a_l_sorted):
             if total_num_chars < cut_off:
                 low_quality.append(article.strip())
                 total_num_chars += length
@@ -55,16 +58,19 @@ class Partition():
         high_quality = '\n'.join(high_quality)
         low_quality = '\n'.join(low_quality)
 
+
+
         return high_quality, low_quality
 
 
     def unique_words(self):
-        unique_word_counts = {}
-        for example in self.dataset:
+        unique_word_counts = {}  #unique subwords?- do that after tokenizers have been trained
+        for example in tqdm(self.dataset):
             text = example['text']
             counts = Counter(text.split())
             unique_word_counts[example['id']] = len(counts)
-        mean = int(np.mean(list(unique_word_counts.values())))
+        # mean = int(np.mean(list(unique_word_counts.values())))
+        mean = gmean(list(unique_word_counts.values()))
         high_quality = [example['text'] for example in self.dataset if unique_word_counts[example['id']] >= mean]
         low_quality = [example['text'] for example in self.dataset if unique_word_counts[example['id']] < mean]
         print("Mean unique word count of articles: ", mean)
@@ -76,26 +82,28 @@ class Partition():
         return high_quality, low_quality
 
     def n_grams(self):
-        from nltk.util import ngrams
+        print("Filtering on unique trigram count...")
         total_bigrams = {}
         total_trigrams = {}
-        for example in self.dataset:
+        for example in tqdm(self.dataset):
             text = example['text'].strip()
             words = text.split()
             bigrams = list(ngrams(words, 2))
             trigrams = list(ngrams(words, 3))
             count_bigrams = Counter(bigrams)
             count_trigrams = Counter(trigrams)
-            total_bigrams[example['id']] = len(count_bigrams)
-            total_trigrams[example['id']] = len(count_trigrams)
+            total_bigrams[example['text']] = len(count_bigrams)
+            total_trigrams[example['text']] = len(count_trigrams)
 
         mean_bigrams = np.mean(list(total_bigrams.values()))
-        mean_trigrams = np.mean(list(total_trigrams.values()))
-
+        # mean_trigrams = np.mean(list(total_trigrams.values()))
+        mean_trigrams = gmean(list(total_trigrams.values()))
         #just replace trigrams with bigrams to partition based on unique bigrams
+        high_quality = [k for k,v in tqdm(total_trigrams.items()) if v >= mean_trigrams]
+        low_quality = [k for k,v in tqdm(total_trigrams.items()) if v < mean_trigrams]
 
-        high_quality = [example['text'] for example in self.dataset if total_trigrams[example['id']] >= mean_trigrams]
-        low_quality = [example['text'] for example in self.dataset if total_trigrams[example['id']] < mean_trigrams]
+        # high_quality = [example['text'] for example in self.dataset if total_trigrams[example['id']] >= mean_trigrams] #make this faster
+        # low_quality = [example['text'] for example in self.dataset if total_trigrams[example['id']] < mean_trigrams]
         print("Mean unique trigram count of articles: ", mean_trigrams)
         print("Number of articles in high quality bin: ", len(high_quality))
         print("Number of articles in low quality bin: ", len(low_quality))
@@ -108,55 +116,71 @@ class Partition():
 
 
     def word_length(self):
+        print("Filtering mean word length...")
         mean_word_length = {}
         overall_mean_word_length = []
-        for example in self.dataset:
+        for example in tqdm(self.dataset):
             text = example['text'].strip()
             words = text.split()
             len_words = [len(word) for word in words]
             for length in len_words:
                 overall_mean_word_length.append(length)
             mean_len = np.mean(len_words)
-            mean_word_length[example['id']] = mean_len
-        overall_mean = np.mean(overall_mean_word_length)
+            mean_word_length[example['id']] = [mean_len, example['text']]
+        # overall_mean = np.mean(overall_mean_word_length)
+        overall_mean = gmean(overall_mean_word_length)
         print("Overall mean word length: " + str(overall_mean))
-        high_quality = [example['text'] for example in self.dataset if mean_word_length[example['id']] >= overall_mean]
-        low_quality = [example['text'] for example in self.dataset if mean_word_length[example['id']] < overall_mean]
+        high_quality = [example[1] for example in tqdm(mean_word_length.values()) if example[0] >= overall_mean] #make this faster
+        low_quality = [example[1] for example in tqdm(mean_word_length.values()) if example[0] < overall_mean]
+        # high_quality = [example['text'] for example in self.dataset if mean_word_length[example['id']] >= overall_mean] #make this faster
+        # high_quality = {k: v for k, v in mean_word_length.items() if v >= overall_mean}
+        # low_quality = [example['text'] for example in self.dataset if mean_word_length[example['id']] < overall_mean]
         print("Number of articles in high quality bin: ", len(high_quality))
         print("Number of articles in low quality bin: ", len(low_quality))
         high_quality = '\n'.join(high_quality)
         low_quality = '\n'.join(low_quality)
 
         return high_quality, low_quality
+        # return high_quality
 
-    def english_words(self):
-        english_re = re.compile(r'[A-Za-z]')
+    def english_chars(self):
+        english_re = re.compile(r'[A-Za-z]')  #get ratio between ascii and non-ascii characters
         num_english_chars = 0
-        num_punct_chars = 0
-        total_char_count = 0
-        eng_to_lang_ratio = {}
-        for example in self.dataset:
-            num_example_english_chars = 0
-            num_example_punct_chars = 0
-            example_char_count = 0
-            text = example['text'].strip()
-            words = text.split()
-            for word in words:
-                for char in word:
-                    total_char_count += 1
-                    example_char_count += 1
-                    if english_re.match(char):
-                        num_example_english_chars += 1
-                        num_english_chars +=1
-                    elif char in string.punctuation:
-                        num_example_punct_chars += 1
-                        num_punct_chars += 1
-            eng_to_lang_ratio[example['id']] = num_example_english_chars/example_char_count
-        total_ratio = num_english_chars/total_char_count
-        print(f"Total English to {self.language} ratio is {total_ratio}")
 
-        high_quality = [example['text'] for example in self.dataset if eng_to_lang_ratio[example['id']] <= 0]
-        low_quality = [example['text'] for example in self.dataset if eng_to_lang_ratio[example['id']] > 0]
+        high_quality = []
+        low_quality = []
+        for example in tqdm(self.dataset):   #do either average number of latin char matches or ratio of latin to non-latin chars
+            # num_example_english_chars = 0
+            # num_example_punct_chars = 0
+            # example_char_count = 0
+            text = example['text'].strip()
+            match = 0
+            if english_re.match(text):
+                match += 1
+            total = len(text)
+            ratio = match/total
+            if ratio > 0.2:
+                low_quality.append(text)
+            else:
+                high_quality.append(text)
+
+        #     words = text.split()
+        #     for word in words:
+        #         for char in word:
+        #             total_char_count += 1
+        #             example_char_count += 1
+        #             if english_re.match(char):
+        #                 num_example_english_chars += 1
+        #                 num_english_chars +=1
+        #             elif char in string.punctuation:
+        #                 num_example_punct_chars += 1
+        #                 num_punct_chars += 1
+        #     eng_to_lang_ratio[example['id']] = num_example_english_chars/example_char_count
+        # total_ratio = num_english_chars/total_char_count
+        # print(f"Total English to {self.language} ratio is {total_ratio}")
+
+        # high_quality = [example['text'] for example in self.dataset if eng_to_lang_ratio[example['id']] <= 0]
+        # low_quality = [example['text'] for example in self.dataset if eng_to_lang_ratio[example['id']] > 0]
         print("Number of articles in high quality bin: ", len(high_quality))
         print("Number of articles in low quality bin: ", len(low_quality))
         high_quality = '\n'.join(high_quality)
@@ -165,47 +189,176 @@ class Partition():
         return high_quality, low_quality
 
     def stupid_filters(self):
-        print("it's working")
-        english_re = re.compile(r'[A-Za-z]')
 
-        print("""#########################################################\n
-        #### Please ignore the print statements here until prompted otherwise #####\n
-        #####################################################""")
-        _, low_quality_wordlength = self.word_length()
-        _, low_quality_ngrams = self.n_grams()
-        _, low_quality_unique_words = self.unique_words()
-        _, low_quality_length = self.length()
+        article_length = []
+        unique_word_counts = {}
+        total_trigrams = {}
+        mean_word_length = {}
+        overall_mean_word_length = []
+        english_re = re.compile(r'[A-Za-z]')
+        low_quality_english_chars = []
+
+        for example in tqdm(self.dataset):
+            text = example['text'].strip()
+            words = text.split()
+
+            article_length.append((example['text'], len(text)))
+
+            counts = Counter(words)
+            unique_word_counts[example['text']] = len(counts)
+
+            trigrams = list(ngrams(words, 3))
+            count_trigrams = Counter(trigrams)
+            total_trigrams[example['text']] = len(count_trigrams)
+
+            word_lengths = [len(word) for word in words]
+            for length in word_lengths:
+                overall_mean_word_length.append(length)
+            mean_len_article = np.mean(word_lengths)
+            mean_word_length[example['text']] = mean_len_article
+
+            if self.language != 'pcm':
+                match = 0
+                total = len(text)
+                if english_re.match(text):
+                    match += 1
+                ratio = match/total
+                if ratio > 0.2:
+                    low_quality_english_chars.append(example['text'])
+
+
+
+        print("Number of articles in low quality english chars: ", len(low_quality_english_chars))
+
+        print("On length...")
+        article_length_sorted = sorted(article_length, key=lambda x: x[1], reverse=False)
+        length_cutoff = round(sum(l for _, l in article_length)/2)
+        total_num_chars = 0
+        low_quality_length = []
+        for (article, length) in tqdm(article_length_sorted):
+            if total_num_chars < length_cutoff:
+                low_quality_length.append(article.strip())
+                total_num_chars += length
+            else:
+                total_num_chars += length
+        print("Number of articles in low quality length: ", len(low_quality_length))
+
+        print("On unique words...")
+        unique_word_cutoff = int(np.mean(list(unique_word_counts.values())))
+        low_quality_unique_words = [key for key, value in unique_word_counts.items() if value < unique_word_cutoff]
+        print("Number of articles in low quality unique words: ", len(low_quality_unique_words))
+
+        print("On trigrams...")
+
+        mean_trigram_count = int(np.mean(list(total_trigrams.values())))
+        low_quality_ngrams = [key for key, value in total_trigrams.items() if value < mean_trigram_count]
+        print("Number of articles in low quality ngrams: ", len(low_quality_ngrams))
+
+        print("On word length...")
+
+        mean_word_len_cutoff = np.mean(overall_mean_word_length)
+        low_quality_wordlength = [key for key, value in mean_word_length.items() if value < mean_word_len_cutoff]
+        print("Number of articles in low quality word length: ", len(low_quality_wordlength))
+
+        # low_quality = self.dataset.filter(lambda x: x['text'] in low_quality_wordlength or
+        #                                             x['text'] in low_quality_ngrams or
+        #                                             x['text'] in low_quality_unique_words or
+        #                                             x['text'] in low_quality_length or
+        #                                             x['text'] in low_quality_english_chars)
+        # low_quality = [example['text'] for example in low_quality]
+        #
+        # high_quality = self.dataset.filter(lambda x: x['text'] not in low_quality)
+        # high_quality = [example['text'] for example in high_quality]
+
         low_quality = []
         high_quality = []
-        for example in self.dataset:
-            text = example['text']
-            if self.language != 'pcm' and english_re.match(text):
-                low_quality.append(text)
-                continue
-            elif text in low_quality_ngrams:
-                low_quality.append(text)
-                continue
-            elif text in low_quality_wordlength:
-                low_quality.append(text)
-                continue
-            elif text in low_quality_unique_words:
-                low_quality.append(text)
-                continue
-            elif text in low_quality_length:
-                low_quality.append(text)
-                continue
+        for example in tqdm(self.dataset):
+            if example['text'] in low_quality_wordlength or \
+                example['text'] in low_quality_ngrams or \
+                example['text'] in low_quality_unique_words or \
+                example['text'] in low_quality_length or \
+                example['text'] in low_quality_english_chars:
+                low_quality.append(example['text'])
             else:
-                high_quality.append(text)
+                high_quality.append(example['text'])
 
-        print("""#########################################################\n
-            #### This is for the splits generated in this partition function #####\n
-            #####################################################""")
         print("Number of articles in high quality bin: ", len(high_quality))
         print("Number of articles in low quality bin: ", len(low_quality))
-        print(high_quality[0])
-        high_quality = '\n'.join(high_quality)
-        low_quality = '\n'.join(low_quality)
-        return high_quality, low_quality
+
+    def stats(self):
+        article_length = {}
+        unique_word_counts = {}
+        total_trigrams = {}
+        word_length = {}
+        overall_mean_word_length = []
+        english_re = re.compile(r'[A-Za-z]')
+        english_chars = {}
+        for example in tqdm(self.dataset):
+            text = example['text'].strip()
+            words = text.split()
+
+            article_length[example['id']] = len(text)
+
+            counts = Counter(words)
+            unique_word_counts[example['id']] = len(counts)
+
+            trigrams = list(ngrams(words, 3))
+            count_trigrams = Counter(trigrams)
+            total_trigrams[example['id']] = len(count_trigrams)
+
+            word_lengths = [len(word) for word in words]
+            for length in word_lengths:
+                overall_mean_word_length.append(length)
+            mean_len_article = np.mean(word_lengths)
+            word_length[example['id']] = mean_len_article
+
+            if self.language != 'pcm':
+                match = 0 #get ratio with not-match chars also
+                not_match = 0
+                total = 0
+                for char in text:
+                    if english_re.match(char):
+                        match += 1
+                    total += 1
+                        # if example['id'] in english_chars:
+                        #     english_chars[example['id']] += 1
+                        #     match += 1
+                        # else:
+                        #     english_chars[example['id']] = 1
+                    #elif not english_re.match(char):
+                    #    not_match +=1
+                if match/total > 0.6:
+                    print(example['id'])
+                    print(text)
+                    print("="*50)
+                english_chars[example['id']] = match/total
+
+        df_article_length = pd.DataFrame(article_length.items(), columns=['id', 'length'])
+        df_unique_word_counts = pd.DataFrame(unique_word_counts.items(), columns=['id', 'unique_words'])
+        df_total_trigrams = pd.DataFrame(total_trigrams.items(), columns=['id', 'trigrams'])
+        df_mean_word_length = pd.DataFrame(word_length.items(), columns=['id', 'mean_word_length'])
+        df_english_chars = pd.DataFrame(english_chars.items(), columns=['id', 'english_chars'])
+        stats_dir = 'stats_' + self.language + '/'
+        if not os.path.exists(stats_dir):
+            os.makedirs(stats_dir)
+
+        df_article_length.to_csv(stats_dir + 'article_length.csv', index=False)
+        df_unique_word_counts.to_csv(stats_dir + 'unique_word_counts.csv', index=False)
+        df_total_trigrams.to_csv(stats_dir + 'total_trigrams.csv', index=False)
+        df_mean_word_length.to_csv(stats_dir + 'mean_word_length.csv', index=False)
+        if self.language != 'pcm':
+            df_english_chars.to_csv(stats_dir + 'english_chars.csv', index=False)
+
+
+
+
+
+
+
+
+
+
+
 
 
     def perplexity(self):
@@ -299,9 +452,11 @@ def main():
     if args.partition == 'word_length':
         bins = Partition(args.language).word_length()
     if args.partition == 'english_words':
-        bins = Partition(args.language).english_words()
+        bins = Partition(args.language).english_chars()
     if args.partition == 'stupid_filters':
         Partition(args.language).stupid_filters()
+    if args.partition == 'stats':
+        Partition(args.language).stats()
 
 
 
