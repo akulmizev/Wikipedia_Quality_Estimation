@@ -19,7 +19,7 @@ The idea here is to have a stream-lined easy-to-run repo which would conceptuall
   -   word_length
   -   english_chars
   -   stupid_filters (runs all of the above in one function)
-- You can also specify whether you want to use the raw version of the wikiepdia, or the filtered one (where text has been filtered on a regex that remove latin chars in non-latin languages, and then further filtered using a language ID model) by:
+- You can also specify whether you want to use the raw version of the wikiepdia, or the filtered one (where text has been filtered on a regex that removes all latin chars in non-latin languages, and then further filtered using a language ID model) by:
  
 `python partition.py -l <language> -p <partition> --filtered True/False`
 
