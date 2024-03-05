@@ -395,7 +395,7 @@ class Partition():
         df_total_trigrams = pd.DataFrame(total_trigrams.items(), columns=['id', 'trigrams'])
         df_mean_word_length = pd.DataFrame(word_length.items(), columns=['id', 'mean_word_length'])
         df_english_chars = pd.DataFrame(english_chars.items(), columns=['id', 'english_chars'])
-        stats_dir = 'stats_' + self.language + '/'
+        stats_dir = 'stats/' + self.language + '/'
         if not os.path.exists(stats_dir):
             os.makedirs(stats_dir)
 
