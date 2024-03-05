@@ -8,7 +8,7 @@ The idea here is to have a stream-lined easy-to-run repo which would conceptuall
 - evaluate.py
 - run.sh (containing one slurm file that runs everything)
 
-## To generate splits on partition functions:
+### To generate splits on partition functions:
 `python partition.py --language [-l] as --partition [-p] stupid_filters` 
 - Specify language in the ISO-2 format.
 - Specify the partition function. Options:
@@ -28,9 +28,11 @@ It is set to `True` by default.
 
 Running this script will create a `wikis/<language>/` directory where both your high_quality and low_quality partitions will be saved.
 
-## To see stats per partition function, run:
+### To see stats per partition function:
+
 `python partition.py -l <language> -p stats`
+
 This will create a directory called 'stats' and save csv files for every partition function, which you can then explore in the jupyter notebook `stats.ipynb`.
 
-## To add new partition functions:
+### To add new partition functions:
 The class `Partition()` loads the specified wikipedia upon calling, and creates two variables - `self.language` (containing the language code) and `self.dataset` (containing the huggingface dataset). These are accessible to all the functions contained in `class Partition()`. To add your own partition, define a function in the class partition that returns a string of high_quality and low_quality examples separated by a newline. That function can then be called under main(). 
