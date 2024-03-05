@@ -409,16 +409,6 @@ class Partition():
 
 
 
-
-
-
-
-
-
-
-
-
-
     def perplexity(self):
         tokenizer = AutoTokenizer.from_pretrained('Davlan/afro-xlmr-base')
         model = AutoModelForMaskedLM.from_pretrained('Davlan/afro-xlmr-base')
@@ -521,9 +511,9 @@ def main():
     if not os.path.exists('wikis/' + args.language):
         os.makedirs('wikis/' + args.language)
 
-    with open('wikis/' + args.language + '/' + args.partition + 'high_quality.txt', 'w+') as high_quality:
+    with open('wikis/' + args.language + '/' + args.partition + '_high_quality.txt', 'w+') as high_quality:
         high_quality.write(bins[0])
-    with open('wikis/' + args.language + '/' + args.partition + 'low_quality.txt', 'w+') as low_quality:
+    with open('wikis/' + args.language + '/' + args.partition + '_low_quality.txt', 'w+') as low_quality:
         low_quality.write(bins[1])
 
 if __name__ == '__main__':
