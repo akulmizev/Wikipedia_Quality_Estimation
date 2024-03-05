@@ -41,7 +41,7 @@ class Partition():
         if filtered:
             print("Using filtered version of the wikipedia")
             self.dataset = load_dataset(f"WikiQuality/{self.language}_filtered",
-                                                 cache_dir='wikis_cache/', split="train")
+                                        cache_dir='wikis_cache/', split="train")
         else:
             self.dataset = load_dataset("wikimedia/wikipedia", f"20231101.{self.language}",
                                         streaming=False, cache_dir='wikis_cache/', split="train")
@@ -120,32 +120,32 @@ class Partition():
             tokens = tokeniser.encode(text).tokens
             counts = Counter(tokens)
             words = text.split()
-            # unique_subword_counts[example['text']] = len(counts)
+            unique_subword_counts[example['text']] = len(counts)
             # use this to calculate fertility
-            unique_subword_counts[example['text']] = len(counts), len(tokens), len(words)
+            # unique_subword_counts[example['text']] = len(counts), len(tokens), len(words)
 
-        # mean = int(np.mean(list(unique_subword_counts.values())))
-        # # mean = gmean([n+1 for n in unique_subword_counts.values()])
-        # high_quality = [k for k,v in tqdm(unique_subword_counts.items()) if v >= mean]
-        # low_quality = [k for k,v in tqdm(unique_subword_counts.items()) if v < mean]
-        #
-        #
-        # print("Mean unique subword count of articles: ", mean)
-        # print("Number of articles in high quality bin: ", len(high_quality))
-        # print("Number of articles in low quality bin: ", len(low_quality))
-        # high_quality = '\n'.join(high_quality)
-        # low_quality = '\n'.join(low_quality)
-        #
-        # return high_quality, low_quality
+        mean = int(np.mean(list(unique_subword_counts.values())))
+        # mean = gmean([n+1 for n in unique_subword_counts.values()])
+        high_quality = [k for k,v in tqdm(unique_subword_counts.items()) if v >= mean]
+        low_quality = [k for k,v in tqdm(unique_subword_counts.items()) if v < mean]
+
+
+        print("Mean unique subword count of articles: ", mean)
+        print("Number of articles in high quality bin: ", len(high_quality))
+        print("Number of articles in low quality bin: ", len(low_quality))
+        high_quality = '\n'.join(high_quality)
+        low_quality = '\n'.join(low_quality)
+
+        return high_quality, low_quality
 
         # calculate fertility - comment out the above and uncomment this
-        fertility= sum([v[1] for v in unique_subword_counts.values()])/sum([v[2] for v in unique_subword_counts.values()])
-        print("Fertility of the language: ", fertility)
+        # fertility= sum([v[1] for v in unique_subword_counts.values()])/sum([v[2] for v in unique_subword_counts.values()])
+        # print("Fertility of the language: ", fertility)
 
 
 
 
-    def n_grams(self):
+    def unique_trigrams(self):
         print("Filtering on unique trigram count...")
         # total_bigrams = {}
         total_trigrams = {}
@@ -507,8 +507,8 @@ def main():
         bins = Partition(args.language, args.filtered).unique_subwords()
     if args.partition == 'perplexity':
         bins = Partition(args.language, args.filtered).perplexity()
-    if args.partition == 'n_grams':
-        bins = Partition(args.language, args.filtered).n_grams()
+    if args.partition == 'unique_trigrams':
+        bins = Partition(args.language, args.filtered).unique_trigrams()
     if args.partition == 'word_length':
         bins = Partition(args.language, args.filtered).word_length()
     if args.partition == 'english_chars':
@@ -518,12 +518,13 @@ def main():
     if args.partition == 'stats':
         Partition(args.language, args.filtered).stats()
 
+    if not os.path.exists('wikis/' + args.language):
+        os.makedirs('wikis/' + args.language)
 
-
-        with open('wikis/' + args.language + '/' + args.partition + 'high_quality.txt', 'w+') as high_quality:
-            high_quality.write(bins[0])
-        with open('wikis/' + args.language + '/' + args.partition + 'low_quality.txt', 'w+') as low_quality:
-            low_quality.write(bins[1])
+    with open('wikis/' + args.language + '/' + args.partition + 'high_quality.txt', 'w+') as high_quality:
+        high_quality.write(bins[0])
+    with open('wikis/' + args.language + '/' + args.partition + 'low_quality.txt', 'w+') as low_quality:
+        low_quality.write(bins[1])
 
 if __name__ == '__main__':
     main()
