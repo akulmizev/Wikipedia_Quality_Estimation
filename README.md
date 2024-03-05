@@ -12,14 +12,15 @@ The idea here is to have a stream-lined easy-to-run repo which would conceptuall
 `python partition.py --language [-l] as --partition [-p] stupid_filters` 
 - Specify language in the ISO-2 format.
 - Specify the partition function. Options:
--   length
--   unique_words
--   unique_subwords
--   unique_trigrams
--   word_length
--   english_chars
--   stupid_filters (runs all of the above in one function)
+  -   length
+  -   unique_words
+  -   unique_subwords
+  -   unique_trigrams
+  -   word_length
+  -   english_chars
+  -   stupid_filters (runs all of the above in one function)
 - You can also specify whether you want to use the raw version of the wikiepdia, or the filtered one (where text has been filtered on a regex that remove latin chars in non-latin languages, and then further filtered using a language ID model) by:
+  
 `python partition.py -l <language> -p <partition> --filtered True/False`
 It is set to `True` by default.
 
