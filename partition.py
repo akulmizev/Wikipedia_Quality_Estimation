@@ -489,32 +489,34 @@ class Partition():
 
 def main():
     args = create_arg_parser()
-    if args.partition == 'length':
-        bins = Partition(args.language, args.filtered).length()  # high quality, low quality
-    if args.partition == 'unique_words':
-        bins = Partition(args.language, args.filtered).unique_words()
-    if args.partition == 'unique_subwords':
-        bins = Partition(args.language, args.filtered).unique_subwords()
-    if args.partition == 'perplexity':
-        bins = Partition(args.language, args.filtered).perplexity()
-    if args.partition == 'unique_trigrams':
-        bins = Partition(args.language, args.filtered).unique_trigrams()
-    if args.partition == 'word_length':
-        bins = Partition(args.language, args.filtered).word_length()
-    if args.partition == 'english_chars':
-        bins = Partition(args.language, args.filtered).english_chars()
-    if args.partition == 'stupid_filters':
-        bins = Partition(args.language, args.filtered).stupid_filters()
     if args.partition == 'stats':
         Partition(args.language, args.filtered).stats()
+    else:
+        if args.partition == 'length':
+            bins = Partition(args.language, args.filtered).length()  # high quality, low quality
+        if args.partition == 'unique_words':
+            bins = Partition(args.language, args.filtered).unique_words()
+        if args.partition == 'unique_subwords':
+            bins = Partition(args.language, args.filtered).unique_subwords()
+        if args.partition == 'perplexity':
+            bins = Partition(args.language, args.filtered).perplexity()
+        if args.partition == 'unique_trigrams':
+            bins = Partition(args.language, args.filtered).unique_trigrams()
+        if args.partition == 'word_length':
+            bins = Partition(args.language, args.filtered).word_length()
+        if args.partition == 'english_chars':
+            bins = Partition(args.language, args.filtered).english_chars()
+        if args.partition == 'stupid_filters':
+            bins = Partition(args.language, args.filtered).stupid_filters()
 
-    if not os.path.exists('wikis/' + args.language):
-        os.makedirs('wikis/' + args.language)
+        if not os.path.exists('wikis/' + args.language):
+            os.makedirs('wikis/' + args.language)
 
-    with open('wikis/' + args.language + '/' + args.partition + '_high_quality.txt', 'w+') as high_quality:
-        high_quality.write(bins[0])
-    with open('wikis/' + args.language + '/' + args.partition + '_low_quality.txt', 'w+') as low_quality:
-        low_quality.write(bins[1])
+
+        with open('wikis/' + args.language + '/' + args.partition + '_high_quality.txt', 'w+') as high_quality:
+            high_quality.write(bins[0])
+        with open('wikis/' + args.language + '/' + args.partition + '_low_quality.txt', 'w+') as low_quality:
+            low_quality.write(bins[1])
 
 if __name__ == '__main__':
     main()
