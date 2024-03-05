@@ -40,7 +40,7 @@ class Partition():
             os.mkdir('wikis_cache/')
         if filtered:
             print("Using filtered version of the wikipedia")
-            self.dataset = load_dataset(f"WikiQuality/{self.language}.filtered",
+            self.dataset = load_dataset(f"WikiQuality/{self.language}_filtered",
                                         cache_dir='wikis_cache/', split="train")
         else:
             self.dataset = load_dataset("wikimedia/wikipedia", f"20231101.{self.language}",
@@ -115,39 +115,32 @@ class Partition():
     def unique_subwords(self):
         tokeniser = Tokenizer.from_file(f'tokenizers/wiki.{self.language}.json')
         unique_subword_counts = {}
-        word_counter = 0
-        subword_counter = 0
         for example in tqdm(self.dataset):
             text = example['text'].strip()
             tokens = tokeniser.encode(text).tokens
             counts = Counter(tokens)
             words = text.split()
-
             unique_subword_counts[example['text']] = len(counts)
             # use this to calculate fertility
-            for word in words:
-                subword_counter += len(tokeniser.encode(word).tokens)
-                word_counter += 1
             # unique_subword_counts[example['text']] = len(counts), len(tokens), len(words)
 
-        # mean = int(np.mean(list(unique_subword_counts.values())))
-        # # mean = gmean([n+1 for n in unique_subword_counts.values()])
-        # high_quality = [k for k,v in tqdm(unique_subword_counts.items()) if v >= mean]
-        # low_quality = [k for k,v in tqdm(unique_subword_counts.items()) if v < mean]
-        #
-        #
-        # print("Mean unique subword count of articles: ", mean)
-        # print("Number of articles in high quality bin: ", len(high_quality))
-        # print("Number of articles in low quality bin: ", len(low_quality))
-        # high_quality = '\n'.join(high_quality)
-        # low_quality = '\n'.join(low_quality)
-        #
-        # return high_quality, low_quality
+        mean = int(np.mean(list(unique_subword_counts.values())))
+        # mean = gmean([n+1 for n in unique_subword_counts.values()])
+        high_quality = [k for k,v in tqdm(unique_subword_counts.items()) if v >= mean]
+        low_quality = [k for k,v in tqdm(unique_subword_counts.items()) if v < mean]
+
+
+        print("Mean unique subword count of articles: ", mean)
+        print("Number of articles in high quality bin: ", len(high_quality))
+        print("Number of articles in low quality bin: ", len(low_quality))
+        high_quality = '\n'.join(high_quality)
+        low_quality = '\n'.join(low_quality)
+
+        return high_quality, low_quality
 
         # calculate fertility - comment out the above and uncomment this
         # fertility= sum([v[1] for v in unique_subword_counts.values()])/sum([v[2] for v in unique_subword_counts.values()])
-        fertility = subword_counter/word_counter
-        print("Fertility of the tokenizer: ", fertility)
+        # print("Fertility of the language: ", fertility)
 
 
 
@@ -196,10 +189,8 @@ class Partition():
             mean_len = np.mean(len_words)
             mean_word_length[example['id']] = [mean_len, example['text']]
         overall_mean = np.mean(overall_mean_word_length)
-        sd = np.std(overall_mean_word_length)
         # overall_mean = gmean(overall_mean_word_length)
         print("Overall mean word length: " + str(overall_mean))
-        print("Standard deviation of word length: " + str(sd))
         high_quality = [example[1] for example in tqdm(mean_word_length.values()) if example[0] >= overall_mean]
         low_quality = [example[1] for example in tqdm(mean_word_length.values()) if example[0] < overall_mean]
 
@@ -404,7 +395,7 @@ class Partition():
         df_total_trigrams = pd.DataFrame(total_trigrams.items(), columns=['id', 'trigrams'])
         df_mean_word_length = pd.DataFrame(word_length.items(), columns=['id', 'mean_word_length'])
         df_english_chars = pd.DataFrame(english_chars.items(), columns=['id', 'english_chars'])
-        stats_dir = 'stats/' + self.language + '/'
+        stats_dir = 'stats_' + self.language + '/'
         if not os.path.exists(stats_dir):
             os.makedirs(stats_dir)
 
@@ -415,6 +406,16 @@ class Partition():
         df_mean_word_length.to_csv(stats_dir + 'mean_word_length.csv', index=False)
         if self.language != 'pcm':
             df_english_chars.to_csv(stats_dir + 'english_chars.csv', index=False)
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -498,34 +499,32 @@ class Partition():
 
 def main():
     args = create_arg_parser()
+    if args.partition == 'length':
+        bins = Partition(args.language, args.filtered).length()  # high quality, low quality
+    if args.partition == 'unique_words':
+        bins = Partition(args.language, args.filtered).unique_words()
+    if args.partition == 'unique_subwords':
+        bins = Partition(args.language, args.filtered).unique_subwords()
+    if args.partition == 'perplexity':
+        bins = Partition(args.language, args.filtered).perplexity()
+    if args.partition == 'unique_trigrams':
+        bins = Partition(args.language, args.filtered).unique_trigrams()
+    if args.partition == 'word_length':
+        bins = Partition(args.language, args.filtered).word_length()
+    if args.partition == 'english_chars':
+        bins = Partition(args.language, args.filtered).english_chars()
+    if args.partition == 'stupid_filters':
+        bins = Partition(args.language, args.filtered).stupid_filters()
     if args.partition == 'stats':
         Partition(args.language, args.filtered).stats()
-    else:
-        if args.partition == 'length':
-            bins = Partition(args.language, args.filtered).length()  # high quality, low quality
-        if args.partition == 'unique_words':
-            bins = Partition(args.language, args.filtered).unique_words()
-        if args.partition == 'unique_subwords':
-            bins = Partition(args.language, args.filtered).unique_subwords()
-        if args.partition == 'perplexity':
-            bins = Partition(args.language, args.filtered).perplexity()
-        if args.partition == 'unique_trigrams':
-            bins = Partition(args.language, args.filtered).unique_trigrams()
-        if args.partition == 'word_length':
-            bins = Partition(args.language, args.filtered).word_length()
-        if args.partition == 'english_chars':
-            bins = Partition(args.language, args.filtered).english_chars()
-        if args.partition == 'stupid_filters':
-            bins = Partition(args.language, args.filtered).stupid_filters()
 
-        if not os.path.exists('wikis/' + args.language):
-            os.makedirs('wikis/' + args.language)
+    if not os.path.exists('wikis/' + args.language):
+        os.makedirs('wikis/' + args.language)
 
-
-        with open('wikis/' + args.language + '/' + args.partition + '_high_quality.txt', 'w+') as high_quality:
-            high_quality.write(bins[0])
-        with open('wikis/' + args.language + '/' + args.partition + '_low_quality.txt', 'w+') as low_quality:
-            low_quality.write(bins[1])
+    with open('wikis/' + args.language + '/' + args.partition + 'high_quality.txt', 'w+') as high_quality:
+        high_quality.write(bins[0])
+    with open('wikis/' + args.language + '/' + args.partition + 'low_quality.txt', 'w+') as low_quality:
+        low_quality.write(bins[1])
 
 if __name__ == '__main__':
     main()
