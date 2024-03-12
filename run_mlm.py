@@ -416,6 +416,13 @@ def main():
     }
     if model_args.tokenizer_name:
         tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name, **tokenizer_kwargs)
+        tokenizer.bos_token = "[BOS]"
+        tokenizer.eos_token = "[EOS]"
+        tokenizer.unk_token = "[UNK]"
+        tokenizer.pad_token = "[PAD]"
+        tokenizer.mask_token = "[MASK]"
+        tokenizer.sep_token = "[SEP]"
+        tokenizer.cls_token = "[CLS]"
     elif model_args.model_name_or_path:
         tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
     else:
