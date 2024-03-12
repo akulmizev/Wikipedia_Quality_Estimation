@@ -40,7 +40,7 @@ class Partition():
             os.mkdir('wikis_cache/')
         if filtered:
             print("Using filtered version of the wikipedia")
-            self.dataset = load_dataset(f"WikiQuality/{self.language}_filtered",
+            self.dataset = load_dataset(f"WikiQuality/{self.language}.filtered",
                                         cache_dir='wikis_cache/', split="train")
         else:
             self.dataset = load_dataset("wikimedia/wikipedia", f"20231101.{self.language}",
@@ -115,32 +115,39 @@ class Partition():
     def unique_subwords(self):
         tokeniser = Tokenizer.from_file(f'tokenizers/wiki.{self.language}.json')
         unique_subword_counts = {}
+        word_counter = 0
+        subword_counter = 0
         for example in tqdm(self.dataset):
             text = example['text'].strip()
             tokens = tokeniser.encode(text).tokens
             counts = Counter(tokens)
             words = text.split()
+
             unique_subword_counts[example['text']] = len(counts)
             # use this to calculate fertility
+            for word in words:
+                subword_counter += len(tokeniser.encode(word).tokens)
+                word_counter += 1
             # unique_subword_counts[example['text']] = len(counts), len(tokens), len(words)
 
-        mean = int(np.mean(list(unique_subword_counts.values())))
-        # mean = gmean([n+1 for n in unique_subword_counts.values()])
-        high_quality = [k for k,v in tqdm(unique_subword_counts.items()) if v >= mean]
-        low_quality = [k for k,v in tqdm(unique_subword_counts.items()) if v < mean]
-
-
-        print("Mean unique subword count of articles: ", mean)
-        print("Number of articles in high quality bin: ", len(high_quality))
-        print("Number of articles in low quality bin: ", len(low_quality))
-        high_quality = '\n'.join(high_quality)
-        low_quality = '\n'.join(low_quality)
-
-        return high_quality, low_quality
+        # mean = int(np.mean(list(unique_subword_counts.values())))
+        # # mean = gmean([n+1 for n in unique_subword_counts.values()])
+        # high_quality = [k for k,v in tqdm(unique_subword_counts.items()) if v >= mean]
+        # low_quality = [k for k,v in tqdm(unique_subword_counts.items()) if v < mean]
+        #
+        #
+        # print("Mean unique subword count of articles: ", mean)
+        # print("Number of articles in high quality bin: ", len(high_quality))
+        # print("Number of articles in low quality bin: ", len(low_quality))
+        # high_quality = '\n'.join(high_quality)
+        # low_quality = '\n'.join(low_quality)
+        #
+        # return high_quality, low_quality
 
         # calculate fertility - comment out the above and uncomment this
         # fertility= sum([v[1] for v in unique_subword_counts.values()])/sum([v[2] for v in unique_subword_counts.values()])
-        # print("Fertility of the language: ", fertility)
+        fertility = subword_counter/word_counter
+        print("Fertility of the tokenizer: ", fertility)
 
 
 
@@ -189,8 +196,10 @@ class Partition():
             mean_len = np.mean(len_words)
             mean_word_length[example['id']] = [mean_len, example['text']]
         overall_mean = np.mean(overall_mean_word_length)
+        sd = np.std(overall_mean_word_length)
         # overall_mean = gmean(overall_mean_word_length)
         print("Overall mean word length: " + str(overall_mean))
+        print("Standard deviation of word length: " + str(sd))
         high_quality = [example[1] for example in tqdm(mean_word_length.values()) if example[0] >= overall_mean]
         low_quality = [example[1] for example in tqdm(mean_word_length.values()) if example[0] < overall_mean]
 
