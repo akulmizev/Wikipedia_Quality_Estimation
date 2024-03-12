@@ -48,5 +48,6 @@ def main():
     tokenizer.train_from_iterator(batch_iterator(dataset), trainer=trainer, length=len(dataset))
     # tokenizer.save(f"./{args.output_dir}/wiki.{args.lang}.{len(tokenizer.get_vocab())}.json")
     tokenizer.save(f"./{args.output_dir}/wiki.{args.lang}.json")
+
 if __name__ == "__main__":
     main()
