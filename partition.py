@@ -47,25 +47,32 @@ class Partition():
                                         streaming=False, cache_dir='wikis_cache/', split="train")
 
     def length(self):
-        a_l = [(example['text'].strip(), len(example['text'].strip())) for example in self.dataset]
-        cut_off = round(sum(l for _, l in a_l) / 2)
+        a_l = [(example['text'].strip(), len(example['text'].strip()), example['id']) for example in self.dataset]
+        cut_off = round(sum(l for _, l, _ in a_l) / 2)
         a_l_sorted = sorted(a_l, key=lambda x: x[1], reverse=False)
         total_num_chars = 0
         high_quality = []
         low_quality = []
-        for (article, length) in tqdm(a_l_sorted):
+        for (article, length, id) in tqdm(a_l_sorted):
             if total_num_chars < cut_off:
-                low_quality.append(article.strip())
+                # low_quality.append(article.strip())
+                low_quality.append(id)
                 total_num_chars += length
             else:
-                high_quality.append(article.strip())
+                # high_quality.append(article.strip())
+                high_quality.append(id)
                 total_num_chars += length
         print("Number of articles in high quality bin: ", len(high_quality))
         print("Number of articles in low quality bin: ", len(low_quality))
         print("Total number of characters in high quality bin: ", sum(len(article) for article in high_quality))
         print("Total number of characters in low quality bin: ", sum(len(article) for article in low_quality))
-        high_quality = '\n'.join(high_quality)
-        low_quality = '\n'.join(low_quality)
+        # high_quality = '\n'.join(high_quality)
+        # low_quality = '\n'.join(low_quality)
+        high_quality = self.dataset.filter(lambda x:x['id'] in high_quality)
+        low_quality = self.dataset.filter(lambda x:x['id'] in low_quality)
+
+
+
 
 
 
@@ -259,39 +266,40 @@ class Partition():
         total_trigrams = {}
         mean_word_length = {}
         overall_mean_word_length = []
-        english_re = re.compile(r'[A-Za-z]')
+        # english_re = re.compile(r'[A-Za-z]')
         tokeniser = Tokenizer.from_file(f'tokenizers/wiki.{self.language}.json')
+        low_quality_ids = []
         # low_quality_english_chars = []
-        eng_chars_match = {}
+        # eng_chars_match = {}
         for example in tqdm(self.dataset):
             text = example['text'].strip()
 
-            article_length.append((example['text'], len(text)))
+            article_length.append((example['text'], len(text), example['id']))
 
             words = text.split()
             word_counts = Counter(words)
             tokens = tokeniser.encode(text).tokens
             token_counts = Counter(tokens)
-            unique_word_counts[example['text']] = len(word_counts)
-            unique_subword_counts[example['text']] = len(token_counts)
+            unique_word_counts[example['id']] = len(word_counts)
+            unique_subword_counts[example['id']] = len(token_counts)
 
             trigrams = list(ngrams(words, 3))
             count_trigrams = Counter(trigrams)
-            total_trigrams[example['text']] = len(count_trigrams)
+            total_trigrams[example['id']] = len(count_trigrams)
 
             word_lengths = [len(word) for word in words]
             for length in word_lengths:
                 overall_mean_word_length.append(length)
             mean_len_article = np.mean(word_lengths)
-            mean_word_length[example['text']] = mean_len_article
+            mean_word_length[example['id']] = mean_len_article
 
-            if self.language != 'pcm':
-                match = 0
-                total = len(text)
-                for char in text:
-                    if english_re.match(char):
-                        match += 1
-                eng_chars_match[example['text']] = match/total
+            # if self.language != 'pcm':
+            #     match = 0
+            #     total = len(text)
+            #     for char in text:
+            #         if english_re.match(char):
+            #             match += 1
+            #     eng_chars_match[example['id']] = match/total
 
 
 
@@ -299,61 +307,69 @@ class Partition():
 
         print("On length...")
         article_length_sorted = sorted(article_length, key=lambda x: x[1], reverse=False)
-        length_cutoff = round(sum(l for _, l in article_length)/2)
+        length_cutoff = round(sum(l for _, l, _ in article_length_sorted) / 2)
         total_num_chars = 0
         low_quality_length = []
-        for (article, length) in tqdm(article_length_sorted):
+        for (article, length, id) in tqdm(article_length_sorted):
             if total_num_chars < length_cutoff:
-                low_quality_length.append(article.strip())
+                low_quality_length.append(id)
                 total_num_chars += length
             else:
                 total_num_chars += length
         print("Number of articles in low quality length: ", len(low_quality_length))
+        low_quality_ids.extend(low_quality_length)
+
 
         print("On unique words...")
         unique_word_cutoff = int(np.mean(list(unique_word_counts.values())))
         low_quality_unique_words = [key for key, value in unique_word_counts.items() if value < unique_word_cutoff]
         print("Number of articles in low quality unique words: ", len(low_quality_unique_words))
+        low_quality_ids.extend(low_quality_unique_words)
 
         print("On unique subwords...")
         mean_subword_count = int(np.mean(list(unique_subword_counts.values())))
         low_quality_subwords = [key for key, value in unique_subword_counts.items() if value < mean_subword_count]
         print("Number of articles in low quality subwords: ", len(low_quality_subwords))
+        low_quality_ids.extend(low_quality_subwords)
 
         print("On trigrams...")
 
         mean_trigram_count = int(np.mean(list(total_trigrams.values())))
         low_quality_ngrams = [key for key, value in total_trigrams.items() if value < mean_trigram_count]
         print("Number of articles in low quality ngrams: ", len(low_quality_ngrams))
+        low_quality_ids.extend(low_quality_ngrams)
 
-        print("On word length...")
+        # print("On word length...")
+        #
+        # mean_word_len_cutoff = np.mean(overall_mean_word_length)
+        # low_quality_wordlength = [key for key, value in mean_word_length.items() if value < mean_word_len_cutoff]
+        # print("Number of articles in low quality word length: ", len(low_quality_wordlength))
+        # low_quality_ids.extend(low_quality_wordlength)
 
-        mean_word_len_cutoff = np.mean(overall_mean_word_length)
-        low_quality_wordlength = [key for key, value in mean_word_length.items() if value < mean_word_len_cutoff]
-        print("Number of articles in low quality word length: ", len(low_quality_wordlength))
+        # print("On english chars...")
+        # mean_eng_chars = np.mean(list(eng_chars_match.values()))
+        # low_quality_english_chars = [k for k,v in tqdm(eng_chars_match.items()) if v > mean_eng_chars]
+        # print("Number of articles in low quality english chars: ", len(low_quality_english_chars))
+        # low_quality_ids.extend(low_quality_english_chars)
 
-        print("On english chars...")
-        mean_eng_chars = np.mean(list(eng_chars_match.values()))
-        low_quality_english_chars = [k for k,v in tqdm(eng_chars_match.items()) if v > mean_eng_chars]
-        print("Number of articles in low quality english chars: ", len(low_quality_english_chars))
 
-        low_quality = []
-        high_quality = []
-        for example in tqdm(self.dataset):
-            if example['text'] in low_quality_wordlength or \
-                example['text'] in low_quality_ngrams or \
-                example['text'] in low_quality_unique_words or \
-                example['text'] in low_quality_subwords or \
-                example['text'] in low_quality_length or \
-                example['text'] in low_quality_english_chars:
-                low_quality.append(example['text'])
-            else:
-                high_quality.append(example['text'])
+        # high_quality = []
+        # for example in tqdm(self.dataset):
+        #     if example['id'] in low_quality_wordlength or \
+        #         example['text'] in low_quality_ngrams or \
+        #         example['text'] in low_quality_unique_words or \
+        #         example['text'] in low_quality_subwords or \
+        #         example['text'] in low_quality_length or \
+        #         example['text'] in low_quality_english_chars:
+        #         low_quality.append(example['text'])
+        #     else:
+        #         high_quality.append(example['text'])
+        low_quality = self.dataset.filter(lambda x:x['id'] in low_quality_ids)
+        high_quality = self.dataset.filter(lambda x:x['id'] not in low_quality_ids)
 
         print("Number of articles in high quality bin: ", len(high_quality))
         print("Number of articles in low quality bin: ", len(low_quality))
-        high_quality = '\n'.join(high_quality)
-        low_quality = '\n'.join(low_quality)
+
 
         return high_quality, low_quality
 
@@ -518,14 +534,12 @@ def main():
         if args.partition == 'stupid_filters':
             bins = Partition(args.language, args.filtered).stupid_filters()
 
-        if not os.path.exists('wikis/' + args.language):
-            os.makedirs('wikis/' + args.language)
+        high_quality, low_quality = bins
+        high_quality.push_to_hub(repo_id=f"WikiQuality/{args.language}.{args.partition}.high_quality",
+                                 private=True)
+        low_quality.push_to_hub(repo_id=f"WikiQuality/{args.language}.{args.partition}.low_quality",
+                                 private=True)
 
-
-        with open('wikis/' + args.language + '/' + args.partition + '_high_quality.txt', 'w+') as high_quality:
-            high_quality.write(bins[0])
-        with open('wikis/' + args.language + '/' + args.partition + '_low_quality.txt', 'w+') as low_quality:
-            low_quality.write(bins[1])
 
 if __name__ == '__main__':
     main()
