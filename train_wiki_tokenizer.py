@@ -28,7 +28,7 @@ def main():
 
     dataset = load_dataset(f"WikiQuality/{args.lang}.filtered")['train']
 
-    tokenizer = Tokenizer(models.Unigram())
+    tokenizer = Tokenizer(models.Unigram(unknown_token="[UNK]"))
     tokenizer.normalizer = normalizers.NFKC()
     tokenizer.pre_tokenizer = pre_tokenizers.Sequence(
         [pre_tokenizers.UnicodeScripts(),

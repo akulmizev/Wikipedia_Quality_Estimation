@@ -95,7 +95,7 @@
   },
   "model": {
     "type": "Unigram",
-    "unk_id": null,
+    "unk_id": 6,
     "vocab": [
       [
         "[PAD]",
