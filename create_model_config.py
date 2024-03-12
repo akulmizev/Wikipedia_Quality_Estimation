@@ -1,4 +1,4 @@
-from transformers import RobertaConfig, RobertaModel, AutoConfig
+from transformers import RobertaConfig, RobertaModel, AutoConfig, AutoModelForMaskedLM
 import json
 import os
 
@@ -17,12 +17,14 @@ config.eos_token_id = 2
 config.pad_token_id = 0
 config.bos_token_id = 1
 
-print(config)
-
-if not os.path.exists(f"./config"):
-    os.makedirs(f"./config")
-config.save_pretrained(f"./config/{lang}")
+# print(config)
+#
+# if not os.path.exists(f"./config"):
+#     os.makedirs(f"./config")
+# config.save_pretrained(f"./config/{lang}")
 
 # config = AutoConfig.from_pretrained(f"./config/{lang}")
 # print(config)
 
+model = AutoModelForMaskedLM.from_config(config=config)
+print(model)
