@@ -20,6 +20,7 @@ config.unk_id = 6
 config.mask_token_id = 3
 config.cls_token_id = 5
 config.sep_token_id = 4
+config.model_max_length = 512
 
 print(config)
 #
