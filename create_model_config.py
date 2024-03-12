@@ -16,15 +16,19 @@ config.intermediate_size = 400
 config.eos_token_id = 2
 config.pad_token_id = 0
 config.bos_token_id = 1
+config.unk_id = 6
+config.mask_token_id = 3
+config.cls_token_id = 5
+config.sep_token_id = 4
 
-# print(config)
+print(config)
 #
-# if not os.path.exists(f"./config"):
-#     os.makedirs(f"./config")
-# config.save_pretrained(f"./config/{lang}")
+if not os.path.exists(f"./config"):
+    os.makedirs(f"./config")
+config.save_pretrained(f"./config/{lang}")
 
 # config = AutoConfig.from_pretrained(f"./config/{lang}")
 # print(config)
 
-model = AutoModelForMaskedLM.from_config(config=config)
-print(model)
+# model = AutoModelForMaskedLM.from_config(config=config)
+# print(model)
