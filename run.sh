@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source activate hf
+conda activate hf
 
 config_file="./config/as/config.json"
 tokenizer_file="./tokenizers/wiki.as.json"
