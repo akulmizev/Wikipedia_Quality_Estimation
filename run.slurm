@@ -33,4 +33,5 @@ python run_mlm.py \
   --per_device_train_batch_size 8 \
   --per_device_eval_batch_size 8 \
   --overwrite_output_dir \
-  --report_to 'wandb'
+  --report_to 'wandb' \
+  --overwrite_cache
