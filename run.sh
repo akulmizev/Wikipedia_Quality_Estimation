@@ -11,4 +11,5 @@ python run_mlm.py \
   --tokenizer_name $tokenizer_file \
   --dataset_name 'WikiQuality/as.filtered' \
   --validation_split_percentage 5 \
+  --output_dir './as_filtered'
 
