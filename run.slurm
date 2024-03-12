@@ -34,4 +34,5 @@ python run_mlm.py \
   --per_device_eval_batch_size 8 \
   --overwrite_output_dir \
   --report_to 'wandb' \
-  --overwrite_cache
+  --overwrite_cache \
+  --pad_to_max_length
