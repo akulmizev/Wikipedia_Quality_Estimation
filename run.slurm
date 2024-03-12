@@ -27,7 +27,7 @@ python run_mlm.py \
   --tokenizer_name "WikiQuality/as_tokenizer" \
   --dataset_name 'WikiQuality/as.filtered' \
   --validation_split_percentage 5 \
-  --output_dir './as_filtered' \
+  --output_dir 'as_filtered' \
   --do_train \
   --do_eval \
   --per_device_train_batch_size 8 \

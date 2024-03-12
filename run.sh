@@ -13,7 +13,7 @@ python run_mlm.py \
   --tokenizer_name "WikiQuality/as_tokenizer" \
   --dataset_name 'WikiQuality/as.filtered' \
   --validation_split_percentage 5 \
-  --output_dir './as_filtered' \
+  --output_dir 'as_filtered' \
   --overwrite_output_dir \
   --report_to 'wandb'
 #  --do_train \
