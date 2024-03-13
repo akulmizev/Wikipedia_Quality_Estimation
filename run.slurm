@@ -36,4 +36,9 @@ python run_mlm.py \
   --overwrite_cache \
   --pad_to_max_length \
   --line_by_line \
-  --report_to 'wandb'
+  --report_to 'wandb' \
+  --run_name 'as_filtered' \
+  --num_train_epochs 5 \
+  --push_to_hub \
+  --push_to_hub_model_id 'WikiQuality/tiny_bert_as_filtered' \
+  --hub_private_repo
