@@ -19,7 +19,7 @@ cd $SLURM_SUBMIT_DIR
 export WANDB_API_KEY="2f9506e16930f137abbd18a3fb16f6b31840a830"
 export WANDB_PROJECT="WikiQuality"
 
-hub_token=$(cat huggingface_token.txt)
+#hub_token=$(cat huggingface_token.txt)
 
 config_file="./config/as/config.json"
 
@@ -40,8 +40,8 @@ python run_mlm.py \
   --line_by_line \
   --report_to 'wandb' \
   --run_name 'as_filtered' \
-  --num_train_epochs 5 \
-  --push_to_hub \
-  --hub_model_id 'tiny_bert_as_filtered' \
-  --hub_private_repo \
-  --hub_token $hub_token
+  --num_train_epochs 5
+#  --push_to_hub \
+#  --hub_model_id 'tiny_bert_as_filtered' \
+#  --hub_private_repo \
+#  --hub_token $hub_token
