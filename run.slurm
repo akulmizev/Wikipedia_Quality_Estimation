@@ -42,6 +42,6 @@ python run_mlm.py \
   --run_name 'as_filtered' \
   --num_train_epochs 5 \
   --push_to_hub \
-  --push_to_hub_model_id 'WikiQuality/tiny_bert_as_filtered' \
+  --hub_model_id 'tiny_bert_as_filtered' \
   --hub_private_repo \
   --hub_token $hub_token
