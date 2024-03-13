@@ -34,6 +34,8 @@ import datasets
 import evaluate
 from datasets import load_dataset
 
+from pudb import set_trace
+
 import transformers
 from transformers import (
     CONFIG_MAPPING,
@@ -614,6 +616,7 @@ def main():
     )
 
     # Initialize our Trainer
+    set_trace()
     trainer = Trainer(
         model=model,
         args=training_args,
