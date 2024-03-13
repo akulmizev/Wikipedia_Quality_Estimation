@@ -30,8 +30,8 @@ python run_mlm.py \
   --output_dir 'as_filtered' \
   --do_train \
   --do_eval \
-  --per_device_train_batch_size 8 \
-  --per_device_eval_batch_size 8 \
+  --per_device_train_batch_size 256 \
+  --per_device_eval_batch_size 256 \
   --overwrite_output_dir \
   --overwrite_cache \
   --pad_to_max_length \
