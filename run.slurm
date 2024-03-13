@@ -35,4 +35,5 @@ python run_mlm.py \
   --overwrite_output_dir \
   --report_to 'wandb' \
   --overwrite_cache \
-  --pad_to_max_length
+  --pad_to_max_length \
+  --line_by_line
