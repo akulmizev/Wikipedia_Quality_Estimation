@@ -25,7 +25,6 @@ config_file="./config/as/config.json"
 
 python run_mlm.py \
   --model_type roberta \
-  --config_name "roberta" \
   --config_overrides $config_file \
   --tokenizer_name "WikiQuality/as_tokenizer" \
   --dataset_name 'WikiQuality/as.filtered' \
