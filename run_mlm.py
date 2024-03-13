@@ -616,7 +616,7 @@ def main():
     )
 
     # Initialize our Trainer
-    set_trace()
+    # set_trace()
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -637,6 +637,7 @@ def main():
             checkpoint = training_args.resume_from_checkpoint
         elif last_checkpoint is not None:
             checkpoint = last_checkpoint
+        set_trace()
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
         trainer.save_model()  # Saves the tokenizer too for easy upload
         metrics = train_result.metrics
