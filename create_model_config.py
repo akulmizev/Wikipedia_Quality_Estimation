@@ -23,6 +23,7 @@ config.pad_token_id = -1
 config.tokenizer_class = "PreTrainedTokenizerFast"
 config.max_position_embeddings = 512
 
+
 #
 if not os.path.exists(f"./config"):
     os.makedirs(f"./config")
