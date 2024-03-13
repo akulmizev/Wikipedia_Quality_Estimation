@@ -7,7 +7,8 @@ config_file="./config/as/config.json"
 
 python run_mlm.py \
   --model_type roberta \
-  --tokenizer_name "WikiQuality/as_tokenizer" \
+  --config_name $config_file \
+  --tokenizer_name "xlm-roberta-base" \
   --dataset_name 'WikiQuality/as.filtered' \
   --validation_split_percentage 5 \
   --output_dir 'as_filtered' \
