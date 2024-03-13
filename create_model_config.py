@@ -24,12 +24,12 @@ config.model_max_length = 512
 
 print(config)
 #
-if not os.path.exists(f"./config"):
-    os.makedirs(f"./config")
-config.save_pretrained(f"./config/{lang}")
+# if not os.path.exists(f"./config"):
+#     os.makedirs(f"./config")
+# config.save_pretrained(f"./config/{lang}")
 
 # config = AutoConfig.from_pretrained(f"./config/{lang}")
 # print(config)
 
-# model = AutoModelForMaskedLM.from_config(config=config)
-# print(model)
+model = AutoModelForMaskedLM.from_config(config=config)
+print(model.get_input_embeddings().weight.shape[0])
