@@ -8,6 +8,7 @@ vocab_mapper = json.load(open(f"./data/predicted_vocab.json", "r"))
 vocab_size = vocab_mapper[lang]
 
 config = RobertaConfig()
+config.base_model = "roberta"
 config.vocab_size = vocab_size
 config.num_hidden_layers = 3
 config.num_attention_heads = 5
