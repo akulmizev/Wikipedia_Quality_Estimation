@@ -14,14 +14,14 @@ config.num_attention_heads = 5
 config.hidden_size = 100
 config.intermediate_size = 400
 # config.eos_token_id = 2
-# config.pad_token_id = 0
+config.pad_token_id = -1
 # config.bos_token_id = 1
 # config.unk_id = 6
 # config.mask_token_id = 3
 # config.cls_token_id = 5
 # config.sep_token_id = 4
 config.tokenizer_class = "PreTrainedTokenizerFast"
-config.max_position_embeddings = 510
+config.max_position_embeddings = 512
 
 #
 if not os.path.exists(f"./config"):

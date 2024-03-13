@@ -13,7 +13,7 @@
   "model_type": "roberta",
   "num_attention_heads": 5,
   "num_hidden_layers": 3,
-  "pad_token_id": 1,
+  "pad_token_id": -1,
   "position_embedding_type": "absolute",
   "tokenizer_class": "PreTrainedTokenizerFast",
   "transformers_version": "4.32.1",
