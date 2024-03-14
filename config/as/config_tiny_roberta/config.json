@@ -14,7 +14,7 @@
   "model_type": "roberta",
   "num_attention_heads": 12,
   "num_hidden_layers": 4,
-  "pad_token_id": 1,
+  "pad_token_id": -1,
   "position_embedding_type": "absolute",
   "transformers_version": "4.32.1",
   "type_vocab_size": 2,

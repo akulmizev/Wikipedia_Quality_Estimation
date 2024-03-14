@@ -43,6 +43,8 @@ config.hidden_size = 312
 config.intermediate_size = 1200
 config.num_attention_heads = 12
 config.max_position_embeddings = 512
+config.pad_token_id = -1
+
 
 
 
