@@ -29,10 +29,10 @@ vocab_size = vocab_mapper[lang]
 config = BertConfig()
 config.base_model = "bert"
 config.vocab_size = vocab_size
-config.num_hidden_layers = 2
-config.hidden_size = 128
-config.intermediate_size = 512
-config.num_attention_heads = 4
+config.num_hidden_layers = 4
+config.hidden_size = 312
+config.intermediate_size = 1200
+config.num_attention_heads = 12
 config.max_position_embeddings = 512
 
 
