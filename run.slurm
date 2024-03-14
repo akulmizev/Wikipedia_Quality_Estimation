@@ -21,25 +21,25 @@ export WANDB_PROJECT="WikiQuality"
 
 #hub_token=$(cat huggingface_token.txt)
 
-config_file="./config/as/config_tiny_roberta/config.json"
+config_file="./config/as/config_tiny_deberta/config.json"
 
 python run_mlm.py \
-  --model_type roberta \
+  --model_type "deberta" \
   --config_name $config_file \
   --tokenizer_name "WikiQuality/as_tokenizer" \
   --dataset_name 'data/as/' \
   --validation_split_percentage 5 \
-  --output_dir 'as_filtered_20_8_tiny_roberta' \
+  --output_dir 'as_filtered_20_8_tiny_deberta' \
   --do_train \
   --do_eval \
-  --per_device_train_batch_size 4 \
-  --per_device_eval_batch_size 4 \
+  --per_device_train_batch_size 8 \
+  --per_device_eval_batch_size 8 \
   --overwrite_output_dir \
   --overwrite_cache \
   --pad_to_max_length \
   --line_by_line \
   --report_to 'wandb' \
-  --run_name 'as_filtered_20_8_tiny_roberta' \
+  --run_name 'as_filtered_20_8_tiny_deberta' \
   --num_train_epochs 20
 
 #from the bible paper
