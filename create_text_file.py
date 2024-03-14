@@ -9,7 +9,7 @@ args = parser.parse_args()
 lang = args.lang
 
 text = []
-dataset = datasets.load_dataset(f"WikiQuality/{lang}_filtered")['train']
+dataset = datasets.load_dataset(f"WikiQuality/{lang}.filtered")['train']
 for data in dataset:
     text.append(data['text'])
 
