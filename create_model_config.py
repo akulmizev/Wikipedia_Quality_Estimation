@@ -1,4 +1,4 @@
-from transformers import RobertaConfig, RobertaModel, AutoConfig, AutoModelForMaskedLM, BertConfig, BertModel
+from transformers import RobertaConfig, RobertaModel, AutoConfig, AutoModelForMaskedLM, BertConfig, BertModel, DebertaConfig
 import json
 import os
 import argparse
@@ -35,15 +35,25 @@ vocab_size = vocab_mapper[lang]
 # config.num_attention_heads = 12
 # config.max_position_embeddings = 512
 
-config = RobertaConfig()
-config.base_model = "roberta"
+# config = RobertaConfig()
+# config.base_model = "roberta"
+# config.vocab_size = vocab_size
+# config.num_hidden_layers = 4
+# config.hidden_size = 312
+# config.intermediate_size = 1200
+# config.num_attention_heads = 12
+# config.max_position_embeddings = 512
+# config.pad_token_id = -1
+
+config = DebertaConfig()
+config.base_model = "deberta"
 config.vocab_size = vocab_size
 config.num_hidden_layers = 4
 config.hidden_size = 312
 config.intermediate_size = 1200
 config.num_attention_heads = 12
 config.max_position_embeddings = 512
-config.pad_token_id = -1
+
 
 
 
@@ -51,7 +61,7 @@ config.pad_token_id = -1
 #
 if not os.path.exists(f"./config"):
     os.makedirs(f"./config")
-config.save_pretrained(f"./config/{lang}/config_tiny_roberta")
+config.save_pretrained(f"./config/{lang}/config_tiny_deberta")
 
 # config = AutoConfig.from_pretrained(f"./config/{lang}")
 # print(config)
