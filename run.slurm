@@ -64,5 +64,4 @@ python run_mlm.py \
   --warmup_steps 50 \
   --weight_decay 0.01 \
   --adam_epsilon 1e-6 \
-  --learning_rate 2e-3 \
-  --load_best_model_at_end
+  --learning_rate 2e-3
