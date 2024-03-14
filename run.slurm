@@ -47,7 +47,7 @@ python run_mlm.py \
   --model_type roberta \
   --config_name $config_file \
   --tokenizer_name "WikiQuality/as_tokenizer" \
-  --dataset_name 'WikiQuality/as.filtered' \
+  --dataset_name 'data/as/wiki_as.txt' \
   --validation_split_percentage 5 \
   --output_dir 'as_filtered_20_8_tiny_roberta_bible' \
   --do_train \
@@ -60,8 +60,9 @@ python run_mlm.py \
   --line_by_line \
   --report_to 'wandb' \
   --run_name 'as_filtered_20_8_tiny_roberta_bible' \
-  --num_train_epochs 50 \
+  --num_train_epochs 20 \
   --warmup_steps 50 \
   --weight_decay 0.01 \
   --adam_epsilon 1e-6 \
-  --learning_rate 2e-3
+  --learning_rate 2e-3 \
+  --load_best_model_at_end
