@@ -47,7 +47,7 @@ python run_mlm.py \
   --model_type roberta \
   --config_name $config_file \
   --tokenizer_name "WikiQuality/as_tokenizer" \
-  --dataset_name 'data/as/wiki_as.txt' \
+  --dataset_name 'data/as/' \
   --validation_split_percentage 5 \
   --output_dir 'as_filtered_20_8_tiny_roberta_bible' \
   --do_train \
