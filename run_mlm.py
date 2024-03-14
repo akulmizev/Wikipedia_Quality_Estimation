@@ -490,6 +490,7 @@ def main():
                 # We use this option because DataCollatorForLanguageModeling (see below) is more efficient when it
                 # receives the `special_tokens_mask`.
                 return_special_tokens_mask=True,
+                return_overflowing_tokens=True
             )
 
         with training_args.main_process_first(desc="dataset map tokenization"):
