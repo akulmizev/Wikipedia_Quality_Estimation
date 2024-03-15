@@ -29,7 +29,7 @@ python run_mlm.py \
   --tokenizer_name "WikiQuality/as_tokenizer" \
   --dataset_name 'data/as/' \
   --validation_split_percentage 5 \
-  --output_dir 'as_filtered_20_8_tiny_deberta' \
+  --output_dir 'as_filtered_100_8_tiny_deberta' \
   --do_train \
   --do_eval \
   --per_device_train_batch_size 8 \
@@ -39,8 +39,14 @@ python run_mlm.py \
   --pad_to_max_length \
   --line_by_line \
   --report_to 'wandb' \
-  --run_name 'as_filtered_20_8_tiny_deberta' \
-  --num_train_epochs 20
+  --run_name 'as_filtered_100_8_tiny_deberta' \
+  --num_train_epochs 100 \
+  --save_strategy 'epoch' \
+  --evaluation_strategy 'epoch' \
+  --save_total_limit 5 \
+  --load_best_model_at_end
+
+
 
 #from the bible paper
 #python run_mlm.py \
