@@ -5,7 +5,7 @@
 #SBATCH --ntasks=4
 #SBATCH --gpus-per-node=1
 #SBATCH --partition=gpu_v100
-#SBATCH --time=06:00:00
+#SBATCH --time=08:00:00
 #SBATCH --mail-type=FAIL,BEGIN,END
 #SBATCH --mail-user=kushaljayesh.tatariya@kuleuven.be
 #SBATCH --job-name=train_tinybert
