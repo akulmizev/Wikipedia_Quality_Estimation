@@ -5,7 +5,7 @@
 #SBATCH --ntasks=4
 #SBATCH --gpus-per-node=1
 #SBATCH --partition=gpu_v100
-#SBATCH --time=08:00:00
+#SBATCH --time=09:00:00
 #SBATCH --mail-type=FAIL,BEGIN,END
 #SBATCH --mail-user=kushaljayesh.tatariya@kuleuven.be
 #SBATCH --job-name=train_tinybert
@@ -29,7 +29,7 @@ python run_mlm.py \
   --tokenizer_name "WikiQuality/as_tokenizer" \
   --dataset_name 'data/as/' \
   --validation_split_percentage 5 \
-  --output_dir 'as_filtered_120_8_tiny_deberta' \
+  --output_dir 'as_filtered_140_8_tiny_deberta' \
   --do_train \
   --do_eval \
   --per_device_train_batch_size 8 \
@@ -39,8 +39,8 @@ python run_mlm.py \
   --pad_to_max_length \
   --line_by_line \
   --report_to 'wandb' \
-  --run_name 'as_filtered_120_8_tiny_deberta' \
-  --num_train_epochs 120 \
+  --run_name 'as_filtered_140_8_tiny_deberta' \
+  --num_train_epochs 140 \
   --save_strategy 'epoch' \
   --evaluation_strategy 'epoch' \
   --save_total_limit 5 \
