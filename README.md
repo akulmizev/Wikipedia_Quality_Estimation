@@ -26,7 +26,7 @@ The idea here is to have a stream-lined easy-to-run repo which would conceptuall
 It is set to `True` by default.
 
 
-Running this script will create a `wikis/<language>/` directory where both your high_quality and low_quality partitions will be saved.
+Running this script will create the splits and push them to huggingface hub.
 
 ### To see stats per partition function:
 
