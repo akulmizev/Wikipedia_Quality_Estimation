@@ -19,17 +19,23 @@ cd $SLURM_SUBMIT_DIR
 export WANDB_API_KEY="2f9506e16930f137abbd18a3fb16f6b31840a830"
 export WANDB_PROJECT="WikiQuality"
 
-#hub_token=$(cat huggingface_token.txt)
+lang=$1
+partition=$2
+epochs=$3
 
-config_file="./config/as/config_tiny_deberta/config.json"
+#hub_token=$(cat huggingface_token.txt)
+python create_model_config.py --lang $lang
+python create_text_file.py --lang $lang --partition $partition
+
+config_file="./config/$lang/config_tiny_deberta/config.json"
 
 python run_mlm.py \
   --model_type "deberta" \
   --config_name $config_file \
-  --tokenizer_name "WikiQuality/as_tokenizer" \
+  --tokenizer_name "WikiQuality/$lang\_tokenizer" \
   --dataset_name 'data/as/' \
   --validation_split_percentage 5 \
-  --output_dir 'as_filtered_140_8_tiny_deberta' \
+  --output_dir "$lang\_$partition\_$epochs\_8_tiny_deberta" \
   --do_train \
   --do_eval \
   --per_device_train_batch_size 8 \
@@ -39,35 +45,11 @@ python run_mlm.py \
   --pad_to_max_length \
   --line_by_line \
   --report_to 'wandb' \
-  --run_name 'as_filtered_140_8_tiny_deberta' \
-  --num_train_epochs 140 \
+  --run_name "$lang\_$partition\_$epochs\_8_tiny_deberta" \
+  --num_train_epochs $epochs \
   --save_strategy 'epoch' \
   --evaluation_strategy 'epoch' \
   --save_total_limit 5 \
-  --load_best_model_at_end
+  --load_best_model_at_end \
+  --metric_for_best_model 'eval_loss'
 
-
-
-#from the bible paper
-#python run_mlm.py \
-#  --model_type roberta \
-#  --config_name $config_file \
-#  --tokenizer_name "WikiQuality/as_tokenizer" \
-#  --dataset_name 'data/as/' \
-#  --validation_split_percentage 5 \
-#  --output_dir 'as_filtered_20_8_tiny_roberta_bible' \
-#  --do_train \
-#  --do_eval \
-#  --per_device_train_batch_size 8 \
-#  --per_device_eval_batch_size 8 \
-#  --overwrite_output_dir \
-#  --overwrite_cache \
-#  --pad_to_max_length \
-#  --line_by_line \
-#  --report_to 'wandb' \
-#  --run_name 'as_filtered_20_8_tiny_roberta_bible' \
-#  --num_train_epochs 20 \
-#  --warmup_steps 50 \
-#  --weight_decay 0.01 \
-#  --adam_epsilon 1e-6 \
-#  --learning_rate 2e-3
