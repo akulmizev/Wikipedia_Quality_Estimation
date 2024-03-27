@@ -1,0 +1,40 @@
+tokenizer:
+  do_tokenize: true
+  model: "unigram"
+  normalizer: "nfkc"
+  pre_tokenizer: [
+    "unicode_scripts",
+    "digits",
+    "metaspace"
+  ]
+  decoder: "metaspace"
+  trainer: "unigram"
+  post_processor: true
+  special_tokens: [
+    "[PAD]",
+    "[BOS]",
+    "[EOS]",
+    "[MASK]",
+    "[CLS]",
+    "[SEP]",
+    "[UNK]"
+  ]
+  unk_token: "[UNK]"
+  vocab_size: "auto"
+  output_dir: "../tokenizers/"
+
+data:
+  pre_filter:
+    do_pre_filter: true
+    script_regex: true
+    lang_id: true
+    char_cutoff: 15
+  partition:
+    do_partition: true
+    partition_type: "mean_cutoff"
+    partition_metric: "length"
+    higher_is_better: true
+  export:
+    do_export: true
+    export_type: "hub"
+    path: "WikiQuality"

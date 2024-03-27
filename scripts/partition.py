@@ -75,7 +75,6 @@ class Partition():
 
 
 
-
         return high_quality, low_quality
 
 
