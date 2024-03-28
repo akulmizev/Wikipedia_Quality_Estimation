@@ -21,12 +21,13 @@ def main():
     dataset = WikiDatasetFromConfig(config)
     if config["data"]["pre_filter"]["do_pre_filter"]:
         dataset.pre_filter()
+        if config["data"]["export"]["do_export"]:
+            dataset.save()
     if config["data"]["partition"]["do_partition"]:
-        partition = Length(config)
-        good, bad = partition(dataset["train"])
+        dataset.apply_partition()
+        # partition = Length(config)
+        # partitioned_articles = partition(dataset["train"])
     tokenizer = WikiTokenizerFromConfig(config)
-
-    pass
 
 
 if __name__ == "__main__":

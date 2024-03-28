@@ -3,7 +3,7 @@ import numpy as np
 
 class Partition:
     def __init__(self, config):
-        self.config = config["data"]["partition"]
+        self.config = config["partition"]
         self.type = self.config["partition_type"]
 
     def __call__(self, dataset):
@@ -19,9 +19,9 @@ class Partition:
         else:
             raise ValueError("Partition type not recognized.")
         if self.config["higher_is_better"]:
-            return dataset[partition_2], dataset[partition_1]
+            return dataset[partition_2]
         else:
-            return dataset[partition_1], dataset[partition_2]
+            return dataset[partition_1]
 
     def metric(self, example):
         raise NotImplementedError("Metric not implemented. Please use a subclass.")

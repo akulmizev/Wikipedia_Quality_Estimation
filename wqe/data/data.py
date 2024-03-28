@@ -8,6 +8,8 @@ import datasets
 import fasttext
 from huggingface_hub import hf_hub_download
 
+from .partition import *
+
 
 class WikiDatasetFromConfig:
     def __init__(self, config):
@@ -21,14 +23,27 @@ class WikiDatasetFromConfig:
 
         self.config = config["data"]
         self.wiki_id = config["wiki_id"]
-        self.data = datasets.load_dataset(
-            "wikimedia/wikipedia",
-            f"20231101.{self.wiki_id}"
-        )
+
+        if self.config["import"]["do_import"]:
+            print(f"Loading dataset from {self.config['import']['path']}")
+            self.data = datasets.load_dataset(
+                self.config["import"]["path"]
+            )
+        else:
+            print(f"Loading dataset from Wikimedia/Wikipedia: {self.wiki_id}")
+            self.data = datasets.load_dataset(
+                "wikimedia/wikipedia",
+                f"20231101.{self.wiki_id}",
+                cache_dir=None
+            )
+
         with resources.open_text("wqe.data.resources", "wiki_mappings.json") as f:
             self.wiki_mappings = json.load(f)[self.wiki_id]
         self.regex = None
         self.lang_id_model = None
+        self.size_chars = len("".join(self.data["train"]["text"]))
+        self.size_articles = len(self.data["train"])
+        print(f"Loaded {self.size_articles} articles with {self.size_chars} characters.")
 
     def __getattr__(self, attr):
 
@@ -77,6 +92,7 @@ class WikiDatasetFromConfig:
             ids.append("pre_filtered")
         if self.config["partition"]["do_partition"]:
             ids.append(self.config["partition"]["partition_type"])
+            ids.append(self.config["partition"]["partition_metric"])
 
         return ".".join(ids)
 
@@ -126,7 +142,9 @@ class WikiDatasetFromConfig:
 
         if self.config["pre_filter"]["script_regex"]:
             self._make_regex()
+            print(f"Filtering documents for accepted scripts: {self.wiki_mappings['scripts']}")
         if self.config["pre_filter"]["lang_id"]:
+            print(f"Filtering documents for language: {self.wiki_mappings['alpha3']}")
             self.lang_id_model = fasttext.load_model(
                 hf_hub_download(
                     repo_id="cis-lmu/glotlid",
@@ -135,9 +153,54 @@ class WikiDatasetFromConfig:
                 )
             )
 
+        raw_size_chars = self.size_chars
+        raw_size_articles = self.size_articles
+
         self.data = self.data.map(
-            lambda article: self._pre_filter_article(article)
+            lambda article: self._pre_filter_article(article),
+            desc="Pre-filtering dataset..."
         )
+
+        self.size_chars = len("".join(self.data["train"]["text"]))
+        self.size_articles = len(self.data["train"])
+
+        print(f"Removed {raw_size_chars - self.size_chars} characters ({1.0 - self.size_chars/raw_size_chars}%).")
+    def apply_partition(self):
+
+        """
+        Update the dataset with a partition.
+
+        Args:
+            partition (datasets.Dataset): The partition to update the dataset with.
+        """
+
+        partition_map = {
+            "length": Length,
+            "unique_subwords": UniqueSubwords,
+            "unique_subword_trigrams": UniqueSubwordTrigrams,
+            "alpha_chars": AlphaChars
+        }
+
+        partition_metric = self.config["partition"]["partition_metric"]
+
+        partition = partition_map[partition_metric](self.config)
+
+        raw_size_chars = self.size_chars
+        raw_size_articles = self.size_articles
+
+        print(f"Partitioning dataset by {partition_metric}...")
+
+        self.data = datasets.DatasetDict({
+            "train": datasets.Dataset.from_dict(
+                partition(self.data["train"])
+            )
+        })
+
+        self.size_chars = len("".join(self.data["train"]["text"]))
+        self.size_articles = len(self.data["train"])
+
+        print(f"Removed {raw_size_chars - self.size_chars} characters ({1.0 - self.size_chars/raw_size_chars}%).")
+        print(f"Removed {raw_size_articles - self.size_articles} articles ({1.0 - self.size_articles/raw_size_articles}%).")
 
     def save(self):
 
@@ -146,14 +209,18 @@ class WikiDatasetFromConfig:
         """
 
         export_id = self._get_export_id()
-        path = self.config["export"]["path"]
+        export_config = self.config["export"]
+        path = export_config["path"]
 
-        if self.config["export_type"] == "hub":
+        if export_config["export_type"] == "hub":
+            print(f"Pushing dataset to hub: {path}/{export_id}")
             self.data.push_to_hub(
-                f"{path}/{export_id}/{self.wiki_id}",
+                f"{path}/{export_id}",
+                data_dir=f"{self.wiki_id}",
                 private=True
             )
-        elif self.config["export_type"] == "local":
+        elif export_config["export_type"] == "local":
+            print(f"Saving dataset to disk: {path}/{export_id}/{self.wiki_id}")
             if not os.path.exists(f"{path}/{export_id}"):
                 os.makedirs(f"{path}/{export_id}")
             self.data.save_to_disk(
