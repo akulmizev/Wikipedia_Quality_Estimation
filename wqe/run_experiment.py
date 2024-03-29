@@ -23,6 +23,7 @@ def main():
         dataset.pre_filter()
         if config["data"]["export"]["do_export"]:
             dataset.save()
+    tokenizer = WikiTokenizerFromConfig(config)
     if config["data"]["partition"]["do_partition"]:
         dataset.apply_partition()
         # partition = Length(config)
