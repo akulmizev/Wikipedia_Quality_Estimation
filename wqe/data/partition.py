@@ -3,6 +3,7 @@ import numpy as np
 
 class Partition:
     def __init__(self, config):
+        # config is now passed from within the WikiDatasetFromConfig class
         self.config = config["partition"]
         self.type = self.config["partition_type"]
 

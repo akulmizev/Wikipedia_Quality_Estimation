@@ -25,8 +25,6 @@ def main():
             dataset.save()
     if config["data"]["partition"]["do_partition"]:
         dataset.apply_partition()
-        # partition = Length(config)
-        # partitioned_articles = partition(dataset["train"])
     tokenizer = WikiTokenizerFromConfig(config)
 
 

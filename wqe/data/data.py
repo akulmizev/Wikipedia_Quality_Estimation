@@ -1,4 +1,5 @@
 import json
+import logging
 import regex as re
 import os
 
@@ -9,6 +10,8 @@ import fasttext
 from huggingface_hub import hf_hub_download
 
 from .partition import *
+
+logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class WikiDatasetFromConfig:
@@ -25,12 +28,12 @@ class WikiDatasetFromConfig:
         self.wiki_id = config["wiki_id"]
 
         if self.config["import"]["do_import"]:
-            print(f"Loading dataset from {self.config['import']['path']}")
+            logging.info(f"Loading dataset from {self.config['import']['path']}")
             self.data = datasets.load_dataset(
                 self.config["import"]["path"]
             )
         else:
-            print(f"Loading dataset from Wikimedia/Wikipedia: {self.wiki_id}")
+            logging.info(f"Loading dataset from Wikimedia/Wikipedia: {self.wiki_id}")
             self.data = datasets.load_dataset(
                 "wikimedia/wikipedia",
                 f"20231101.{self.wiki_id}",
@@ -42,8 +45,8 @@ class WikiDatasetFromConfig:
         self.regex = None
         self.lang_id_model = None
         self.size_chars = len("".join(self.data["train"]["text"]))
-        self.size_articles = len(self.data["train"])
-        print(f"Loaded {self.size_articles} articles with {self.size_chars} characters.")
+        self.size_docs = len(self.data["train"])
+        logging.info(f"Loaded {self.size_docs} articles with {self.size_chars} characters.")
 
     def __getattr__(self, attr):
 
@@ -142,9 +145,9 @@ class WikiDatasetFromConfig:
 
         if self.config["pre_filter"]["script_regex"]:
             self._make_regex()
-            print(f"Filtering documents for accepted scripts: {self.wiki_mappings['scripts']}")
+            logging.info(f"Filtering documents for accepted scripts: {self.wiki_mappings['scripts']}")
         if self.config["pre_filter"]["lang_id"]:
-            print(f"Filtering documents for language: {self.wiki_mappings['alpha3']}")
+            logging.info(f"Filtering documents for language: {self.wiki_mappings['alpha3']}")
             self.lang_id_model = fasttext.load_model(
                 hf_hub_download(
                     repo_id="cis-lmu/glotlid",
@@ -154,7 +157,6 @@ class WikiDatasetFromConfig:
             )
 
         raw_size_chars = self.size_chars
-        raw_size_articles = self.size_articles
 
         self.data = self.data.map(
             lambda article: self._pre_filter_article(article),
@@ -162,16 +164,14 @@ class WikiDatasetFromConfig:
         )
 
         self.size_chars = len("".join(self.data["train"]["text"]))
-        self.size_articles = len(self.data["train"])
+        self.size_docs = len(self.data["train"])
 
-        print(f"Removed {raw_size_chars - self.size_chars} characters ({1.0 - self.size_chars/raw_size_chars}%).")
+        logging.info(f"Removed {raw_size_chars - self.size_chars} chars ({1.0 - self.size_chars/raw_size_chars}%).")
+
     def apply_partition(self):
 
         """
         Update the dataset with a partition.
-
-        Args:
-            partition (datasets.Dataset): The partition to update the dataset with.
         """
 
         partition_map = {
@@ -186,9 +186,9 @@ class WikiDatasetFromConfig:
         partition = partition_map[partition_metric](self.config)
 
         raw_size_chars = self.size_chars
-        raw_size_articles = self.size_articles
+        raw_size_docs = self.size_docs
 
-        print(f"Partitioning dataset by {partition_metric}...")
+        logging.info(f"Partitioning dataset by {partition_metric}...")
 
         self.data = datasets.DatasetDict({
             "train": datasets.Dataset.from_dict(
@@ -197,10 +197,10 @@ class WikiDatasetFromConfig:
         })
 
         self.size_chars = len("".join(self.data["train"]["text"]))
-        self.size_articles = len(self.data["train"])
+        self.size_docs = len(self.data["train"])
 
-        print(f"Removed {raw_size_chars - self.size_chars} characters ({1.0 - self.size_chars/raw_size_chars}%).")
-        print(f"Removed {raw_size_articles - self.size_articles} articles ({1.0 - self.size_articles/raw_size_articles}%).")
+        logging.info(f"Removed {raw_size_chars - self.size_chars} chars ({1.0 - self.size_chars/raw_size_chars}%).")
+        logging.info(f"Removed {raw_size_docs - self.size_docs} docs ({1.0 - self.size_docs/raw_size_docs}%).")
 
     def save(self):
 
@@ -213,19 +213,19 @@ class WikiDatasetFromConfig:
         path = export_config["path"]
 
         if export_config["export_type"] == "hub":
-            print(f"Pushing dataset to hub: {path}/{export_id}")
+            logging.info(f"Pushing dataset to hub: {path}/{export_id}")
             self.data.push_to_hub(
                 f"{path}/{export_id}",
                 data_dir=f"{self.wiki_id}",
                 private=True
             )
         elif export_config["export_type"] == "local":
-            print(f"Saving dataset to disk: {path}/{export_id}/{self.wiki_id}")
+            logging.info(f"Saving dataset to disk: {path}/{export_id}/{self.wiki_id}")
             if not os.path.exists(f"{path}/{export_id}"):
                 os.makedirs(f"{path}/{export_id}")
             self.data.save_to_disk(
                 f"{path}/{export_id}/{self.wiki_id}"
             )
         else:
-            print("Invalid export type. Please specify either 'hub' or 'local'.")
-            print("Skipping export.")
+            logging.info("Invalid export type. Please specify either 'hub' or 'local'.")
+            logging.info("Skipping export.")

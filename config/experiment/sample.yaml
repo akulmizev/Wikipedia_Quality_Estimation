@@ -42,3 +42,16 @@ data:
     do_export: true
     export_type: "hub"
     path: "WikiQuality"
+
+model:
+  pretrain:
+    do_pretrain: true
+    from_config: true
+    model_type: "deberta"
+    config_path: "../config/model/deberta/tiny.json"
+    max_seq_length: 512
+    mask_prob: 0.4
+    max_predictions_per_seq: 20
+    do_whole_word_mask: true
+    do_lower_case: false
+    output_dir: "../models/"
