@@ -1,0 +1,45 @@
+tokenizer:
+  do_tokenize: false
+  model: "unigram"
+  normalizer: "nfkc"
+  pre_tokenizer: [
+    "unicode_scripts",
+    "digits",
+    "metaspace"
+  ]
+  decoder: "metaspace"
+  trainer: "unigram"
+  post_processor: true
+  special_tokens: [
+    "[PAD]",
+    "[BOS]",
+    "[EOS]",
+    "[MASK]",
+    "[CLS]",
+    "[SEP]",
+    "[UNK]"
+  ]
+  unk_token: "[UNK]"
+  vocab_size: "auto"
+  output_dir: "../tokenizers/"
+
+data:
+  import:
+    do_import: true
+    path: "WikiQuality/as.filtered"
+  pre_filter:
+    do_pre_filter: false
+    script_regex: true
+    lang_id: true
+    char_cutoff: 15
+  partition:
+    do_partition: true
+    partition_type: "mean_cutoff"
+    partition_metric: "unique_subword_trigrams"
+    partition_tokenizer: "../tokenizers/wiki.as.json" ## This is the path to the tokenizer file, set to false if no tokenizer needed
+    higher_is_better: true
+    quality: true
+  export:
+    do_export: true
+    export_type: "local"
+    path: "wikis/as"

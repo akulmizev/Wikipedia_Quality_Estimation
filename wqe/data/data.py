@@ -178,6 +178,10 @@ class WikiDatasetFromConfig:
             "length": Length,
             "unique_subwords": UniqueSubwords,
             "unique_subword_trigrams": UniqueSubwordTrigrams,
+            "unique_trigrams": UniqueTrigrams,
+            "unique_words": UniqueWords,
+            "unique_characters": UniqueCharacters,
+            "unique_character_trigrams": UniqueCharacterTrigrams,
             "alpha_chars": AlphaChars
         }
 

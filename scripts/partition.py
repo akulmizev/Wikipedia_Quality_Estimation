@@ -6,6 +6,7 @@ import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 from tokenizers import Tokenizer
+from tokenizers.pre_tokenizers import Whitespace
 import numpy as np
 import math
 import re
@@ -15,7 +16,7 @@ import string
 from nltk.util import ngrams
 import pandas as pd
 from scipy.stats.mstats import gmean
-
+pretokenizer = Whitespace()
 enable_caching()
 def create_arg_parser():
     parser = argparse.ArgumentParser()
@@ -61,25 +62,33 @@ class Partition():
             else:
                 # high_quality.append(article.strip())
                 high_quality.append(id)
-                total_num_chars += length
+                # total_num_chars += length
+        # length = {}
+        # for example in tqdm(self.dataset):
+        #     text = example['text'].strip()
+        #     length[example['id']] = len(text)
+        # mean = int(np.mean(list(length.values())))
+        #
+        # high_quality = [ex for ex, v in length.items() if v >= mean]
+        # low_quality = [ex for ex, v in length.items() if v < mean]
+
+
         print("Number of articles in high quality bin: ", len(high_quality))
         print("Number of articles in low quality bin: ", len(low_quality))
         print("Total number of characters in high quality bin: ", sum(len(article) for article in high_quality))
         print("Total number of characters in low quality bin: ", sum(len(article) for article in low_quality))
         # high_quality = '\n'.join(high_quality)
         # low_quality = '\n'.join(low_quality)
+
         high_quality = self.dataset.filter(lambda x:x['id'] in high_quality)
         low_quality = self.dataset.filter(lambda x:x['id'] in low_quality)
-
-
-
 
 
         return high_quality, low_quality
 
 
     def unique_words(self):
-        unique_word_counts = {}  #unique subwords?- do that after tokenizers have been trained
+        unique_word_counts = {}
         for example in tqdm(self.dataset):
             text = example['text']
             counts = Counter(text.split())
@@ -158,13 +167,18 @@ class Partition():
 
 
 
-    def unique_trigrams(self):
+    def unique_trigrams(self, subwords=False):
         print("Filtering on unique trigram count...")
+        tokenizer= Tokenizer.from_file(f'tokenizers/wiki.{self.language}.json')
         # total_bigrams = {}
         total_trigrams = {}
         for example in tqdm(self.dataset):
             text = example['text'].strip()
-            words = text.split()
+            # words = text.split()
+            if subwords:
+                words = tokenizer.encode(text).tokens
+            else:
+                words = [word[0] for word in pretokenizer.pre_tokenize_str(text)]
             # bigrams = list(ngrams(words, 2))
             trigrams = list(ngrams(words, 3))
             # count_bigrams = Counter(bigrams)
@@ -188,6 +202,8 @@ class Partition():
         low_quality = '\n'.join(low_quality)
 
         return high_quality, low_quality
+
+
 
     def word_length(self):
         print("Filtering mean word length...")
@@ -378,13 +394,14 @@ class Partition():
         unique_word_counts = {}
         unique_subword_counts = {}
         total_trigrams = {}
+        total_subword_trigrams = {}
         word_length = {}
         overall_mean_word_length = []
         english_re = re.compile(r'[A-Za-z]')
         english_chars = {}
         for example in tqdm(self.dataset):
             text = example['text'].strip()
-            words = text.split()
+            words = [word[0] for word in pretokenizer.pre_tokenize_str(text)]
 
             article_length[example['id']] = len(text)
 
@@ -398,6 +415,10 @@ class Partition():
             trigrams = list(ngrams(words, 3))
             count_trigrams = Counter(trigrams)
             total_trigrams[example['id']] = len(count_trigrams)
+
+            subword_trigrams = list(ngrams(tokens, 3))
+            count_subword_trigrams = Counter(subword_trigrams)
+            total_subword_trigrams[example['id']] = len(count_subword_trigrams)
 
             word_lengths = [len(word) for word in words]
             for length in word_lengths:
@@ -416,6 +437,7 @@ class Partition():
         df_article_length = pd.DataFrame(article_length.items(), columns=['id', 'length'])
         df_unique_word_counts = pd.DataFrame(unique_word_counts.items(), columns=['id', 'unique_words'])
         df_unique_subword_counts = pd.DataFrame(unique_subword_counts.items(), columns=['id', 'unique_subwords'])
+        df_unique_subword_trigrams = pd.DataFrame(total_subword_trigrams.items(), columns=['id', 'subword_trigrams'])
         df_total_trigrams = pd.DataFrame(total_trigrams.items(), columns=['id', 'trigrams'])
         df_mean_word_length = pd.DataFrame(word_length.items(), columns=['id', 'mean_word_length'])
         df_english_chars = pd.DataFrame(english_chars.items(), columns=['id', 'english_chars'])
@@ -426,6 +448,7 @@ class Partition():
         df_article_length.to_csv(stats_dir + 'article_length.csv', index=False)
         df_unique_word_counts.to_csv(stats_dir + 'unique_word_counts.csv', index=False)
         df_unique_subword_counts.to_csv(stats_dir + 'unique_subword_counts.csv', index=False)
+        df_unique_subword_trigrams.to_csv(stats_dir + 'unique_subword_trigrams.csv', index=False)
         df_total_trigrams.to_csv(stats_dir + 'total_trigrams.csv', index=False)
         df_mean_word_length.to_csv(stats_dir + 'mean_word_length.csv', index=False)
         if self.language != 'pcm':
@@ -534,10 +557,10 @@ def main():
             bins = Partition(args.language, args.filtered).stupid_filters()
 
         high_quality, low_quality = bins
-        high_quality.push_to_hub(repo_id=f"WikiQuality/{args.language}.{args.partition}.high_quality",
-                                 private=True)
-        low_quality.push_to_hub(repo_id=f"WikiQuality/{args.language}.{args.partition}.low_quality",
-                                 private=True)
+        # high_quality.push_to_hub(repo_id=f"WikiQuality/{args.language}.{args.partition}.high_quality",
+        #                          private=True)
+        # low_quality.push_to_hub(repo_id=f"WikiQuality/{args.language}.{args.partition}.low_quality",
+        #                          private=True)
 
 
 if __name__ == '__main__':
