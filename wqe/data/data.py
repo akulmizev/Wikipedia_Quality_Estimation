@@ -7,6 +7,7 @@ from importlib import resources
 
 import datasets
 import fasttext
+from datasets import Dataset, DatasetDict, load_dataset
 from huggingface_hub import hf_hub_download
 
 from .partition import *
@@ -27,14 +28,15 @@ class WikiDatasetFromConfig:
         self.config = config["data"]
         self.wiki_id = config["wiki_id"]
 
-        if self.config["import"]["do_import"]:
+        if "import" in self.config:
             logging.info(f"Loading dataset from {self.config['import']['path']}")
-            self.data = datasets.load_dataset(
+            self.data = load_dataset(
                 self.config["import"]["path"]
             )
         else:
-            logging.info(f"Loading dataset from Wikimedia/Wikipedia: {self.wiki_id}")
-            self.data = datasets.load_dataset(
+            # TODO - make more interptable config options for loading raw wiki
+            logging.info(f"Loading raw dataset from Wikimedia/Wikipedia: {self.wiki_id}")
+            self.data = load_dataset(
                 "wikimedia/wikipedia",
                 f"20231101.{self.wiki_id}",
                 cache_dir=None
@@ -44,6 +46,7 @@ class WikiDatasetFromConfig:
             self.wiki_mappings = json.load(f)[self.wiki_id]
         self.regex = None
         self.lang_id_model = None
+
         self.size_chars = len("".join(self.data["train"]["text"]))
         self.size_docs = len(self.data["train"])
         logging.info(f"Loaded {self.size_docs} articles with {self.size_chars} characters.")
@@ -81,6 +84,36 @@ class WikiDatasetFromConfig:
         """
         return len(self.data)
 
+    def generate_splits(self):
+
+        """
+        Generate the splits for the dataset.
+        """
+        if len(self.data) > 1:
+            raise ValueError("Dataset already split. Please reload the dataset.")
+
+        logging.info("Generating dataset splits...")
+
+        split_config = self.config["split"]
+        assert split_config["train"] + split_config["dev"] + split_config["test"] == 1.0, \
+            "Splits must sum to 1.0."
+
+        docs_to_split = self.data["train"].shuffle(seed=split_config["seed"])
+
+        train_slice = int(split_config["train"] * len(docs_to_split))
+        dev_slice = int(split_config["dev"] * len(docs_to_split))
+
+        self.data = DatasetDict({
+            "train": Dataset.from_dict(docs_to_split[:train_slice]),
+            "dev": Dataset.from_dict(docs_to_split[train_slice:train_slice + dev_slice]),
+            "test": Dataset.from_dict(docs_to_split[train_slice + dev_slice:])
+        })
+
+        self.size_chars = len("".join(self.data["train"]["text"]))
+        self.size_docs = len(self.data["train"])
+
+        logging.info(f"Generated new train split with {self.size_docs} articles and {self.size_chars} characters.")
+
     def _get_export_id(self):
 
         """
@@ -91,9 +124,9 @@ class WikiDatasetFromConfig:
         """
 
         ids = []
-        if self.config["pre_filter"]["do_pre_filter"]:
+        if "pre_filter" in self.config:
             ids.append("pre_filtered")
-        if self.config["partition"]["do_partition"]:
+        if "partition" in self.config:
             ids.append(self.config["partition"]["partition_type"])
             ids.append(self.config["partition"]["partition_metric"])
 
@@ -186,7 +219,6 @@ class WikiDatasetFromConfig:
         }
 
         partition_metric = self.config["partition"]["partition_metric"]
-
         partition = partition_map[partition_metric](self.config)
 
         raw_size_chars = self.size_chars
@@ -194,12 +226,7 @@ class WikiDatasetFromConfig:
 
         logging.info(f"Partitioning dataset by {partition_metric}...")
 
-        self.data = datasets.DatasetDict({
-            "train": datasets.Dataset.from_dict(
-                partition(self.data["train"])
-            )
-        })
-
+        self.data["train"] = Dataset.from_dict(partition(self.data["train"]))
         self.size_chars = len("".join(self.data["train"]["text"]))
         self.size_docs = len(self.data["train"])
 

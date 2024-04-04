@@ -2,8 +2,8 @@ import argparse
 import yaml
 
 from data.data import WikiDatasetFromConfig
-from data.partition import Length
 from tokenizer.tokenizer import WikiTokenizerFromConfig
+from model.model import WikiMLM
 
 
 def main():
@@ -19,15 +19,27 @@ def main():
         config.update({"wiki_id": args.wiki_id})
 
     dataset = WikiDatasetFromConfig(config)
-    if config["data"]["pre_filter"]["do_pre_filter"]:
+    if "pre_filter" in config["data"]:
         dataset.pre_filter()
-        if config["data"]["export"]["do_export"]:
-            dataset.save()
-    tokenizer = WikiTokenizerFromConfig(config)
-    if config["data"]["partition"]["do_partition"]:
+    if "split" in config["data"]:
+        dataset.generate_splits()
+    if "partition" in config["data"]:
         dataset.apply_partition()
-    tokenizer = WikiTokenizerFromConfig(config)
+    if "export" in config["data"]:
+        dataset.save()
 
+    tokenizer = WikiTokenizerFromConfig(config)
+    if "train" in config["tokenizer"]:
+        tokenizer.train(dataset["train"], batch_size=100)
+        if "export" in config["tokenizer"]:
+            tokenizer.save()
+    fast_tokenizer = tokenizer.convert_to_fast()
+
+    model = WikiMLM(config["pretrain"])
+    model.prepare_model(dataset, fast_tokenizer)
+    model.train()
+
+    pass
 
 if __name__ == "__main__":
     main()

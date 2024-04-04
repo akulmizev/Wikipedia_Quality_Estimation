@@ -1,57 +1,67 @@
 tokenizer:
-  do_tokenize: true
-  model: "unigram"
-  normalizer: "nfkc"
-  pre_tokenizer: [
-    "unicode_scripts",
-    "digits",
-    "metaspace"
-  ]
-  decoder: "metaspace"
-  trainer: "unigram"
-  post_processor: true
-  special_tokens: [
-    "[PAD]",
-    "[BOS]",
-    "[EOS]",
-    "[MASK]",
-    "[CLS]",
-    "[SEP]",
-    "[UNK]"
-  ]
-  unk_token: "[UNK]"
-  vocab_size: "auto"
-  output_dir: "../tokenizers/"
+#  train:
+#    model: "unigram"
+#    normalizer: "nfkc"
+#    pre_tokenizer: [
+#      "unicode_scripts",
+#      "digits",
+#      "metaspace"
+#    ]
+#    decoder: "metaspace"
+#    trainer: "unigram"
+#    post_processor: true
+#    special_tokens: [
+#      "[PAD]",
+#      "[BOS]",
+#      "[EOS]",
+#      "[MASK]",
+#      "[CLS]",
+#      "[SEP]",
+#      "[UNK]"
+#    ]
+#    unk_token: "[UNK]"
+#    vocab_size: "auto"
+#    min_frequency: 2
+  import: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/tokenizers/test.json"
+  export:
+    export_type: "local"
+    path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/tokenizers/test.json"
 
 data:
-  import:
-    do_import: false
-    path: "WikiQuality/as.filtered"
-  pre_filter:
-    do_pre_filter: false
-    script_regex: true
-    lang_id: true
-    char_cutoff: 15
+  load_unprocessed_wiki: true
+  split:
+    train: 0.8
+    dev: 0.1
+    test : 0.1
+    seed: 42
+    shuffle: true
+  #  import:
+#    path: "WikiQuality/as.filtered"
+#  pre_filter:
+#    script_regex: true
+#    lang_id: true
+#    char_cutoff: 15
   partition:
-    do_partition: true
     partition_type: "mean_cutoff"
     partition_metric: "length"
     higher_is_better: true
     quality: true
-  export:
-    do_export: true
-    export_type: "hub"
-    path: "WikiQuality"
+#  export:
+#    export_type: "hub"
+#    path: "WikiQuality"
 
-model:
-  pretrain:
-    do_pretrain: true
-    from_config: true
-    model_type: "deberta"
-    config_path: "../config/model/deberta/tiny.json"
-    max_seq_length: 512
-    mask_prob: 0.4
-    max_predictions_per_seq: 20
-    do_whole_word_mask: true
-    do_lower_case: false
-    output_dir: "../models/"
+
+pretrain:
+  model_type: "deberta"
+  from_config: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/config/model/deberta/tiny.json"
+  max_length: 512
+  mask_prob: 0.4
+  num_train_epochs: 1
+  batch_size: 8
+  lr: 5e-5
+  output_dir: "../models/"
+  task: "mlm"
+  eval_steps: 100
+  export:
+    export_type: "local"
+    path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/models/deberta_tiny_mlm"

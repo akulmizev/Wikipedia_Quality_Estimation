@@ -56,7 +56,7 @@ class Length(Partition):
         super().__init__(config)
 
     def metric(self, example):
-        return (len(example))
+        return len(example)
 
 class UniqueSubwords(Partition):
     def __init__(self, config):
