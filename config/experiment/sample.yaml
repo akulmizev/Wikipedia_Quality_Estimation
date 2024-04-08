@@ -51,17 +51,26 @@ data:
 #    path: "WikiQuality"
 
 
-pretrain:
+#pretrain:
+#  model_type: "deberta"
+#  from_config: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/config/model/deberta/tiny.json"
+#  max_length: 512
+#  mask_prob: 0.4
+#  num_train_epochs: 1
+#  batch_size: 8
+#  lr: 5e-5
+#  output_dir: "../models/"
+#  task: "mlm"
+#  eval_steps: 1000
+#  export:
+#    export_type: "local"
+#    path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/models/deberta_tiny_mlm"
+
+finetune:
   model_type: "deberta"
-  from_config: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/config/model/deberta/tiny.json"
-  max_length: 512
-  mask_prob: 0.4
+  from_pretrained: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/models/deberta_tiny_mlm"
   num_train_epochs: 1
   batch_size: 8
   lr: 5e-5
-  output_dir: "../models/"
-  task: "mlm"
-  eval_steps: 100
-  export:
-    export_type: "local"
-    path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/models/deberta_tiny_mlm"
+  task: "ner"
+  dataset: "ai4bharat/naamapadam"

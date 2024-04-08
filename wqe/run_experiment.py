@@ -1,9 +1,11 @@
 import argparse
 import yaml
 
+from datasets import load_dataset
+
 from data.data import WikiDatasetFromConfig
 from tokenizer.tokenizer import WikiTokenizerFromConfig
-from model.model import WikiMLM
+from model.model import WikiMLM, WikiNER
 
 
 def main():
@@ -35,9 +37,17 @@ def main():
             tokenizer.save()
     fast_tokenizer = tokenizer.convert_to_fast()
 
-    model = WikiMLM(config["pretrain"])
-    model.prepare_model(dataset, fast_tokenizer)
-    model.train()
+
+    if "pretrain" in config:
+        model = WikiMLM(config["pretrain"])
+        model.prepare_model(dataset, fast_tokenizer)
+        model.train()
+
+    if "finetune" in config:
+        ner_dataset = load_dataset("indic_glue", f"wiki-ner.{config['wiki_id']}")
+        model = WikiNER(config["finetune"])
+        model.prepare_model(ner_dataset, fast_tokenizer)
+        model.train()
 
     pass
 
