@@ -12,7 +12,7 @@ from transformers import get_scheduler
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
-from wqe.eval.eval import LossLogger
+from eval.eval import LossLogger
 
 CONFIG_MAPPING = {
     "deberta": DebertaConfig,

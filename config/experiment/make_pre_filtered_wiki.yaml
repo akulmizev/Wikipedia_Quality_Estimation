@@ -1,13 +1,13 @@
 data:
   import:
-    path: "WikiQuality/as.raw"
+    path: "WikiQuality/raw_wiki"
   pre_filter:
     script_regex: true
     lang_id: true
     char_cutoff: 15
   split:
     train: 0.9
-    val: 0.1
+    test: 0.1
     seed: 42
     shuffle: true
   export:

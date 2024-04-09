@@ -20,22 +20,24 @@ def main():
         config = yaml.safe_load(f)
         config.update({"wiki_id": args.wiki_id})
 
-    dataset = WikiDatasetFromConfig(config)
-    if "pre_filter" in config["data"]:
-        dataset.pre_filter()
-    if "partition" in config["data"]:
-        dataset.apply_partition()
-    if "split" in config["data"]:
-        dataset.generate_splits()
-    if "export" in config["data"]:
-        dataset.save()
+    if "data" in config:
+        dataset = WikiDatasetFromConfig(config)
+        if "pre_filter" in config["data"]:
+            dataset.pre_filter()
+        if "partition" in config["data"]:
+            dataset.apply_partition()
+        if "split" in config["data"]:
+            dataset.generate_splits()
+        if "export" in config["data"]:
+            dataset.save()
 
-    tokenizer = WikiTokenizerFromConfig(config)
-    if "train" in config["tokenizer"]:
-        tokenizer.train(dataset["train"], batch_size=100)
-        if "export" in config["tokenizer"]:
-            tokenizer.save()
-    fast_tokenizer = tokenizer.convert_to_fast()
+    if "tokenizer" in config:
+        tokenizer = WikiTokenizerFromConfig(config)
+        if "train" in config["tokenizer"]:
+            tokenizer.train(dataset["train"], batch_size=100)
+            if "export" in config["tokenizer"]:
+                tokenizer.save()
+        fast_tokenizer = tokenizer.convert_to_fast()
 
 
     if "pretrain" in config:

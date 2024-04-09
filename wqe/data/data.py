@@ -9,6 +9,7 @@ import datasets
 import fasttext
 from datasets import Dataset, DatasetDict, load_dataset
 from huggingface_hub import hf_hub_download
+from huggingface_hub import HfApi
 
 from .partition import *
 
@@ -31,7 +32,7 @@ class WikiDatasetFromConfig:
         if "import" in self.config:
             logging.info(f"Loading dataset from {self.config['import']['path']}")
             self.data = load_dataset(
-                self.config["import"]["path"]
+                self.config["import"]["path"], self.wiki_id
             )
         else:
             # TODO - make more interptable config options for loading raw wiki
@@ -42,7 +43,7 @@ class WikiDatasetFromConfig:
                 cache_dir=None
             )
 
-        with resources.open_text("wqe.data.resources", "wiki_mappings.json") as f:
+        with resources.open_text("data.resources", "wiki_mappings.json") as f:
             self.wiki_mappings = json.load(f)[self.wiki_id]
         self.regex = None
         self.lang_id_model = None
@@ -89,30 +90,39 @@ class WikiDatasetFromConfig:
         """
         Generate the splits for the dataset.
         """
-        if len(self.data) > 1:
-            raise ValueError("Dataset already split. Please reload the dataset.")
+        # if len(self.data) > 1:
+        #     raise ValueError("Dataset already split. Please reload the dataset.")
 
         logging.info("Generating dataset splits...")
 
         split_config = self.config["split"]
-        assert split_config["train"] + split_config["dev"] + split_config["test"] == 1.0, \
-            "Splits must sum to 1.0."
+        # assert split_config["train"] + split_config["dev"] + split_config["test"] == 1.0, \
+        #     "Splits must sum to 1.0."
 
-        docs_to_split = self.data["train"].shuffle(seed=split_config["seed"])
+        # docs_to_split = self.data["train"].shuffle(seed=split_config["seed"])
 
-        train_slice = int(split_config["train"] * len(docs_to_split))
-        dev_slice = int(split_config["dev"] * len(docs_to_split))
+        # train_slice = int(split_config["train"] * len(docs_to_split))
+        # dev_slice = int(split_config["dev"] * len(docs_to_split))
 
-        self.data = DatasetDict({
-            "train": Dataset.from_dict(docs_to_split[:train_slice]),
-            "dev": Dataset.from_dict(docs_to_split[train_slice:train_slice + dev_slice]),
-            "test": Dataset.from_dict(docs_to_split[train_slice + dev_slice:])
-        })
+        # self.data = DatasetDict({
+        #     "train": Dataset.from_dict(docs_to_split[:train_slice]),
+        #     "dev": Dataset.from_dict(docs_to_split[train_slice:train_slice + dev_slice]),
+        #     "test": Dataset.from_dict(docs_to_split[train_slice + dev_slice:])
+        # })
+
+        self.data = self.data['train'].train_test_split(
+            test_size=split_config["test"],
+            shuffle=split_config["shuffle"],
+            seed=split_config["seed"]
+        )
 
         self.size_chars = len("".join(self.data["train"]["text"]))
         self.size_docs = len(self.data["train"])
 
+        self.size_chars_test = len("".join(self.data["test"]["text"]))
+
         logging.info(f"Generated new train split with {self.size_docs} articles and {self.size_chars} characters.")
+        logging.info(f"Generated new test split with {len(self.data['test'])} articles and {self.size_chars_test} characters.")
 
     def _get_export_id(self):
 
@@ -124,7 +134,9 @@ class WikiDatasetFromConfig:
         """
 
         ids = []
-        if "pre_filter" in self.config:
+        if "load_unprocessed_wiki" in self.config and self.config["load_unprocessed_wiki"]:
+            ids.append("raw_wiki")
+        elif "pre_filter" in self.config:
             ids.append("pre_filtered")
         if "partition" in self.config:
             ids.append(self.config["partition"]["partition_type"])
@@ -246,8 +258,9 @@ class WikiDatasetFromConfig:
         if export_config["export_type"] == "hub":
             logging.info(f"Pushing dataset to hub: {path}/{export_id}")
             self.data.push_to_hub(
-                f"{path}/{export_id}",
+                repo_id=path+"/"+export_id,
                 data_dir=f"{self.wiki_id}",
+                config_name=f'{self.wiki_id}',
                 private=True
             )
         elif export_config["export_type"] == "local":
