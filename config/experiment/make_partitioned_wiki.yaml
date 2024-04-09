@@ -1,0 +1,20 @@
+data:
+  import:
+    path: "WikiQuality/as.raw"
+  pre_filter:
+    script_regex: true
+    lang_id: true
+    char_cutoff: 15
+  partition:
+    partition_type: "mean_cutoff"
+    partition_metric: "length"
+    higher_is_better: true
+    quality: true
+  split:
+    train: 0.9
+    val: 0.1
+    seed: 42
+    shuffle: true
+  export:
+    export_type: "hub"
+    path: "WikiQuality"

@@ -1,0 +1,10 @@
+data:
+  load_unprocessed_wiki: true
+  split:
+    train: 0.95
+    val : 0.05
+    seed: 42
+    shuffle: true
+  export:
+    export_type: "hub"
+    path: "WikiQuality"

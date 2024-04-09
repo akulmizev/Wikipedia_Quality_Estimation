@@ -23,10 +23,10 @@ def main():
     dataset = WikiDatasetFromConfig(config)
     if "pre_filter" in config["data"]:
         dataset.pre_filter()
-    if "split" in config["data"]:
-        dataset.generate_splits()
     if "partition" in config["data"]:
         dataset.apply_partition()
+    if "split" in config["data"]:
+        dataset.generate_splits()
     if "export" in config["data"]:
         dataset.save()
 

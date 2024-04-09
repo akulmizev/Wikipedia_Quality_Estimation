@@ -118,8 +118,6 @@ class UniqueCharacterTrigrams(Partition):
         trigrams = list(ngrams(example, 3))
         return len(set(trigrams))
 
-
-
 class AlphaChars(Partition):
     def __init__(self, config):
         super().__init__(config)
