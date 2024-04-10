@@ -104,25 +104,10 @@ class WikiDatasetFromConfig:
         """
         Generate the splits for the dataset.
         """
-        # if len(self.data) > 1:
-        #     raise ValueError("Dataset already split. Please reload the dataset.")
 
         logging.info("Generating dataset splits...")
 
         split_config = self.config["split"]
-        # assert split_config["train"] + split_config["dev"] + split_config["test"] == 1.0, \
-        #     "Splits must sum to 1.0."
-
-        # docs_to_split = self.data["train"].shuffle(seed=split_config["seed"])
-
-        # train_slice = int(split_config["train"] * len(docs_to_split))
-        # dev_slice = int(split_config["dev"] * len(docs_to_split))
-
-        # self.data = DatasetDict({
-        #     "train": Dataset.from_dict(docs_to_split[:train_slice]),
-        #     "dev": Dataset.from_dict(docs_to_split[train_slice:train_slice + dev_slice]),
-        #     "test": Dataset.from_dict(docs_to_split[train_slice + dev_slice:])
-        # })
 
         self.data = self.data['train'].train_test_split(
             test_size=split_config["test"],
@@ -137,32 +122,6 @@ class WikiDatasetFromConfig:
 
         logging.info(f"Generated new train split with {self.size_docs} articles and {self.size_chars} characters.")
         # logging.info(f"Generated new test split with {len(self.data['test'])} articles and {self.size_chars_test} characters.")
-
-    # def _get_export_id(self):
-    #
-    #     """
-    #     Get the id string for exporting the dataset.
-    #
-    #     Returns:
-    #         str: The export ID.
-    #     """
-    #
-    #     ids = []
-    #     if "load_unprocessed_wiki" in self.config and self.config["load_unprocessed_wiki"]:
-    #         ids.append("raw_wiki")
-    #     elif "pre_filter" in self.config:
-    #         ids.append("pre_filtered")
-    #     else:
-    #         pass
-    #     if "partition" in self.config:
-    #         # ids.append(self.config["partition"]["partition_type"])
-    #         ids.append(self.config["partition"]["partition_metric"])
-    #         if self.config["partition"]["quality"]:
-    #             ids.append("high_quality")
-    #         else:
-    #             ids.append("low_quality")
-    #
-    #     return ".".join(ids)
 
     def _make_regex(self):
 
@@ -186,31 +145,6 @@ class WikiDatasetFromConfig:
         )
 
         return article
-
-    # def _pre_filter_article(self, article):
-    #
-    #     """
-    #     Pre-filter an article based on the configuration.
-    #
-    #     Args:
-    #         article (dict): The article to filter.
-    #
-    #     Returns:
-    #         dict: The filtered article.
-    #     """
-    #
-    #     filtered = "".join(re.findall(self.regex, article['text']))
-    #     if self.lang_id_model is not None:
-    #         article['text'] = "".join(
-    #             [line for line in filtered.splitlines() if len(line) > self.config["pre_filter"]["char_cutoff"] and
-    #              self.lang_id_model.predict(line)[0][0].split("_")[-2] == self.wiki_mappings['alpha3']]
-    #         )
-    #     else:
-    #         article['text'] = "".join(
-    #             [line for line in filtered.split("\n") if len(line) > self.config["pre_filter"]["char_cutoff"]]
-    #         )
-    #
-    #     return article
 
     def pre_filter(self):
 
@@ -274,7 +208,9 @@ class WikiDatasetFromConfig:
 
             logging.info(f"Partitioning dataset by {partition_metric}...")
 
-            self.data["train"] = Dataset.from_dict(partition(concatenate_datasets([self.data["train"], self.data["test"]])))
+            self.data["train"] = Dataset.from_dict(
+                partition(concatenate_datasets([self.data["train"], self.data["test"]]))
+            )
 
             self.size_chars = len("".join(self.data["train"]["text"]))
             self.size_docs = len(self.data["train"])
@@ -303,7 +239,6 @@ class WikiDatasetFromConfig:
 
             logging.info(f"Removed {raw_size_chars - self.size_chars} chars ({1.0 - self.size_chars / raw_size_chars}%).")
             logging.info(f"Removed {raw_size_docs - self.size_docs} docs ({1.0 - self.size_docs / raw_size_docs}%).")
-
 
     def save(self):
 
