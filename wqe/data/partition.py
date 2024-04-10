@@ -39,16 +39,19 @@ class Partition:
 
         else:
             raise ValueError("Partition type not recognized.")
-        if self.config["higher_is_better"]:
-            if self.config["quality"]:
-                return dataset[partition_2]
+        if self.config["partition_metric"] != "all":
+            if self.config["higher_is_better"]:
+                if self.config["quality"]:
+                    return dataset[partition_2]
+                else:
+                    return dataset[partition_1]
             else:
-                return dataset[partition_1]
+                if self.config["quality"]:
+                    return dataset[partition_1]
+                else:
+                    return dataset[partition_2]
         else:
-            if self.config["quality"]:
-                return dataset[partition_1]
-            else:
-                return dataset[partition_2]
+            return dataset[partition_2] #only return high quality to filter on in data.py
 
     def metric(self, example):
         raise NotImplementedError("Metric not implemented. Please use a subclass.")

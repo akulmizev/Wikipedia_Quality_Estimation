@@ -264,19 +264,46 @@ class WikiDatasetFromConfig:
         }
 
         partition_metric = self.config["partition"]["partition_metric"]
-        partition = partition_map[partition_metric](self.config)
+        if partition_metric != "all":
+            partition = partition_map[partition_metric](self.config)
 
-        raw_size_chars = self.size_chars
-        raw_size_docs = self.size_docs
+            raw_size_chars = self.size_chars
+            raw_size_docs = self.size_docs
 
-        logging.info(f"Partitioning dataset by {partition_metric}...")
+            logging.info(f"Partitioning dataset by {partition_metric}...")
 
-        self.data["train"] = Dataset.from_dict(partition(concatenate_datasets([self.data["train"], self.data["test"]])))
-        self.size_chars = len("".join(self.data["train"]["text"]))
-        self.size_docs = len(self.data["train"])
+            self.data["train"] = Dataset.from_dict(partition(concatenate_datasets([self.data["train"], self.data["test"]])))
 
-        logging.info(f"Removed {raw_size_chars - self.size_chars} chars ({1.0 - self.size_chars/raw_size_chars}%).")
-        logging.info(f"Removed {raw_size_docs - self.size_docs} docs ({1.0 - self.size_docs/raw_size_docs}%).")
+            self.size_chars = len("".join(self.data["train"]["text"]))
+            self.size_docs = len(self.data["train"])
+
+            logging.info(f"Removed {raw_size_chars - self.size_chars} chars ({1.0 - self.size_chars/raw_size_chars}%).")
+            logging.info(f"Removed {raw_size_docs - self.size_docs} docs ({1.0 - self.size_docs/raw_size_docs}%).")
+        else:
+            logging.info("Partitioning dataset by all metrics...")
+            self.data["train"] = concatenate_datasets([self.data["train"], self.data["test"]])
+            high_quality = []
+            for metric in [Length, UniqueTrigrams, UniqueWords, UniqueCharacters]:
+                partition = metric(self.config)
+                high_quality.append(Dataset.from_dict(partition(self.data["train"])))
+
+            data_ids = concatenate_datasets(high_quality)["id"]
+            if self.config["partition"]["quality"]:
+                self.data = self.data.filter(lambda x: x["id"] in data_ids)
+            else:
+                self.data = self.data.filter(lambda x: x["id"] not in data_ids)
+
+            raw_size_chars = self.size_chars
+            raw_size_docs = self.size_docs
+
+            self.size_chars = len("".join(self.data["train"]["text"]))
+            self.size_docs = len(self.data["train"])
+
+            logging.info(f"Removed {raw_size_chars - self.size_chars} chars ({1.0 - self.size_chars / raw_size_chars}%).")
+            logging.info(f"Removed {raw_size_docs - self.size_docs} docs ({1.0 - self.size_docs / raw_size_docs}%).")
+
+
+
 
     def save(self):
 

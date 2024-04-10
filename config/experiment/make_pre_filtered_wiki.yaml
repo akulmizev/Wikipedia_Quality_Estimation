@@ -10,6 +10,6 @@ data:
     test: 0.1
     seed: 42
     shuffle: true
-  export:
-    export_type: "hub"
-    path: "WikiQuality"
+#  export:
+#    export_type: "hub"
+#    path: "WikiQuality"
