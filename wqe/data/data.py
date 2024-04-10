@@ -2,15 +2,15 @@ import json
 import logging
 import regex as re
 import os
-import tqdm
 
 from importlib import resources
 
 import datasets
 import fasttext
-from datasets import Dataset, DatasetDict, load_dataset, concatenate_datasets
+from datasets import load_dataset
+# from datasets import concatenate_datasets
 from huggingface_hub import hf_hub_download
-from huggingface_hub import HfApi
+# from huggingface_hub import HfApi
 
 from .partition import *
 
@@ -28,28 +28,40 @@ class WikiDatasetFromConfig:
         """
 
         self.config = config["data"]
+        self.experiment_id = config["experiment"]["id"]
         self.wiki_id = config["wiki_id"]
 
         if "import" in self.config:
-            logging.info(f"Loading dataset from {self.config['import']['path']}")
-            self.data = load_dataset(
-                self.config["import"]["path"], self.wiki_id
-            )
-        else:
-            # TODO - make more interptable config options for loading raw wiki
-            logging.info(f"Loading raw dataset from Wikimedia/Wikipedia: {self.wiki_id}")
-            self.data = load_dataset(
-                "wikimedia/wikipedia",
-                f"20231101.{self.wiki_id}",
-                cache_dir=None
-            )
+            import_type = self.config["import"]["import_type"]
+
+            if import_type == "local":
+                path = self.config["import"]["path"]
+                logging.info(f"Loading dataset from {path}")
+                self.data = load_dataset(path)
+            elif import_type == "hub":
+                # TODO: fix this to not be redundant
+                path = self.config["import"]["path"]
+                logging.info(f"Loading dataset from hub: {path}/{self.wiki_id}")
+                self.data = load_dataset(
+                    f"{path}",
+                    self.wiki_id
+                )
+            elif import_type == "raw":
+                logging.info(f"Loading raw dataset from Wikimedia/Wikipedia: {self.wiki_id}")
+                self.data = load_dataset(
+                    "wikimedia/wikipedia",
+                    f"20231101.{self.wiki_id}",
+                    cache_dir=None
+                )
+            else:
+                raise ValueError("Invalid import type. Please specify either 'local', 'hub', or 'raw'.")
 
         with resources.open_text("data.resources", "wiki_mappings.json") as f:
             self.wiki_mappings = json.load(f)[self.wiki_id]
         self.regex = None
         self.lang_id_model = None
 
-        #TODO change this to - if loading pre_filtered data for partitions, it logs both train and test
+        # TODO change this to - if loading pre_filtered data for partitions, it logs both train and test
         self.size_chars = len("".join(self.data["train"]["text"]))
         self.size_docs = len(self.data["train"])
         logging.info(f"Loaded {self.size_docs} articles with {self.size_chars} characters.")
@@ -121,34 +133,36 @@ class WikiDatasetFromConfig:
         self.size_chars = len("".join(self.data["train"]["text"]))
         self.size_docs = len(self.data["train"])
 
-        self.size_chars_test = len("".join(self.data["test"]["text"]))
+        # self.size_chars_test = len("".join(self.data["test"]["text"]))
 
         logging.info(f"Generated new train split with {self.size_docs} articles and {self.size_chars} characters.")
-        logging.info(f"Generated new test split with {len(self.data['test'])} articles and {self.size_chars_test} characters.")
+        # logging.info(f"Generated new test split with {len(self.data['test'])} articles and {self.size_chars_test} characters.")
 
-    def _get_export_id(self):
-
-        """
-        Get the id string for exporting the dataset.
-
-        Returns:
-            str: The export ID.
-        """
-
-        ids = []
-        if "load_unprocessed_wiki" in self.config and self.config["load_unprocessed_wiki"]:
-            ids.append("raw_wiki")
-        elif "pre_filter" in self.config:
-            ids.append("pre_filtered")
-        if "partition" in self.config:
-            # ids.append(self.config["partition"]["partition_type"])
-            ids.append(self.config["partition"]["partition_metric"])
-            if self.config["partition"]["quality"]:
-                ids.append("high_quality")
-            else:
-                ids.append("low_quality")
-
-        return ".".join(ids)
+    # def _get_export_id(self):
+    #
+    #     """
+    #     Get the id string for exporting the dataset.
+    #
+    #     Returns:
+    #         str: The export ID.
+    #     """
+    #
+    #     ids = []
+    #     if "load_unprocessed_wiki" in self.config and self.config["load_unprocessed_wiki"]:
+    #         ids.append("raw_wiki")
+    #     elif "pre_filter" in self.config:
+    #         ids.append("pre_filtered")
+    #     else:
+    #         pass
+    #     if "partition" in self.config:
+    #         # ids.append(self.config["partition"]["partition_type"])
+    #         ids.append(self.config["partition"]["partition_metric"])
+    #         if self.config["partition"]["quality"]:
+    #             ids.append("high_quality")
+    #         else:
+    #             ids.append("low_quality")
+    #
+    #     return ".".join(ids)
 
     def _make_regex(self):
 
@@ -173,30 +187,30 @@ class WikiDatasetFromConfig:
 
         return article
 
-    def _pre_filter_article(self, article):
-
-        """
-        Pre-filter an article based on the configuration.
-
-        Args:
-            article (dict): The article to filter.
-
-        Returns:
-            dict: The filtered article.
-        """
-
-        filtered = "".join(re.findall(self.regex, article['text']))
-        if self.lang_id_model is not None:
-            article['text'] = "".join(
-                [line for line in filtered.splitlines() if len(line) > self.config["pre_filter"]["char_cutoff"] and
-                 self.lang_id_model.predict(line)[0][0].split("_")[-2] == self.wiki_mappings['alpha3']]
-            )
-        else:
-            article['text'] = "".join(
-                [line for line in filtered.split("\n") if len(line) > self.config["pre_filter"]["char_cutoff"]]
-            )
-
-        return article
+    # def _pre_filter_article(self, article):
+    #
+    #     """
+    #     Pre-filter an article based on the configuration.
+    #
+    #     Args:
+    #         article (dict): The article to filter.
+    #
+    #     Returns:
+    #         dict: The filtered article.
+    #     """
+    #
+    #     filtered = "".join(re.findall(self.regex, article['text']))
+    #     if self.lang_id_model is not None:
+    #         article['text'] = "".join(
+    #             [line for line in filtered.splitlines() if len(line) > self.config["pre_filter"]["char_cutoff"] and
+    #              self.lang_id_model.predict(line)[0][0].split("_")[-2] == self.wiki_mappings['alpha3']]
+    #         )
+    #     else:
+    #         article['text'] = "".join(
+    #             [line for line in filtered.split("\n") if len(line) > self.config["pre_filter"]["char_cutoff"]]
+    #         )
+    #
+    #     return article
 
     def pre_filter(self):
 
@@ -224,22 +238,10 @@ class WikiDatasetFromConfig:
                     cache_dir=None
                 )
             )
-            for article in tqdm.tqdm(self.data["train"]):
-                article['text'] = "".join(
-                    [line for line in article['text'].splitlines() if len(line) > self.config["pre_filter"]["char_cutoff"] and
-                     self.lang_id_model.predict(line)[0][0].split("_")[-2] == self.wiki_mappings['alpha3']]
-                )
-
-            # self.data = self.data.map(
-            #     self._prefilter_langid,
-            #     desc="Pre-filtering dataset by langid..."
-            # )
-
-        # self.data = self.data.map(
-        #     # lambda article: self._pre_filter_article(article),
-        #     self._pre_filter_article,
-        #     desc="Pre-filtering dataset..."
-        # )
+            self.data = self.data.map(
+                self._prefilter_langid,
+                desc="Pre-filtering dataset by langid..."
+            )
 
         self.size_chars = len("".join(self.data["train"]["text"]))
         self.size_docs = len(self.data["train"])
@@ -271,7 +273,8 @@ class WikiDatasetFromConfig:
 
         logging.info(f"Partitioning dataset by {partition_metric}...")
 
-        self.data["train"] = Dataset.from_dict(partition(concatenate_datasets([self.data["train"], self.data["test"]])))
+        # self.data["train"] = Dataset.from_dict(partition(concatenate_datasets([self.data["train"], self.data["test"]])))
+        self.data["train"] = partition(self.data["train"])
         self.size_chars = len("".join(self.data["train"]["text"]))
         self.size_docs = len(self.data["train"])
 
@@ -284,24 +287,23 @@ class WikiDatasetFromConfig:
         Save the dataset to disk.
         """
 
-        export_id = self._get_export_id()
-        export_config = self.config["export"]
-        path = export_config["path"]
+        path = self.config["export"]["path"]
+        export_type = self.config["export"]["export_type"]
 
-        if export_config["export_type"] == "hub":
-            logging.info(f"Pushing dataset to hub: {path}/{export_id}")
+        if export_type == "hub":
+            logging.info(f"Pushing dataset to hub: {path}/{self.experiment_id}")
             self.data.push_to_hub(
-                repo_id=path+"/"+export_id,
+                repo_id=f"{path}/{self.experiment_id}",
                 data_dir=f"{self.wiki_id}",
                 config_name=f'{self.wiki_id}',
                 private=True
             )
-        elif export_config["export_type"] == "local":
-            logging.info(f"Saving dataset to disk: {path}/{export_id}/{self.wiki_id}")
-            if not os.path.exists(f"{path}/{export_id}"):
-                os.makedirs(f"{path}/{export_id}")
+        elif export_type == "local":
+            logging.info(f"Saving dataset to: {path}/{self.experiment_id}/{self.wiki_id}")
+            if not os.path.exists(f"{path}/{self.experiment_id}"):
+                os.makedirs(f"{path}/{self.experiment_id}")
             self.data.save_to_disk(
-                f"{path}/{export_id}/{self.wiki_id}"
+                f"{path}/{self.experiment_id}/{self.wiki_id}"
             )
         else:
             logging.info("Invalid export type. Please specify either 'hub' or 'local'.")

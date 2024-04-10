@@ -1,4 +1,5 @@
 import numpy as np
+from datasets import Dataset
 from tokenizers.pre_tokenizers import UnicodeScripts, Whitespace, Sequence, ByteLevel, WhitespaceSplit
 from transformers import PreTrainedTokenizerFast
 from tokenizers import Tokenizer
@@ -39,16 +40,30 @@ class Partition:
 
         else:
             raise ValueError("Partition type not recognized.")
-        if self.config["higher_is_better"]:
-            if self.config["quality"]:
-                return dataset[partition_2]
-            else:
-                return dataset[partition_1]
+
+        # Not sure if this will work...
+        if (self.config["higher_is_better"] and self.config["quality"]) or \
+                (not self.config["higher_is_better"] and not self.config["quality"]):
+            dataset = dataset.select(partition_2)
         else:
-            if self.config["quality"]:
-                return dataset[partition_1]
-            else:
-                return dataset[partition_2]
+            dataset = dataset.select(partition_1)
+
+        # elif (self.config["higher_is_better"] and not self.config["quality"]) \
+        #         or (not self.config["higher_is_better"] and self.config["quality"]):
+        #     dataset = dataset.select(partition_1)
+
+        # if self.config["higher_is_better"]:
+        #     if self.config["quality"]:
+        #         dataset = dataset.select(partition_2)
+        #     else:
+        #         dataset = dataset.select(partition_1)
+        # else:
+        #     if self.config["quality"]:
+        #         dataset = dataset.select(partition_1)
+        #     else:
+        #         dataset = dataset.select(partition_2)
+
+        return dataset
 
     def metric(self, example):
         raise NotImplementedError("Metric not implemented. Please use a subclass.")

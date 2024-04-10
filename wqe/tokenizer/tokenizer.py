@@ -1,9 +1,13 @@
 import json
+import logging
+import os
 from importlib import resources
 from tokenizers import Tokenizer, processors, pre_tokenizers
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
 from .resources.param_map import PARAM_MAP
+
+logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 
 class WikiTokenizerFromConfig:
@@ -20,13 +24,17 @@ class WikiTokenizerFromConfig:
         """
 
         self.config = config["tokenizer"]
+        self.experiment_id = config["experiment"]["id"]
         self.wiki_id = config["wiki_id"]
-        self.tokenizer = None
 
-        if "train" in self.config:
+        self.tokenizer = None
+        if "from_pretrained" in self.config:
+            # TODO: Clean up messiness with loading from_pretrained with wiki_id.
+            logging.info(f"Loading tokenizer from hub: {self.config['from_pretrained']}.{self.wiki_id}")
+            self.tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{self.config["from_pretrained"]}.{self.wiki_id}")
+        elif "from_config" in self.config:
+            logging.info("Building tokenizer from config.")
             self._build_tokenizer()
-        elif "import" in self.config:
-            self.tokenizer = Tokenizer.from_file(self.config["import"])
         else:
             raise ValueError("Pass a configuration for training or importing a tokenizer.")
 
@@ -43,9 +51,26 @@ class WikiTokenizerFromConfig:
         """
         return getattr(self.tokenizer, attr)
 
+    def __call__(self, *args, **kwargs):
+
+        """
+        Call the tokenizer.
+
+        Args:
+            *args: The positional arguments.
+            **kwargs: The keyword arguments.
+
+        Returns:
+            Any: The result of the call.
+        """
+        return self.tokenizer(*args, **kwargs)
+
     def _build_tokenizer(self):
 
-        train_config = self.config["train"]
+        try:
+            train_config = self.config["from_config"]
+        except KeyError("Pass a configuration for training a tokenizer via 'from_config' key."):
+            exit()
 
         self.tokenizer = Tokenizer(PARAM_MAP["model"][train_config["model"]]())
         self.tokenizer.normalizer = PARAM_MAP["normalizer"][train_config["normalizer"]]()
@@ -83,12 +108,16 @@ class WikiTokenizerFromConfig:
             dataset (datasets.Dataset): The dataset to train the tokenizer on.
             batch_size (int): The batch size.
         """
-
+        logging.info(f"Training tokenizer on {len(dataset)} samples...")
         self.tokenizer.train_from_iterator(
             self.batch_iterator(dataset, batch_size=batch_size),
             trainer=self.tokenizer.trainer,
             length=len(dataset)
         )
+
+        logging.info(f"Trained a tokenizer with vocab size: {self.tokenizer.get_vocab_size()}")
+
+        self.tokenizer = PreTrainedTokenizerFast(tokenizer_object=self.tokenizer)
 
     @staticmethod
     def batch_iterator(dataset, batch_size=1000):
@@ -109,14 +138,43 @@ class WikiTokenizerFromConfig:
         """
         Convert the tokenizer to a PreTrainedTokenizerFast object.
         """
+
         return PreTrainedTokenizerFast(tokenizer_object=self.tokenizer)
+
+    def get_base_tokenizer(self):
+        """
+        Get the base tokenizer object.
+
+        Returns:
+            Tokenizer: The base tokenizer object.
+        """
+
+        # TODO - This is a temporary fix. Need to find a better way to handle this.
+
+        return self.tokenizer
 
     def save(self):
         """
         Save the tokenizer to a file.
 
-        Args:
-            path (str): The path to save the tokenizer to.
         """
-        print(f"Saving tokenizer to {self.config['export']['path']}")
-        self.tokenizer.save(self.config["export"]["path"])
+
+        path = self.config["export"]["path"]
+        export_type = self.config["export"]["export_type"]
+
+        if export_type == "hub":
+            # self.tokenizer = PreTrainedTokenizerFast(tokenizer_object=self.tokenizer)
+            logging.info(f"Pushing tokenizer to hub: {path}/{self.experiment_id}.{self.wiki_id}")
+            self.tokenizer.push_to_hub(
+                f"{path}/{self.experiment_id}.{self.wiki_id}",
+                use_temp_dir=True,
+                repo_name=path,
+                private=True
+            )
+        elif export_type == "local":
+            logging.info(f"Saving tokenizer to: {path}/{self.experiment_id}/{self.wiki_id}")
+            if not os.path.exists(f"{path}/{self.experiment_id}"):
+                os.makedirs(f"{path}/{self.experiment_id}")
+            self.tokenizer.save_pretrained(f"{path}/{self.experiment_id}/{self.wiki_id}")
+        else:
+            raise ValueError("Invalid export type.")

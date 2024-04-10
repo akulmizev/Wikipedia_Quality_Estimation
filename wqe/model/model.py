@@ -1,4 +1,5 @@
-import json
+import logging
+import os
 import torch
 
 from collections import OrderedDict
@@ -12,7 +13,7 @@ from transformers import get_scheduler
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
-from wqe.eval.eval import LossLogger
+# from wqe.eval.eval import LossLogger
 
 CONFIG_MAPPING = {
     "deberta": DebertaConfig,
@@ -34,7 +35,10 @@ TASK_MAPPING = {
 
 class WikiModelFromConfig:
     def __init__(self, config):
-        self.config = config
+        self.experiment_id = config["experiment"]["id"]
+        self.wandb_project = config["experiment"]["wandb_project"]
+        self.wiki_id = config["wiki_id"]
+        self.config = None
         self.model = None
         self.optimizer = None
         self.accelerator = None
@@ -48,6 +52,8 @@ class WikiModelFromConfig:
         )
 
     def _get_model_config(self):
+
+        # TODO: Fix this so that config isn't hardcoded.
 
         model_config = CONFIG_MAPPING.get(self.config["model_type"])
         model_config = model_config.from_json_file(self.config["from_config"])
@@ -71,6 +77,9 @@ class WikiModelFromConfig:
 class WikiMLM(WikiModelFromConfig):
     def __init__(self, config):
         super().__init__(config)
+        self.config = config["pretrain"]
+        self.num_train_epochs = self.config["num_train_epochs"]
+        self.vocab_size = None
         self.tokenizer_kwargs = OrderedDict(
             mask_token="[MASK]",
             bos_token="[BOS]",
@@ -87,12 +96,15 @@ class WikiMLM(WikiModelFromConfig):
         for k, v in self.tokenizer_kwargs.items():
             setattr(tokenizer, k, v)
 
+        self.vocab_size = len(tokenizer.get_vocab())
+
         self.collator = DataCollatorForLanguageModeling(
             tokenizer=tokenizer,
             mlm=True,
             mlm_probability=self.config["mask_prob"]
         )
 
+        logging.info("Tokenizing and batching datasets...")
         batched_datasets = dataset.map(
             lambda examples: tokenizer(
                 examples["text"],
@@ -120,16 +132,39 @@ class WikiMLM(WikiModelFromConfig):
     def _init_training_parameters(self):
 
         if "from_config" in self.config:
-            self.model = AutoModelForMaskedLM.from_config(self._get_model_config()).to("cuda")
+            model_config = self._get_model_config()
+            model_config.vocab_size = self.vocab_size
+            logging.info(f"Initalizing model with config: {model_config}")
+            self.model = AutoModelForMaskedLM.from_config(model_config).to("cuda")
         elif "from_pretrained" in self.config:
-            self.model = AutoModelForMaskedLM.from_pretrained(self.config["from_pretrained"]).to("cuda")
+            logging.info(f"Loading model from hub: {self.config['from_pretrained']}.{self.wiki_id}")
+            self.model = AutoModelForMaskedLM.from_pretrained(
+                f"{self.config["from_pretrained"]}.{self.wiki_id}"
+            ).to("cuda")
         else:
             raise ValueError("`from_config` or `from_pretrained` must be in the configuration.")
 
+        logging.info(f"{self.model.config.model_type} for MLM loaded.")
         self.optimizer = AdamW(self.model.parameters(), lr=float(self.config["lr"]))
-        self.accelerator = Accelerator()
-        self.model, self.optimizer, self.loaders["train"], self.loaders["test"] = self.accelerator.prepare(
-            self.model, self.optimizer, self.loaders["train"], self.loaders["test"]
+
+        if self.wandb_project is not None:
+            self.accelerator = Accelerator(log_with="wandb")
+            self.accelerator.init_trackers(
+                project_name=f"{self.experiment_id}.{self.wiki_id}",
+                config={"lr": self.config["lr"],
+                        "batch_size": self.config["batch_size"]},
+                init_kwargs={"wandb": {"entity": self.wandb_project}}
+            )
+        else:
+            # TODO: Add support for tensorboard logging.
+            self.accelerator = Accelerator()
+
+        self.model, self.optimizer, self.loaders["train"], self.loaders["test"] = \
+            self.accelerator.prepare(
+                self.model,
+                self.optimizer,
+                self.loaders["train"],
+                self.loaders["test"]
         )
 
         self.num_train_steps = self.num_train_epochs * len(self.loaders["train"])
@@ -146,16 +181,14 @@ class WikiMLM(WikiModelFromConfig):
         self._init_training_parameters()
 
     def train(self):
+        logging.info(f"Training for {self.num_train_epochs} epochs with {self.num_train_steps} steps.")
         progress_bar = tqdm(range(self.num_train_steps))
-        dev_loss_logger = LossLogger(
-            len(self.loaders["test"]),
-            increment_by=self.config["eval_steps"]
-        )
         for epoch in range(self.num_train_epochs):
             self.model.train()
             for i, batch in enumerate(self.loaders["train"]):
                 outputs = self.model(**batch)
                 loss = outputs.loss
+                self.accelerator.log({"train_loss": loss.item()}, step=i)
                 loss.backward()
                 self.optimizer.step()
                 self.scheduler.step()
@@ -164,37 +197,35 @@ class WikiMLM(WikiModelFromConfig):
 
                 if i > 0 and i % self.config["eval_steps"] == 0:
                     self.model.eval()
-                    # running_loss = 0.0
+                    running_loss = 0.0
                     for dev_batch in self.loaders["test"]:
                         with torch.no_grad():
                             outputs = self.model(**dev_batch)
-                            dev_loss_logger(outputs.loss.item())
-                            # loss = outputs.loss
-                            # running_loss += loss.item()
-                    # dev_loss = running_loss / len(self.loaders["dev"])
-                    progress_bar.set_description(f"Dev loss: {dev_loss_logger.get_metric()}")
+                            loss = outputs.loss
+                            running_loss += loss.item()
+                    test_loss = running_loss / len(self.loaders["test"])
+                    self.accelerator.log({"test_loss": test_loss}, step=i)
                     self.model.train()
-
-        dev_loss_logger.output_stats(self.config["export"]["path"] + "/dev_loss.txt")
+        self.accelerator.end_training()
 
     def save(self):
-        export_config = self.config["export"]
-        path = export_config["path"]
 
-        if export_config["export_type"] == "hub":
+        path = self.config["export"]["path"]
+        export_type = self.config["export"]["export_type"]
+
+        if export_type == "hub":
+            logging.info(f"Pushing model to hub: {path}/{self.experiment_id}.{self.wiki_id}")
             self.model.push_to_hub(
-                path,
-                data_dir=self.lang,
+                f"{path}/{self.experiment_id}.{self.wiki_id}",
                 use_temp_dir=True,
-                repo_name=export_config["path"],
+                repo_name=path,
                 private=True
-                # organization=export_config["organization"],
-                # commit_message=export_config["commit_message"]
             )
-
-        elif export_config["export_type"] == "local":
-            self.model.save_pretrained(path)
-
+        elif export_type == "local":
+            logging.info(f"Saving model to: {path}/{self.experiment_id}/{self.wiki_id}")
+            if not os.path.exists(f"{path}/{self.experiment_id}"):
+                os.makedirs(f"{path}/{self.experiment_id}")
+            self.model.save_pretrained(f"{path}/{self.experiment_id}/{self.wiki_id}")
         else:
             raise ValueError("Invalid export type.")
 
@@ -274,8 +305,13 @@ class WikiNER(WikiModelFromConfig):
 
         self.optimizer = AdamW(self.model.parameters(), lr=float(self.config["lr"]))
         self.accelerator = Accelerator()
-        self.model, self.optimizer, self.loaders["train"], self.loaders["dev"], self.loaders["test"] = self.accelerator.prepare(
-            self.model, self.optimizer, self.loaders["train"], self.loaders["dev"], self.loaders["test"]
+        self.model, self.optimizer, self.loaders["train"], self.loaders["dev"], self.loaders["test"] = \
+            self.accelerator.prepare(
+                self.model,
+                self.optimizer,
+                self.loaders["train"],
+                self.loaders["dev"],
+                self.loaders["test"]
         )
 
         self.num_train_steps = self.num_train_epochs * len(self.loaders["train"])
@@ -332,5 +368,5 @@ class WikiNER(WikiModelFromConfig):
                 true_preds, true_labels = self._process_outputs_for_eval(outputs)
 
             val_loss = running_loss / len(self.loaders["dev"])
-            progress_bar.set_description(f"Validation loss: {val_loss}").refresh()
+            progress_bar.set_description(f"Validation loss: {val_loss}")
             self.model.train()
