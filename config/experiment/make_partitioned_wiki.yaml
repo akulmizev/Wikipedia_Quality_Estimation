@@ -3,7 +3,7 @@ data:
     path: "WikiQuality/pre_filtered"
   partition:
     partition_type: "balanced_character_budget"
-    partition_metric: "length"
+    partition_metric: "all"
     higher_is_better: true
     quality: false
   split:

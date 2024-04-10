@@ -37,16 +37,18 @@ class Partition:
                     total_num_chars += len(i)
                 else:
                     partition_2.append(metric_per_doc.index(j))
-
         else:
             raise ValueError("Partition type not recognized.")
 
         # Not sure if this will work...
-        if (self.config["higher_is_better"] and self.config["quality"]) or \
-                (not self.config["higher_is_better"] and not self.config["quality"]):
-            dataset = dataset.select(partition_2)
+        if self.config["partition_metric"] != "all":
+            if (self.config["higher_is_better"] and self.config["quality"]) or \
+                    (not self.config["higher_is_better"] and not self.config["quality"]):
+                dataset = dataset.select(partition_2)
+            else:
+                dataset = dataset.select(partition_1)
         else:
-            dataset = dataset.select(partition_1)
+            dataset = dataset.select(partition_2)
 
         # elif (self.config["higher_is_better"] and not self.config["quality"]) \
         #         or (not self.config["higher_is_better"] and self.config["quality"]):
@@ -64,6 +66,19 @@ class Partition:
         #         dataset = dataset.select(partition_2)
 
         return dataset
+        if self.config["partition_metric"] != "all":
+            if self.config["higher_is_better"]:
+                if self.config["quality"]:
+                    return dataset[partition_2]
+                else:
+                    return dataset[partition_1]
+            else:
+                if self.config["quality"]:
+                    return dataset[partition_1]
+                else:
+                    return dataset[partition_2]
+        else:
+            return dataset[partition_2] #only return high quality to filter on in data.py
 
     def metric(self, example):
         raise NotImplementedError("Metric not implemented. Please use a subclass.")
