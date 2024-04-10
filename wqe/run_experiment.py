@@ -39,7 +39,6 @@ def main():
                 tokenizer.save()
         fast_tokenizer = tokenizer.convert_to_fast()
 
-
     if "pretrain" in config:
         model = WikiMLM(config["pretrain"])
         model.prepare_model(dataset, fast_tokenizer)

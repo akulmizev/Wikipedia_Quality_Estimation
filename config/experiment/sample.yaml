@@ -27,20 +27,23 @@ tokenizer:
     export_type: "local"
     path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/tokenizers/test.json"
 
+export:
+  export_type: "local"
+  path: "WikiQuality"
+
 data:
   load_unprocessed_wiki: true
   split:
-    train: 0.8
-    dev: 0.1
+    train: 0.9
     test : 0.1
     seed: 42
     shuffle: true
   #  import:
 #    path: "WikiQuality/as.filtered"
-#  pre_filter:
-#    script_regex: true
-#    lang_id: true
-#    char_cutoff: 15
+  pre_filter:
+    script_regex: true
+    lang_id: true
+    char_cutoff: 15
   partition:
     partition_type: "mean_cutoff"
     partition_metric: "length"

@@ -12,7 +12,7 @@ from transformers import get_scheduler
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
-from eval.eval import LossLogger
+from wqe.eval.eval import LossLogger
 
 CONFIG_MAPPING = {
     "deberta": DebertaConfig,
@@ -39,12 +39,11 @@ class WikiModelFromConfig:
         self.optimizer = None
         self.accelerator = None
         self.scheduler = None
-        self.num_train_epochs = self.config["num_train_epochs"]
+        self.num_train_epochs = None
         self.num_train_steps = None
         self.collator = None
         self.loaders = OrderedDict(
             train=None,
-            dev=None,
             test=None
         )
 
@@ -129,8 +128,8 @@ class WikiMLM(WikiModelFromConfig):
 
         self.optimizer = AdamW(self.model.parameters(), lr=float(self.config["lr"]))
         self.accelerator = Accelerator()
-        self.model, self.optimizer, self.loaders["train"], self.loaders["dev"], self.loaders["test"] = self.accelerator.prepare(
-            self.model, self.optimizer, self.loaders["train"], self.loaders["dev"], self.loaders["test"]
+        self.model, self.optimizer, self.loaders["train"], self.loaders["test"] = self.accelerator.prepare(
+            self.model, self.optimizer, self.loaders["train"], self.loaders["test"]
         )
 
         self.num_train_steps = self.num_train_epochs * len(self.loaders["train"])
@@ -149,7 +148,7 @@ class WikiMLM(WikiModelFromConfig):
     def train(self):
         progress_bar = tqdm(range(self.num_train_steps))
         dev_loss_logger = LossLogger(
-            len(self.loaders["dev"]),
+            len(self.loaders["test"]),
             increment_by=self.config["eval_steps"]
         )
         for epoch in range(self.num_train_epochs):
@@ -166,33 +165,38 @@ class WikiMLM(WikiModelFromConfig):
                 if i > 0 and i % self.config["eval_steps"] == 0:
                     self.model.eval()
                     # running_loss = 0.0
-                    for dev_batch in self.loaders["dev"]:
+                    for dev_batch in self.loaders["test"]:
                         with torch.no_grad():
                             outputs = self.model(**dev_batch)
                             dev_loss_logger(outputs.loss.item())
                             # loss = outputs.loss
                             # running_loss += loss.item()
                     # dev_loss = running_loss / len(self.loaders["dev"])
-                    dev_loss = dev_loss_logger.get_metric()
-                    progress_bar.set_description(f"Dev loss: {dev_loss}")
+                    progress_bar.set_description(f"Dev loss: {dev_loss_logger.get_metric()}")
                     self.model.train()
 
         dev_loss_logger.output_stats(self.config["export"]["path"] + "/dev_loss.txt")
 
-        self.model.eval()
-        running_loss = 0.0
-        for batch in self.loaders["test"]:
-            with torch.no_grad():
-                outputs = self.model(**batch)
-                loss = outputs.loss
-                running_loss += loss.item()
-        print(f"Test loss: {running_loss / len(self.loaders['test'])}")
+    def save(self):
+        export_config = self.config["export"]
+        path = export_config["path"]
 
-        if "export" in self.config:
-            self.model.save_pretrained(self.config["export"]["path"])
+        if export_config["export_type"] == "hub":
+            self.model.push_to_hub(
+                path,
+                data_dir=self.lang,
+                use_temp_dir=True,
+                repo_name=export_config["path"],
+                private=True
+                # organization=export_config["organization"],
+                # commit_message=export_config["commit_message"]
+            )
 
-            with open(self.config["export"]["path"] + "/config.json", "w") as f:
-                json.dump(self.model.config.to_dict(), f)
+        elif export_config["export_type"] == "local":
+            self.model.save_pretrained(path)
+
+        else:
+            raise ValueError("Invalid export type.")
 
 
 class WikiNER(WikiModelFromConfig):

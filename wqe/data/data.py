@@ -2,6 +2,7 @@ import json
 import logging
 import regex as re
 import os
+import tqdm
 
 from importlib import resources
 
@@ -154,6 +155,19 @@ class WikiDatasetFromConfig:
         script_regex = fr"[\p{{P}}\p{{S}}\d{script_to_add}]*[\d{script_to_add}]+[\p{{P}}\p{{S}}\d{script_to_add}]*\s"
         self.regex = script_regex
 
+    def _prefilter_regex(self, article):
+        article["text"] = "".join(re.findall(self.regex, article['text']))
+
+        return article
+
+    def _prefilter_langid(self, article):
+        article['text'] = "".join(
+            [line for line in article['text'].splitlines() if len(line) > self.config["pre_filter"]["char_cutoff"] and
+             self.lang_id_model.predict(line)[0][0].split("_")[-2] == self.wiki_mappings['alpha3']]
+        )
+
+        return article
+
     def _pre_filter_article(self, article):
 
         """
@@ -174,7 +188,7 @@ class WikiDatasetFromConfig:
             )
         else:
             article['text'] = "".join(
-                [line for line in filtered.split("\n") if len(line) > self.config["char_cutoff"]]
+                [line for line in filtered.split("\n") if len(line) > self.config["pre_filter"]["char_cutoff"]]
             )
 
         return article
@@ -187,10 +201,15 @@ class WikiDatasetFromConfig:
         Returns:
             datasets.Dataset: The pre-filtered dataset.
         """
+        raw_size_chars = self.size_chars
 
         if self.config["pre_filter"]["script_regex"]:
             self._make_regex()
             logging.info(f"Filtering documents for accepted scripts: {self.wiki_mappings['scripts']}")
+            self.data = self.data.map(
+                self._prefilter_regex,
+                desc="Pre-filtering dataset by script..."
+            )
         if self.config["pre_filter"]["lang_id"]:
             logging.info(f"Filtering documents for language: {self.wiki_mappings['alpha3']}")
             self.lang_id_model = fasttext.load_model(
@@ -200,13 +219,22 @@ class WikiDatasetFromConfig:
                     cache_dir=None
                 )
             )
+            for article in tqdm.tqdm(self.data["train"]):
+                article['text'] = "".join(
+                    [line for line in article['text'].splitlines() if len(line) > self.config["pre_filter"]["char_cutoff"] and
+                     self.lang_id_model.predict(line)[0][0].split("_")[-2] == self.wiki_mappings['alpha3']]
+                )
 
-        raw_size_chars = self.size_chars
+            # self.data = self.data.map(
+            #     self._prefilter_langid,
+            #     desc="Pre-filtering dataset by langid..."
+            # )
 
-        self.data = self.data.map(
-            lambda article: self._pre_filter_article(article),
-            desc="Pre-filtering dataset..."
-        )
+        # self.data = self.data.map(
+        #     # lambda article: self._pre_filter_article(article),
+        #     self._pre_filter_article,
+        #     desc="Pre-filtering dataset..."
+        # )
 
         self.size_chars = len("".join(self.data["train"]["text"]))
         self.size_docs = len(self.data["train"])
