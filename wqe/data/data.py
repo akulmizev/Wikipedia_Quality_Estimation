@@ -8,7 +8,7 @@ from importlib import resources
 
 import datasets
 import fasttext
-from datasets import Dataset, DatasetDict, load_dataset
+from datasets import Dataset, DatasetDict, load_dataset, concatenate_datasets
 from huggingface_hub import hf_hub_download
 from huggingface_hub import HfApi
 
@@ -49,6 +49,7 @@ class WikiDatasetFromConfig:
         self.regex = None
         self.lang_id_model = None
 
+        #TODO change this to - if loading pre_filtered data for partitions, it logs both train and test
         self.size_chars = len("".join(self.data["train"]["text"]))
         self.size_docs = len(self.data["train"])
         logging.info(f"Loaded {self.size_docs} articles with {self.size_chars} characters.")
@@ -140,8 +141,12 @@ class WikiDatasetFromConfig:
         elif "pre_filter" in self.config:
             ids.append("pre_filtered")
         if "partition" in self.config:
-            ids.append(self.config["partition"]["partition_type"])
+            # ids.append(self.config["partition"]["partition_type"])
             ids.append(self.config["partition"]["partition_metric"])
+            if self.config["partition"]["quality"]:
+                ids.append("high_quality")
+            else:
+                ids.append("low_quality")
 
         return ".".join(ids)
 
@@ -266,7 +271,7 @@ class WikiDatasetFromConfig:
 
         logging.info(f"Partitioning dataset by {partition_metric}...")
 
-        self.data["train"] = Dataset.from_dict(partition(self.data["train"]))
+        self.data["train"] = Dataset.from_dict(partition(concatenate_datasets([self.data["train"], self.data["test"]])))
         self.size_chars = len("".join(self.data["train"]["text"]))
         self.size_docs = len(self.data["train"])
 

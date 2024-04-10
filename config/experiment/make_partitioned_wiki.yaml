@@ -1,18 +1,14 @@
 data:
   import:
-    path: "WikiQuality/as.raw"
-  pre_filter:
-    script_regex: true
-    lang_id: true
-    char_cutoff: 15
+    path: "WikiQuality/pre_filtered"
   partition:
-    partition_type: "mean_cutoff"
+    partition_type: "balanced_character_budget"
     partition_metric: "length"
     higher_is_better: true
-    quality: true
+    quality: false
   split:
     train: 0.9
-    val: 0.1
+    test: 0.1
     seed: 42
     shuffle: true
   export:
