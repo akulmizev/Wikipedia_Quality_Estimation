@@ -208,9 +208,11 @@ class WikiDatasetFromConfig:
 
             logging.info(f"Partitioning dataset by {partition_metric}...")
 
-            self.data["train"] = Dataset.from_dict(
-                partition(concatenate_datasets([self.data["train"], self.data["test"]]))
-            )
+            # self.data["train"] = Dataset.from_dict(
+            #     partition(concatenate_datasets([self.data["train"], self.data["test"]]))
+            # )
+
+            self.data["train"] = partition(self.data["train"])
 
             self.size_chars = len("".join(self.data["train"]["text"]))
             self.size_docs = len(self.data["train"])

@@ -5,6 +5,7 @@ from transformers import PreTrainedTokenizerFast
 from tokenizers import Tokenizer
 from nltk.util import ngrams
 
+
 class Partition:
     def __init__(self, config):
         # config is now passed from within the WikiDatasetFromConfig class
@@ -66,19 +67,6 @@ class Partition:
         #         dataset = dataset.select(partition_2)
 
         return dataset
-        if self.config["partition_metric"] != "all":
-            if self.config["higher_is_better"]:
-                if self.config["quality"]:
-                    return dataset[partition_2]
-                else:
-                    return dataset[partition_1]
-            else:
-                if self.config["quality"]:
-                    return dataset[partition_1]
-                else:
-                    return dataset[partition_2]
-        else:
-            return dataset[partition_2] #only return high quality to filter on in data.py
 
     def metric(self, example):
         raise NotImplementedError("Metric not implemented. Please use a subclass.")
@@ -94,6 +82,7 @@ class Length(Partition):
     def metric(self, example):
         return len(example)
 
+
 class UniqueSubwords(Partition):
     def __init__(self, config):
         super().__init__(config)
@@ -107,6 +96,7 @@ class UniqueSubwords(Partition):
         tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_file)
         tokens = tokenizer.tokenize(example)
         return len(set(tokens))
+
 
 class UniqueSubwordTrigrams(Partition):
     def __init__(self, config):
@@ -122,6 +112,7 @@ class UniqueSubwordTrigrams(Partition):
         trigrams = list(ngrams(tokens, 3))
         return len(set(trigrams))
 
+
 class UniqueTrigrams(Partition):
     def __init__(self, config):
         super().__init__(config)
@@ -131,6 +122,7 @@ class UniqueTrigrams(Partition):
         trigrams = list(ngrams(words, 3))
         return len(set(trigrams))
 
+
 class UniqueWords(Partition):
     def __init__(self, config):
         super().__init__(config)
@@ -139,12 +131,14 @@ class UniqueWords(Partition):
         words = [word[0] for word in Whitespace().pre_tokenize_str(example)]
         return len(set(words))
 
+
 class UniqueCharacters(Partition):
     def __init__(self, config):
         super().__init__(config)
 
     def metric(self, example):
         return len(set(example))
+
 
 class UniqueCharacterTrigrams(Partition):
     def __init__(self, config):
@@ -153,6 +147,7 @@ class UniqueCharacterTrigrams(Partition):
     def metric(self, example):
         trigrams = list(ngrams(example, 3))
         return len(set(trigrams))
+
 
 class AlphaChars(Partition):
     def __init__(self, config):
