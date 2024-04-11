@@ -1,5 +1,8 @@
+experiment:
+  id: "raw_wiki"
 data:
-  load_unprocessed_wiki: true
+  import:
+    import_type: "raw"
   split:
     train: 0.95
     test : 0.05
