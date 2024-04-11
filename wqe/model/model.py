@@ -139,7 +139,7 @@ class WikiMLM(WikiModelFromConfig):
         elif "from_pretrained" in self.config:
             logging.info(f"Loading model from hub: {self.config['from_pretrained']}.{self.wiki_id}")
             self.model = AutoModelForMaskedLM.from_pretrained(
-                f"{self.config["from_pretrained"]}.{self.wiki_id}"
+                f"{self.config['from_pretrained']}.{self.wiki_id}"
             ).to("cuda")
         else:
             raise ValueError("`from_config` or `from_pretrained` must be in the configuration.")
