@@ -49,7 +49,7 @@ pretrain:
   # from_config: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/config/model/deberta/tiny.json"
   model_type: "deberta"
   task: "mlm"
-  train: true
+  train: false
   max_length: 512
   mask_prob: 0.4
   num_train_epochs: 1

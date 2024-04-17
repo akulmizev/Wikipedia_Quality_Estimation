@@ -99,7 +99,7 @@ class WikiDatasetFromConfig:
         return len(self.data)
 
     @classmethod
-    def load_dataset_directly(cls, import_config, wiki_id):
+    def load_dataset_directly(cls, import_config, wiki_id, split="test"):
 
         import_type = import_config["import_type"]
         path = import_config["path"]
@@ -113,7 +113,10 @@ class WikiDatasetFromConfig:
         else:
             raise ValueError("Invalid import type. Please specify either 'local' or 'hub'.")
 
-        return dataset
+        if split not in dataset.keys():
+            raise ValueError(f"Split {split} not found in dataset. Please specify a valid split.")
+
+        return dataset[split]
 
 
     def generate_splits(self):

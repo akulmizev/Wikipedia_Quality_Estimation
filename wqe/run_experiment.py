@@ -39,16 +39,15 @@ def main():
                 tokenizer.save()
 
     if "pretrain" in config:
-        model = WikiMLM(config, pretrain=True)
-        model.prepare_model(dataset, tokenizer.get_base_tokenizer())
+        model = WikiMLM(config, tokenizer=tokenizer.get_base_tokenizer(), pretrain=True)
         if config["pretrain"]["train"]:
-            model.train()
+            model.train(dataset)
         if "test_data" in config["pretrain"]:
             test_dataset = WikiDatasetFromConfig.load_dataset_directly(
                 config["pretrain"]["test_data"],
-                wiki_id=args.wiki_id
-            )["test"]
-            model.test(test_dataset, tokenizer.get_base_tokenizer())
+                wiki_id=args.wiki_id, split="test"
+            )
+            model.test(test_dataset)
 
     # if "finetune" in config:
     #     ner_dataset = load_dataset("indic_glue", f"wiki-ner.{config['wiki_id']}")
