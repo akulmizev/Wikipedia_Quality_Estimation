@@ -1,25 +1,22 @@
 import logging
 import os
+
+import numpy as np
 import torch
 
 from collections import OrderedDict
 
 from accelerate import Accelerator
 from tqdm import tqdm
-from transformers import DebertaConfig, RobertaConfig, BertConfig
+from transformers import CONFIG_MAPPING
+from transformers import MODEL_FOR_MASKED_LM_MAPPING, MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING
 from transformers import AutoModelForMaskedLM, AutoModelForTokenClassification
 from transformers import DataCollatorForTokenClassification, DataCollatorForLanguageModeling
 from transformers import get_scheduler
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
-# from wqe.eval.eval import LossLogger
-
-CONFIG_MAPPING = {
-    "deberta": DebertaConfig,
-    "roberta": RobertaConfig,
-    "bert": BertConfig
-}
+import wandb
 
 TASK_MAPPING = {
     "mlm": {
@@ -34,31 +31,29 @@ TASK_MAPPING = {
 
 
 class WikiModelFromConfig:
-    def __init__(self, config):
+    def __init__(self, config, pretrain=False):
+        self.config = config["pretrain" if pretrain else "finetune"]
         self.experiment_id = config["experiment"]["id"]
-        self.wandb_project = config["experiment"]["wandb_project"]
         self.wiki_id = config["wiki_id"]
-        self.config = None
-        self.model = None
-        self.optimizer = None
-        self.accelerator = None
-        self.scheduler = None
-        self.num_train_epochs = None
-        self.num_train_steps = None
-        self.collator = None
+        if "wandb_project" in config["experiment"]:
+            wandb.init(
+                project=f"{self.experiment_id}.{self.wiki_id}",
+                entity=config["experiment"]["wandb_project"],
+                config={
+                    "learning_rate": self.config["lr"],
+                    "architecture": self.config["model_type"],
+                    "epochs": self.config["num_train_epochs"],
+                    "batch_size": self.config["batch_size"],
+                    "task": self.config["task"],
+                    "mask_prob": self.config["mask_prob"],
+                    "wiki_id": self.wiki_id,
+                }
+            )
+        self.num_train_epochs = self.config["num_train_epochs"]
         self.loaders = OrderedDict(
             train=None,
             test=None
         )
-
-    def _get_model_config(self):
-
-        # TODO: Fix this so that config isn't hardcoded.
-
-        model_config = CONFIG_MAPPING.get(self.config["model_type"])
-        model_config = model_config.from_json_file(self.config["from_config"])
-
-        return model_config
 
     def _prepare_data_for_training(self, dataset, tokenizer):
         raise NotImplementedError("Subclasses must implement this method.")
@@ -75,11 +70,8 @@ class WikiModelFromConfig:
 
 
 class WikiMLM(WikiModelFromConfig):
-    def __init__(self, config):
-        super().__init__(config)
-        self.config = config["pretrain"]
-        self.num_train_epochs = self.config["num_train_epochs"]
-        self.vocab_size = None
+    def __init__(self, config, **kwargs):
+        super().__init__(config, kwargs)
         self.tokenizer_kwargs = OrderedDict(
             mask_token="[MASK]",
             bos_token="[BOS]",
@@ -91,21 +83,9 @@ class WikiMLM(WikiModelFromConfig):
             unk_id=0
         )
 
-    def _prepare_data_for_training(self, dataset, tokenizer):
+    def _tokenize_and_collate(self, dataset, tokenizer):
 
-        for k, v in self.tokenizer_kwargs.items():
-            setattr(tokenizer, k, v)
-
-        self.vocab_size = len(tokenizer.get_vocab())
-
-        self.collator = DataCollatorForLanguageModeling(
-            tokenizer=tokenizer,
-            mlm=True,
-            mlm_probability=self.config["mask_prob"]
-        )
-
-        logging.info("Tokenizing and batching datasets...")
-        batched_datasets = dataset.map(
+        batched_dataset = dataset.map(
             lambda examples: tokenizer(
                 examples["text"],
                 max_length=self.config["max_length"],
@@ -113,18 +93,35 @@ class WikiMLM(WikiModelFromConfig):
                 truncation=True,
                 return_overflowing_tokens=True),
             batched=True,
-            remove_columns=dataset["train"].column_names,
+            remove_columns=dataset.column_names
         )
 
-        # DeBERTa doesn't accept the overflow_to_sample_mapping column, so deleting it.
-        batched_datasets = batched_datasets.remove_columns("overflow_to_sample_mapping")
+        batched_dataset = batched_dataset.remove_columns("overflow_to_sample_mapping")
+
+        loader = DataLoader(
+            batched_dataset,
+            collate_fn=self.collator,
+            batch_size=self.config["batch_size"]
+        )
+
+        return loader
+
+    def _prepare_data_for_training(self, dataset, tokenizer):
+
+        for k, v in self.tokenizer_kwargs.items():
+            setattr(tokenizer, k, v)
+
+        self.vocab_size = len(tokenizer.get_vocab())
+        self.collator = DataCollatorForLanguageModeling(
+            tokenizer=tokenizer,
+            mlm=True,
+            mlm_probability=self.config["mask_prob"]
+        )
+
+        logging.info("Tokenizing and batching datasets...")
 
         for key in self.loaders:
-            self.loaders[key] = DataLoader(
-                batched_datasets[key],
-                collate_fn=self.collator,
-                batch_size=self.config["batch_size"]
-            )
+            self.loaders[key] = self._tokenize_and_collate(dataset[key], tokenizer)
 
             if key == "train":
                 self.loaders[key].shuffle = True
@@ -132,12 +129,13 @@ class WikiMLM(WikiModelFromConfig):
     def _init_training_parameters(self):
 
         if "from_config" in self.config:
-            model_config = self._get_model_config()
+            model_config = CONFIG_MAPPING[self.config["model_type"]].from_json_file(self.config["from_config"])
             model_config.vocab_size = self.vocab_size
-            logging.info(f"Initalizing model with config: {model_config}")
+            logging.info(f"Initializing model with config: {model_config}")
             self.model = AutoModelForMaskedLM.from_config(model_config).to("cuda")
         elif "from_pretrained" in self.config:
             logging.info(f"Loading model from hub: {self.config['from_pretrained']}.{self.wiki_id}")
+            # TODO: Fix hardcoding of model type with wiki_id. This should be configurable.
             self.model = AutoModelForMaskedLM.from_pretrained(
                 f"{self.config["from_pretrained"]}.{self.wiki_id}"
             ).to("cuda")
@@ -145,20 +143,9 @@ class WikiMLM(WikiModelFromConfig):
             raise ValueError("`from_config` or `from_pretrained` must be in the configuration.")
 
         logging.info(f"{self.model.config.model_type} for MLM loaded.")
+        logging.info(f"Number of parameters: {round(self.model.num_parameters() / 1e6)}M")
         self.optimizer = AdamW(self.model.parameters(), lr=float(self.config["lr"]))
-
-        if self.wandb_project is not None:
-            self.accelerator = Accelerator(log_with="wandb")
-            self.accelerator.init_trackers(
-                project_name=f"{self.experiment_id}.{self.wiki_id}",
-                config={"lr": self.config["lr"],
-                        "batch_size": self.config["batch_size"]},
-                init_kwargs={"wandb": {"entity": self.wandb_project}}
-            )
-        else:
-            # TODO: Add support for tensorboard logging.
-            self.accelerator = Accelerator()
-
+        self.accelerator = Accelerator()
         self.model, self.optimizer, self.loaders["train"], self.loaders["test"] = \
             self.accelerator.prepare(
                 self.model,
@@ -183,12 +170,14 @@ class WikiMLM(WikiModelFromConfig):
     def train(self):
         logging.info(f"Training for {self.num_train_epochs} epochs with {self.num_train_steps} steps.")
         progress_bar = tqdm(range(self.num_train_steps))
+        running_loss = np.Inf
         for epoch in range(self.num_train_epochs):
             self.model.train()
             for i, batch in enumerate(self.loaders["train"]):
                 outputs = self.model(**batch)
                 loss = outputs.loss
-                self.accelerator.log({"train_loss": loss.item()}, step=i)
+                wandb.log({"train_loss": loss.item()})
+                wandb.log({"train_ppl": torch.exp(loss).item()})
                 loss.backward()
                 self.optimizer.step()
                 self.scheduler.step()
@@ -196,17 +185,43 @@ class WikiMLM(WikiModelFromConfig):
                 progress_bar.update(1)
 
                 if i > 0 and i % self.config["eval_steps"] == 0:
-                    self.model.eval()
-                    running_loss = 0.0
-                    for dev_batch in self.loaders["test"]:
-                        with torch.no_grad():
-                            outputs = self.model(**dev_batch)
-                            loss = outputs.loss
-                            running_loss += loss.item()
-                    test_loss = running_loss / len(self.loaders["test"])
-                    self.accelerator.log({"test_loss": test_loss}, step=i)
+                    eval_loss, perplexity = self._eval_loop(self.loaders["test"])
+                    wandb.log({"eval_loss": eval_loss.item()})
+                    wandb.log({"eval_ppl": perplexity.item()})
+                    if eval_loss < running_loss:
+                        self.save()
                     self.model.train()
+
         self.accelerator.end_training()
+        eval_loss, perplexity = self._eval_loop(self.loaders["test"])
+        wandb.log({"eval_loss": eval_loss.item()})
+        wandb.log({"eval_ppl": perplexity.item()})
+
+    def _eval_loop(self, loader):
+
+        self.model.eval()
+        losses = []
+        for batch in loader:
+            with torch.no_grad():
+                outputs = self.model(**batch)
+                loss = outputs.loss
+                losses.append(
+                    self.accelerator.gather_for_metrics(loss.repeat(self.config["batch_size"]))
+                )
+        losses = torch.cat(losses)
+        eval_loss = torch.mean(losses)
+        perplexity = torch.exp(eval_loss)
+
+        return eval_loss, perplexity
+
+    def test(self, dataset, tokenizer):
+
+        loader = self._tokenize_and_collate(dataset, tokenizer)
+        loader = self.accelerator.prepare(loader)
+        loss, perplexity = self._eval_loop(loader)
+
+        wandb.summary["test_loss"] = loss.item()
+        wandb.summary["test_ppl"] = perplexity.item()
 
     def save(self):
 

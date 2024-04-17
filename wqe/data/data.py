@@ -14,10 +14,11 @@ from huggingface_hub import hf_hub_download
 
 from .partition import *
 
-logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
-
 
 class WikiDatasetFromConfig:
+
+    logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
+
     def __init__(self, config):
 
         """
@@ -58,8 +59,6 @@ class WikiDatasetFromConfig:
 
         with resources.open_text("data.resources", "wiki_mappings.json") as f:
             self.wiki_mappings = json.load(f)[self.wiki_id]
-        self.regex = None
-        self.lang_id_model = None
 
         # TODO change this to - if loading pre_filtered data for partitions, it logs both train and test
         self.size_chars = len("".join(self.data["train"]["text"]))
@@ -99,6 +98,24 @@ class WikiDatasetFromConfig:
         """
         return len(self.data)
 
+    @classmethod
+    def load_dataset_directly(cls, import_config, wiki_id):
+
+        import_type = import_config["import_type"]
+        path = import_config["path"]
+
+        if import_type == "local":
+            logging.info(f"Loading dataset from {path}")
+            dataset = load_dataset(path)
+        elif import_type == "hub":
+            logging.info(f"Loading dataset from hub: {path}/{wiki_id}")
+            dataset = load_dataset(f"{path}", wiki_id)
+        else:
+            raise ValueError("Invalid import type. Please specify either 'local' or 'hub'.")
+
+        return dataset
+
+
     def generate_splits(self):
 
         """
@@ -118,10 +135,7 @@ class WikiDatasetFromConfig:
         self.size_chars = len("".join(self.data["train"]["text"]))
         self.size_docs = len(self.data["train"])
 
-        # self.size_chars_test = len("".join(self.data["test"]["text"]))
-
         logging.info(f"Generated new train split with {self.size_docs} articles and {self.size_chars} characters.")
-        # logging.info(f"Generated new test split with {len(self.data['test'])} articles and {self.size_chars_test} characters.")
 
     def _make_regex(self):
 
@@ -163,6 +177,7 @@ class WikiDatasetFromConfig:
                 self._prefilter_regex,
                 desc="Pre-filtering dataset by script..."
             )
+
         if self.config["pre_filter"]["lang_id"]:
             logging.info(f"Filtering documents for language: {self.wiki_mappings['alpha3']}")
             self.lang_id_model = fasttext.load_model(

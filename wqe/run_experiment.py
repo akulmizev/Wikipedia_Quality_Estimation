@@ -1,8 +1,6 @@
 import argparse
 import yaml
 
-from datasets import load_dataset
-
 from data.data import WikiDatasetFromConfig
 from tokenizer.tokenizer import WikiTokenizerFromConfig
 from model.model import WikiMLM
@@ -26,8 +24,8 @@ def main():
         dataset = WikiDatasetFromConfig(config)
         if "pre_filter" in config["data"]:
             dataset.pre_filter()
-            if "partition" in config["data"]:
-                dataset.apply_partition()
+        if "partition" in config["data"]:
+            dataset.apply_partition()
         if "split" in config["data"]:
             dataset.generate_splits()
         if "export" in config["data"]:
@@ -41,11 +39,16 @@ def main():
                 tokenizer.save()
 
     if "pretrain" in config:
-        model = WikiMLM(config)
+        model = WikiMLM(config, pretrain=True)
         model.prepare_model(dataset, tokenizer.get_base_tokenizer())
-        model.train()
-        if "export" in config["pretrain"]:
-            model.save()
+        if config["pretrain"]["train"]:
+            model.train()
+        if "test_data" in config["pretrain"]:
+            test_dataset = WikiDatasetFromConfig.load_dataset_directly(
+                config["pretrain"]["test_data"],
+                wiki_id=args.wiki_id
+            )["test"]
+            model.test(test_dataset, tokenizer.get_base_tokenizer())
 
     # if "finetune" in config:
     #     ner_dataset = load_dataset("indic_glue", f"wiki-ner.{config['wiki_id']}")

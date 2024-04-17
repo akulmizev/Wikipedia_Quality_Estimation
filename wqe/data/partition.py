@@ -43,8 +43,8 @@ class Partition:
 
         # Not sure if this will work...
         if self.config["partition_metric"] != "all":
-            if (self.config["higher_is_better"] and self.config["quality"]) or \
-                    (not self.config["higher_is_better"] and not self.config["quality"]):
+            if ((self.config["higher_is_better"] and self.config["quality"]) or
+                    (not self.config["higher_is_better"] and not self.config["quality"])):
                 dataset = dataset.select(partition_2)
             else:
                 dataset = dataset.select(partition_1)

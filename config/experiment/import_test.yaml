@@ -16,7 +16,7 @@ data:
 #    path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/data"
 
 tokenizer:
-  from_pretrained: "WikiQuality/ak_testing"
+  from_pretrained: "WikiQuality/raw_filtered_ak"
 #  from_config:
 #    model: "unigram"
 #    normalizer: "nfkc"
@@ -45,16 +45,20 @@ tokenizer:
 #    path: "WikiQuality"
 
 pretrain:
-  from_pretrained: "WikiQuality/ak_testing"
+  from_pretrained: "WikiQuality/ak_testing_2"
   # from_config: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/config/model/deberta/tiny.json"
   model_type: "deberta"
   task: "mlm"
+  train: true
   max_length: 512
   mask_prob: 0.4
   num_train_epochs: 1
   batch_size: 32
   lr: 5e-5
   eval_steps: 100
+  test_data:
+    import_type: "hub"
+    path: "WikiQuality/raw_wiki"
   export:
     export_type: "hub"
     path: "WikiQuality"
