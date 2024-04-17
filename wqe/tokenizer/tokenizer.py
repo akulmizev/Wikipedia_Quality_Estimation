@@ -31,7 +31,7 @@ class WikiTokenizerFromConfig:
         if "from_pretrained" in self.config:
             # TODO: Clean up messiness with loading from_pretrained with wiki_id.
             logging.info(f"Loading tokenizer from hub: {self.config['from_pretrained']}.{self.wiki_id}")
-            self.tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{self.config["from_pretrained"]}.{self.wiki_id}")
+            self.tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{self.config['from_pretrained']}.{self.wiki_id}")
         elif "from_config" in self.config:
             logging.info("Building tokenizer from config.")
             self._build_tokenizer()

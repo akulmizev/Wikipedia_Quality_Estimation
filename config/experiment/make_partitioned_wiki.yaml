@@ -1,5 +1,8 @@
+experiment:
+  id: "all.low_quality"
 data:
   import:
+    import_type: "hub"
     path: "WikiQuality/pre_filtered"
   partition:
     partition_type: "balanced_character_budget"

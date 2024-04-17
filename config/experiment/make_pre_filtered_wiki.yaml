@@ -1,15 +1,13 @@
+experiment:
+   id: "pre_filtered"
 data:
   import:
+    import_type: "hub"
     path: "WikiQuality/raw_wiki"
   pre_filter:
     script_regex: true
     lang_id: true
     char_cutoff: 15
-  split:
-    train: 0.9
-    test: 0.1
-    seed: 42
-    shuffle: true
-#  export:
-#    export_type: "hub"
-#    path: "WikiQuality"
+  export:
+    export_type: "hub"
+    path: "WikiQuality"

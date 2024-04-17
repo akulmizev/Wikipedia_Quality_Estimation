@@ -137,7 +137,7 @@ class WikiMLM(WikiModelFromConfig):
             logging.info(f"Loading model from hub: {self.config['from_pretrained']}.{self.wiki_id}")
             # TODO: Fix hardcoding of model type with wiki_id. This should be configurable.
             self.model = AutoModelForMaskedLM.from_pretrained(
-                f"{self.config["from_pretrained"]}.{self.wiki_id}"
+                f"{self.config['from_pretrained']}.{self.wiki_id}"
             ).to("cuda")
         else:
             raise ValueError("`from_config` or `from_pretrained` must be in the configuration.")
