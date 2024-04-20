@@ -91,7 +91,7 @@ class WikiMLM(WikiModelFromConfig):
             model_config = CONFIG_MAPPING[self.config["model_type"]].from_json_file(self.config["from_config"])
             model_config.vocab_size = self.tokenizer.get_vocab_size()
             logging.info(f"Initializing model with config: {model_config}")
-            self.model = AutoModelForMaskedLM.from_config(model_config).to("cuda")
+            self.model = AutoModelForMaskedLM.from_config(model_config).to(dtype=torch.bfloat16, device="cuda")
 
         elif "from_pretrained" in self.config:
             logging.info(f"Loading model from hub: {self.config['from_pretrained']}.{self.wiki_id}")
@@ -195,13 +195,13 @@ class WikiMLM(WikiModelFromConfig):
                 optimizer.zero_grad()
                 progress_bar.update(1)
 
-                if i > 0 and i % self.config["eval_steps"] == 0:
-                    eval_loss, perplexity = self._eval_loop(loaders["test"])
-                    wandb.log({"eval_loss": eval_loss.item()})
-                    wandb.log({"eval_ppl": perplexity.item()})
-                    if eval_loss < running_loss:
-                        self.save()
-                    self.model.train()
+                # if i > 0 and i % self.config["eval_steps"] == 0:
+            eval_loss, perplexity = self._eval_loop(loaders["test"])
+            wandb.log({"eval_loss": eval_loss.item()})
+            wandb.log({"eval_ppl": perplexity.item()})
+            if eval_loss < running_loss:
+                self.save()
+            self.model.train()
 
         self.accelerator.end_training()
         eval_loss, perplexity = self._eval_loop(loaders["test"])

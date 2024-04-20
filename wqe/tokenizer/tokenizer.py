@@ -117,7 +117,14 @@ class WikiTokenizerFromConfig:
 
         logging.info(f"Trained a tokenizer with vocab size: {self.tokenizer.get_vocab_size()}")
 
-        self.tokenizer = PreTrainedTokenizerFast(tokenizer_object=self.tokenizer)
+        self.tokenizer = PreTrainedTokenizerFast(tokenizer_object=self.tokenizer,
+                                                 bos_token = "[BOS]",
+                                                 eos_token = "[EOS]",
+                                                 unk_token="[UNK]",
+                                                 pad_token="[PAD]",
+                                                 cls_token="[CLS]",
+                                                 sep_token="[SEP]",
+                                                 mask_token="[MASK]")
 
     @staticmethod
     def batch_iterator(dataset, batch_size=1000):

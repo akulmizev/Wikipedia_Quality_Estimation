@@ -1,0 +1,60 @@
+experiment:
+  id: "raw_filtered_ak"
+  wandb_project: "wikiquality"
+
+data:
+  import:
+    import_type: "hub"
+    path: "WikiQuality/pre_filtered"
+
+tokenizer:
+  from_pretrained: "WikiQuality/raw_filtered_ak"
+  # from_config:
+  #   model: "unigram"
+  #   normalizer: "nfkc"
+  #   pre_tokenizer: [
+  #     "metaspace",
+  #     "unicode_scripts",
+  #     "digits"
+  #   ]
+  #   decoder: "metaspace"
+  #   trainer: "unigram"
+  #   post_processor: true
+  #   special_tokens: [
+  #     "[PAD]",
+  #     "[BOS]",
+  #     "[EOS]",
+  #     "[MASK]",
+  #     "[CLS]",
+  #     "[SEP]",
+  #     "[UNK]"
+  #   ]
+  #   unk_token: "[UNK]"
+  #   vocab_size: "auto"
+  #   min_frequency: 2
+  # export:
+  #   export_type: "hub"
+  #   path: "WikiQuality"
+
+pretrain:
+  from_config: "config/model/deberta/tiny.json"
+  model_type: "deberta"
+  task: "mlm"
+  max_length: 512
+  mask_prob: 0.4
+  num_train_epochs: 140
+  batch_size: 8
+  lr: 5e-05
+  eval_steps: 100
+  export:
+    export_type: "hub"
+    path: "WikiQuality"
+
+#finetune:
+#  model_type: "deberta"
+#  from_pretrained: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/models/deberta_tiny_mlm"
+#  num_train_epochs: 1
+#  batch_size: 8
+#  lr: 5e-5
+#  task: "ner"
+#  dataset: "ai4bharat/naamapadam"
