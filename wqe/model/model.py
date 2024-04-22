@@ -34,10 +34,14 @@ class WikiModelFromConfig:
 
     logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
-    def __init__(self, config, pretrain=False):
-        self.config = config["pretrain" if pretrain else "finetune"]
+    def __init__(self, config):
+        self.config = config["pretrain" if "pretrain" in config else "finetune"]
         self.experiment_id = config["experiment"]["id"]
         self.wiki_id = config["wiki_id"]
+        self.torch_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model = None
+
         if "wandb_project" in config["experiment"]:
             wandb.init(
                 project=f"{self.experiment_id}.{self.wiki_id}",
@@ -60,49 +64,68 @@ class WikiModelFromConfig:
         raise NotImplementedError("Subclasses must implement this method.")
 
     def save(self):
-        raise NotImplementedError("Subclasses must implement this method.")
+
+        path = self.config["export"]["path"]
+        export_type = self.config["export"]["export_type"]
+
+        if export_type == "hub":
+            logging.info(f"Pushing model to hub: {path}/{self.experiment_id}.{self.wiki_id}")
+            self.model.push_to_hub(
+                f"{path}/{self.experiment_id}.{self.wiki_id}",
+                use_temp_dir=True,
+                repo_name=path,
+                private=True
+            )
+        elif export_type == "local":
+            logging.info(f"Saving model to: {path}/{self.experiment_id}/{self.wiki_id}")
+            if not os.path.exists(f"{path}/{self.experiment_id}"):
+                os.makedirs(f"{path}/{self.experiment_id}")
+            self.model.save_pretrained(f"{path}/{self.experiment_id}/{self.wiki_id}")
+        else:
+            raise ValueError("Invalid export type.")
 
 
 class WikiMLM(WikiModelFromConfig):
-    def __init__(self, config, tokenizer, **kwargs):
-        super().__init__(config, kwargs)
+    def __init__(self, config, tokenizer, dataset):
+        super().__init__(config)
+        # self.__dict__.update(config["pretrain"])
         self.tokenizer = tokenizer
-        self.tokenizer_kwargs = OrderedDict(
-            mask_token="[MASK]",
-            bos_token="[BOS]",
-            eos_token="[EOS]",
-            sep_token="[SEP]",
-            pad_token="[PAD]",
-            unk_token="[UNK]",
-            cls_token="[CLS]",
-            unk_id=0
-        )
-
-        for k, v in self.tokenizer_kwargs.items():
-            setattr(self.tokenizer, k, v)
-
         self.collator = DataCollatorForLanguageModeling(
             tokenizer=self.tokenizer,
             mlm=True,
             mlm_probability=self.config["mask_prob"]
         )
 
+        splits = dataset.keys()
+        if "train" not in splits or "test" not in splits:
+            raise ValueError("Both train and test splits must be present in the dataset.")
+        if len(splits) > 2:
+            logging.warning("More than two splits present. Ignoring all but train and test.")
+
+        logging.info("Tokenizing and batching datasets...")
+        self.loaders = {split: self._tokenize_and_collate(dataset[split]) for split in splits}
+        if "train" in self.loaders:
+            self.loaders["train"].shuffle = True
+
         if "from_config" in self.config:
             model_config = CONFIG_MAPPING[self.config["model_type"]].from_json_file(self.config["from_config"])
-            model_config.vocab_size = self.tokenizer.get_vocab_size()
+            model_config.vocab_size = self.tokenizer.vocab_size
             logging.info(f"Initializing model with config: {model_config}")
-            self.model = AutoModelForMaskedLM.from_config(model_config).to("cuda")
+            self.model = AutoModelForMaskedLM.from_config(
+                model_config
+            )
 
         elif "from_pretrained" in self.config:
             logging.info(f"Loading model from hub: {self.config['from_pretrained']}.{self.wiki_id}")
             # TODO: Fix hardcoding of model type with wiki_id. This should be configurable.
             self.model = AutoModelForMaskedLM.from_pretrained(
                 f"{self.config['from_pretrained']}.{self.wiki_id}"
-            ).to("cuda")
+            )
 
         else:
             raise ValueError("`from_config` or `from_pretrained` must be in the configuration.")
 
+        self.model = self.model.to(self.device, dtype=self.torch_dtype)
         logging.info(f"{self.model.config.model_type} for MLM loaded.")
         logging.info(f"Number of parameters: {round(self.model.num_parameters() / 1e6)}M")
 
@@ -150,19 +173,8 @@ class WikiMLM(WikiModelFromConfig):
 
     def train(self, dataset):
 
-        splits = dataset.keys()
-        if "train" not in splits or "test" not in splits:
-            raise ValueError("Both train and test splits must be present in the dataset.")
-        if len(splits) > 2:
-            logging.warning("More than two splits present. Ignoring all but train and test.")
-
-        logging.info("Tokenizing and batching datasets...")
-        loaders = {split: self._tokenize_and_collate(dataset[split]) for split in splits}
-        if "train" in loaders:
-            loaders["train"].shuffle = True
-
         num_train_epochs = self.config["num_train_epochs"]
-        num_train_steps = num_train_epochs * len(loaders["train"])
+        num_train_steps = num_train_epochs * len(self.loaders["train"])
         optimizer = AdamW(self.model.parameters(), lr=float(self.config["lr"]))
         scheduler = get_scheduler(
             "linear",
@@ -171,20 +183,19 @@ class WikiMLM(WikiModelFromConfig):
             num_training_steps=num_train_steps
         )
 
-        self.model, optimizer, loaders["train"], loaders["test"] = \
+        self.model, optimizer, self.loaders["train"], self.loaders["test"] = \
             self.accelerator.prepare(
                 self.model,
                 optimizer,
-                loaders["train"],
-                loaders["test"]
+                self.loaders["train"],
+                self.loaders["test"]
             )
 
         logging.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
         progress_bar = tqdm(range(num_train_steps))
-        running_loss = np.Inf
         for epoch in range(num_train_epochs):
             self.model.train()
-            for i, batch in enumerate(loaders["train"]):
+            for i, batch in enumerate(self.loaders["train"]):
                 outputs = self.model(**batch)
                 loss = outputs.loss
                 wandb.log({"train_loss": loss.item()})
@@ -196,17 +207,21 @@ class WikiMLM(WikiModelFromConfig):
                 progress_bar.update(1)
 
                 if i > 0 and i % self.config["eval_steps"] == 0:
-                    eval_loss, perplexity = self._eval_loop(loaders["test"])
+                    eval_loss, perplexity = self._eval_loop(self.loaders["test"])
                     wandb.log({"eval_loss": eval_loss.item()})
                     wandb.log({"eval_ppl": perplexity.item()})
-                    if eval_loss < running_loss:
-                        self.save()
-                    self.model.train()
+
+                if i > 0 and i % self.config["save_steps"] == 0:
+                    self.save()
+
+                self.model.train()
 
         self.accelerator.end_training()
-        eval_loss, perplexity = self._eval_loop(loaders["test"])
+        eval_loss, perplexity = self._eval_loop(self.loaders["test"])
         wandb.log({"eval_loss": eval_loss.item()})
         wandb.log({"eval_ppl": perplexity.item()})
+
+        logging.info("Training complete.")
 
     def test(self, dataset):
 
@@ -217,165 +232,124 @@ class WikiMLM(WikiModelFromConfig):
         wandb.summary["test_loss"] = loss.item()
         wandb.summary["test_ppl"] = perplexity.item()
 
-    def save(self):
 
-        path = self.config["export"]["path"]
-        export_type = self.config["export"]["export_type"]
+class WikiNER(WikiModelFromConfig):
+    def __init__(self, config, tokenizer, dataset):
+        super().__init__(config)
+        self.tokenizer = tokenizer
+        self.label_set = dataset["train"].features["ner_tags"].feature.names
+        self.label_to_id = {label: i for i, label in enumerate(self.label_set)}
+        self.id_to_label = {i: label for i, label in enumerate(self.label_set)}
+        self.collator = DataCollatorForTokenClassification(tokenizer=self.tokenizer)
 
-        if export_type == "hub":
-            logging.info(f"Pushing model to hub: {path}/{self.experiment_id}.{self.wiki_id}")
-            self.model.push_to_hub(
-                f"{path}/{self.experiment_id}.{self.wiki_id}",
-                use_temp_dir=True,
-                repo_name=path,
-                private=True
-            )
-        elif export_type == "local":
-            logging.info(f"Saving model to: {path}/{self.experiment_id}/{self.wiki_id}")
-            if not os.path.exists(f"{path}/{self.experiment_id}"):
-                os.makedirs(f"{path}/{self.experiment_id}")
-            self.model.save_pretrained(f"{path}/{self.experiment_id}/{self.wiki_id}")
-        else:
-            raise ValueError("Invalid export type.")
+        splits = dataset.keys()
+        logging.info("Tokenizing and batching datasets...")
+        self.loaders = {split: self._tokenize_and_collate(dataset[split]) for split in splits}
+        if "train" in self.loaders:
+            self.loaders["train"].shuffle = True
 
-#
-# class WikiNER(WikiModelFromConfig):
-#     def __init__(self, config):
-#         super().__init__(config)
-#         self.label_to_id = None
-#         self.id_to_label = None
-#         self.label_set = None
-#         self.tokenizer = None
-#         self.tokenizer_kwargs = OrderedDict(
-#             mask_token="[MASK]",
-#             bos_token="[BOS]",
-#             eos_token="[EOS]",
-#             sep_token="[SEP]",
-#             pad_token="[PAD]",
-#             unk_token="[UNK]",
-#             cls_token="[CLS]",
-#             unk_id=0
-#         )
-#
-#     def _tokenize_and_align_labels(self, example):
-#         tokenized_input = self.tokenizer(
-#             example["tokens"],
-#             is_split_into_words=True
-#         )
-#
-#         seen = set()
-#         labels = []
-#         for idx in tokenized_input.word_ids()[1:-1]:
-#             if idx in seen:
-#                 labels.append(-100)
-#             else:
-#                 labels.append(example['ner_tags'][idx])
-#                 seen.add(idx)
-#
-#         tokenized_input["labels"] = [-100] + labels + [-100]
-#
-#         return tokenized_input
-#
-#     def _prepare_data_for_training(self, dataset, tokenizer):
-#
-#         self.tokenizer = tokenizer
-#         for k, v in self.tokenizer_kwargs.items():
-#             setattr(tokenizer, k, v)
-#
-#         self.label_set = dataset["train"].features["ner_tags"].feature.names
-#         self.label_to_id = {label: i for i, label in enumerate(self.label_set)}
-#         self.id_to_label = {i: label for i, label in enumerate(self.label_set)}
-#         self.collator = DataCollatorForTokenClassification(tokenizer=self.tokenizer)
-#
-#         batched_datasets = dataset.map(
-#             self._tokenize_and_align_labels,
-#             remove_columns=dataset["train"].column_names
-#         )
-#
-#         for key in self.loaders:
-#             self.loaders[key] = DataLoader(
-#                 batched_datasets[key],
-#                 collate_fn=self.collator,
-#                 batch_size=self.config["batch_size"]
-#             )
-#
-#             if key == "train":
-#                 self.loaders[key].shuffle = True
-#
-#     def _init_training_parameters(self):
-#
-#         self.model = AutoModelForTokenClassification.from_pretrained(
-#             self.config["from_pretrained"],
-#             id2label=self.id_to_label,
-#             label2id=self.label_to_id
-#         )
-#
-#         self.model = self.model.to("cuda")
-#
-#         self.optimizer = AdamW(self.model.parameters(), lr=float(self.config["lr"]))
-#         self.accelerator = Accelerator()
-#         self.model, self.optimizer, self.loaders["train"], self.loaders["dev"], self.loaders["test"] = \
-#             self.accelerator.prepare(
-#                 self.model,
-#                 self.optimizer,
-#                 self.loaders["train"],
-#                 self.loaders["dev"],
-#                 self.loaders["test"]
-#         )
-#
-#         self.num_train_steps = self.num_train_epochs * len(self.loaders["train"])
-#
-#         self.scheduler = get_scheduler(
-#             "linear",
-#             optimizer=self.optimizer,
-#             num_warmup_steps=0,
-#             num_training_steps=self.num_train_steps
-#         )
-#
-#     def _process_outputs_for_eval(self, outputs):
-#
-#         predictions = outputs.logits.argmax(dim=-1)
-#         labels = outputs["labels"]
-#
-#         # Necessary to pad predictions and labels for being gathered
-#         predictions = self.accelerator.pad_across_processes(
-#             predictions, dim=1, pad_index=-100
-#         )
-#         labels = self.accelerator.pad_across_processes(
-#             labels, dim=1, pad_index=-100
-#         )
-#
-#         preds = self.accelerator.gather(predictions).detach().cpu().clone().numpy()
-#         labels = self.accelerator.gather(labels).detach().cpu().clone().numpy()
-#
-#         true_labels = [l for label in labels for l in label if l != -100]
-#         true_preds = [
-#             p for prediction, label in zip(predictions, labels)
-#             for p, l in zip(prediction, label) if l != -100
-#         ]
-#
-#         return true_labels, true_preds
-#
-#     def train(self):
-#         progress_bar = tqdm(range(self.num_train_steps))
-#         for epoch in range(self.num_train_epochs):
-#             self.model.train()
-#             for i, batch in enumerate(self.loaders["train"]):
-#                 outputs = self.model(**batch)
-#                 loss = outputs.loss
-#                 loss.backward()
-#                 self.optimizer.step()
-#                 self.scheduler.step()
-#                 self.optimizer.zero_grad()
-#                 progress_bar.update(1)
-#
-#             self.model.eval()
-#             running_loss = 0.0
-#             for dev_batch in self.loaders["dev"]:
-#                 with torch.no_grad():
-#                     outputs = self.model(**dev_batch)
-#                 true_preds, true_labels = self._process_outputs_for_eval(outputs)
-#
-#             val_loss = running_loss / len(self.loaders["dev"])
-#             progress_bar.set_description(f"Validation loss: {val_loss}")
-#             self.model.train()
+        self.model = AutoModelForTokenClassification.from_pretrained(
+            self.config["from_pretrained"],
+            id2label=self.id_to_label,
+            label2id=self.label_to_id
+        )
+        self.model = self.model.to("cuda")
+        self.accelerator = Accelerator()
+
+    def _align_labels(self, example):
+        tokenized_input = self.tokenizer(
+            example["tokens"],
+            is_split_into_words=True
+        )
+
+        seen = set()
+        labels = []
+        for idx in tokenized_input.word_ids()[1:-1]:
+            if idx in seen:
+                labels.append(-100)
+            else:
+                labels.append(example['ner_tags'][idx])
+                seen.add(idx)
+
+        tokenized_input["labels"] = [-100] + labels + [-100]
+
+        return tokenized_input
+
+    def _tokenize_and_collate(self, dataset):
+
+        batched_dataset = dataset.map(
+            self._align_labels,
+            remove_columns=dataset.column_names
+        )
+
+        loader = DataLoader(
+            batched_dataset,
+            collate_fn=self.collator,
+            batch_size=self.config["batch_size"]
+        )
+
+        return loader
+
+    def _process_outputs_for_eval(self, outputs):
+
+        predictions = outputs.logits.argmax(dim=-1)
+        labels = outputs["labels"]
+
+        # Necessary to pad predictions and labels for being gathered
+        predictions = self.accelerator.pad_across_processes(
+            predictions, dim=1, pad_index=-100
+        )
+        labels = self.accelerator.pad_across_processes(
+            labels, dim=1, pad_index=-100
+        )
+
+        preds = self.accelerator.gather(predictions).detach().cpu().clone().numpy()
+        labels = self.accelerator.gather(labels).detach().cpu().clone().numpy()
+
+        true_labels = [l for label in labels for l in label if l != -100]
+        true_preds = [
+            p for prediction, label in zip(predictions, labels)
+            for p, l in zip(prediction, label) if l != -100
+        ]
+
+        return true_labels, true_preds
+
+    def train(self):
+
+        num_train_epochs = self.config["num_train_epochs"]
+        num_train_steps = num_train_epochs * len(self.loaders["train"])
+        optimizer = AdamW(self.model.parameters(), lr=float(self.config["lr"]))
+        scheduler = get_scheduler(
+            "linear",
+            optimizer=optimizer,
+            num_warmup_steps=0,
+            num_training_steps=num_train_steps
+        )
+
+        self.model, optimizer = self.accelerator.prepare(self.model, optimizer)
+        for k, loader in self.loaders.items():
+            self.loaders[k] = self.accelerator.prepare(loader)
+
+        logging.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
+        progress_bar = tqdm(range(num_train_steps))
+        for epoch in range(num_train_epochs):
+            self.model.train()
+            for i, batch in enumerate(self.loaders["train"]):
+                outputs = self.model(**batch)
+                loss = outputs.loss
+                loss.backward()
+                optimizer.step()
+                scheduler.step()
+                optimizer.zero_grad()
+                progress_bar.update(1)
+
+            self.model.eval()
+            running_loss = 0.0
+            for dev_batch in self.loaders["dev"]:
+                with torch.no_grad():
+                    outputs = self.model(**dev_batch)
+                true_preds, true_labels = self._process_outputs_for_eval(outputs)
+
+            val_loss = running_loss / len(self.loaders["dev"])
+            progress_bar.set_description(f"Validation loss: {val_loss}")
+            self.model.train()

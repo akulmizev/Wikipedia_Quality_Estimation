@@ -1,10 +1,16 @@
 import argparse
 import yaml
 
+from dataclasses import dataclass
+
 from data.data import WikiDatasetFromConfig
-from tokenizer.tokenizer import WikiTokenizerFromConfig
+from tokenizer.tokenizer import WikiTokenizerFromConfig, WikiTokenizerFast
 from model.model import WikiMLM
 # from model.model import WikiNER
+
+@dataclass
+class DatasetConfig:
+    pass
 
 
 def main():
@@ -32,14 +38,16 @@ def main():
             dataset.save()
 
     if "tokenizer" in config:
-        tokenizer = WikiTokenizerFromConfig(config)
         if "from_config" in config["tokenizer"]:
-            tokenizer.train(dataset["train"], batch_size=100)
+            tokenizer = WikiTokenizerFast(config=config)
+            tokenizer.train(dataset["train"], batch_size=1000)
             if "export" in config["tokenizer"]:
                 tokenizer.save()
+        elif "from_pretrained" in config["tokenizer"]:
+            tokenizer = WikiTokenizerFast.from_pretrained(config["tokenizer"]["from_pretrained"])
 
     if "pretrain" in config:
-        model = WikiMLM(config, tokenizer=tokenizer.get_base_tokenizer(), pretrain=True)
+        model = WikiMLM(config, tokenizer, dataset)
         if config["pretrain"]["train"]:
             model.train(dataset)
         if "test_data" in config["pretrain"]:

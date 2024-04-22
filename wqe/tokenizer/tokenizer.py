@@ -2,8 +2,10 @@ import json
 import logging
 import os
 from importlib import resources
+from collections import OrderedDict
+
 from tokenizers import Tokenizer, processors, pre_tokenizers
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers import PreTrainedTokenizerFast
 
 from .resources.param_map import PARAM_MAP
 
@@ -176,5 +178,116 @@ class WikiTokenizerFromConfig:
             if not os.path.exists(f"{path}/{self.experiment_id}"):
                 os.makedirs(f"{path}/{self.experiment_id}")
             self.tokenizer.save_pretrained(f"{path}/{self.experiment_id}/{self.wiki_id}")
+        else:
+            raise ValueError("Invalid export type.")
+
+class WikiTokenizerFast(PreTrainedTokenizerFast):
+
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize the WikiTokenizer object.
+
+        Args:
+            config (dict): A dictionary containing the configuration for the tokenizer.
+        """
+
+        if "config" in kwargs:
+            self.config = json.load(open(kwargs["config"]["tokenizer"]["from_config"]))
+            self.experiment_id = kwargs["config"]["experiment"]["id"]
+            self.wiki_id = kwargs["config"]["wiki_id"]
+            self._build_tokenizer()
+            super().__init__(tokenizer_object=self._tokenizer, *args, **self.config["special_tokens"], **kwargs)
+        else:
+            super().__init__(*args, **kwargs)
+
+    def _build_tokenizer(self):
+
+        self._tokenizer = Tokenizer(
+            PARAM_MAP["model"][self.config["model"]]()
+        )
+
+        self._tokenizer.add_special_tokens(list(self.config["special_tokens"].values()))
+        self._tokenizer.normalizer = PARAM_MAP["normalizer"][self.config["normalizer"]]()
+        if len(self.config["pre_tokenizer"]) > 1:
+            self._tokenizer.pre_tokenizer = pre_tokenizers.Sequence(
+                [PARAM_MAP["pre_tokenizer"][pt]() for pt in self.config["pre_tokenizer"]]
+            )
+        else:
+            self._tokenizer.pre_tokenizer = PARAM_MAP["pre_tokenizer"][self.config["pre_tokenizer"][0]]()
+        self._tokenizer.decoder = PARAM_MAP["decoder"][self.config["decoder"]]()
+
+        if self.config["vocab_size"] == "auto":
+            with resources.open_text("wqe.tokenizer.resources", "predicted_vocab.json") as f:
+                predicted_vocab = json.load(f)
+            self.config["vocab_size"] = predicted_vocab[self.wiki_id]
+
+        self.trainer = PARAM_MAP["trainer"][self.config["trainer"]](
+            vocab_size=self.config["vocab_size"],
+            special_tokens=list(self.config["special_tokens"].values()),
+            unk_token=self.config["unk_token"]
+        )
+
+        if self.config["post_processor"]:
+            self._tokenizer.post_processor = processors.TemplateProcessing(
+                single="[CLS] $A [SEP]",
+                pair="[CLS] $A [SEP] $B:1 [SEP]:1",
+                special_tokens=[("[CLS]", 1), ("[SEP]", 2)]
+            )
+
+    def train(self, dataset, batch_size=1000):
+        """
+        Train the tokenizer on a dataset.
+
+        Args:
+            dataset (datasets.Dataset): The dataset to train the tokenizer on.
+            batch_size (int): The batch size.
+        """
+        logging.info(f"Training tokenizer on {len(dataset)} samples...")
+        self._tokenizer.train_from_iterator(
+            self.batch_iterator(dataset, batch_size=batch_size),
+            trainer=self.trainer,
+            length=len(dataset)
+        )
+
+        logging.info(f"Trained a tokenizer with vocab size: {self._tokenizer.get_vocab_size()}")
+
+    @staticmethod
+    def batch_iterator(dataset, batch_size=1000):
+        """
+        Iterate over the dataset in batches.
+
+        Args:
+            dataset (datasets.Dataset): The dataset to iterate over.
+            batch_size (int): The batch size.
+
+        Returns:
+            list: A list of batches of the dataset.
+        """
+        for i in range(0, len(dataset), batch_size):
+            yield dataset[i: i + batch_size]["text"]
+
+    def save(self):
+        """
+        Save the tokenizer to a file.
+
+        """
+
+        path = self.config["export"]["path"]
+        export_type = self.config["export"]["export_type"]
+
+        if export_type == "hub":
+            # self.tokenizer = PreTrainedTokenizerFast(tokenizer_object=self.tokenizer)
+            logging.info(f"Pushing tokenizer to hub: {path}/{self.experiment_id}.{self.wiki_id}")
+            self.push_to_hub(
+                f"{path}/{self.experiment_id}.{self.wiki_id}",
+                use_temp_dir=True,
+                repo_name=path,
+                private=True
+            )
+        elif export_type == "local":
+            logging.info(f"Saving tokenizer to: {path}/{self.experiment_id}/{self.wiki_id}")
+            if not os.path.exists(f"{path}/{self.experiment_id}"):
+                os.makedirs(f"{path}/{self.experiment_id}")
+            self.save_pretrained(f"{path}/{self.experiment_id}/{self.wiki_id}")
         else:
             raise ValueError("Invalid export type.")
