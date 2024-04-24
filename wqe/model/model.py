@@ -29,10 +29,10 @@ TASK_MAPPING = {
     }
 }
 
+logger = logging.getLogger(__name__)
+# logger.basicConfig(format='%(asctime)s - %(message)s', level=logger.INFO)
 
 class WikiModelFromConfig:
-
-    logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
     def __init__(self, config):
         self.config = config["pretrain" if "pretrain" in config else "finetune"]
@@ -69,7 +69,7 @@ class WikiModelFromConfig:
         export_type = self.config["export"]["export_type"]
 
         if export_type == "hub":
-            logging.info(f"Pushing model to hub: {path}/{self.experiment_id}.{self.wiki_id}")
+            logger.info(f"Pushing model to hub: {path}/{self.experiment_id}.{self.wiki_id}")
             self.model.push_to_hub(
                 f"{path}/{self.experiment_id}.{self.wiki_id}",
                 use_temp_dir=True,
@@ -77,7 +77,7 @@ class WikiModelFromConfig:
                 private=True
             )
         elif export_type == "local":
-            logging.info(f"Saving model to: {path}/{self.experiment_id}/{self.wiki_id}")
+            logger.info(f"Saving model to: {path}/{self.experiment_id}/{self.wiki_id}")
             if not os.path.exists(f"{path}/{self.experiment_id}"):
                 os.makedirs(f"{path}/{self.experiment_id}")
             self.model.save_pretrained(f"{path}/{self.experiment_id}/{self.wiki_id}")
@@ -100,9 +100,9 @@ class WikiMLM(WikiModelFromConfig):
         if "train" not in splits or "test" not in splits:
             raise ValueError("Both train and test splits must be present in the dataset.")
         if len(splits) > 2:
-            logging.warning("More than two splits present. Ignoring all but train and test.")
+            logger.warning("More than two splits present. Ignoring all but train and test.")
 
-        logging.info("Tokenizing and batching datasets...")
+        logger.info("Tokenizing and batching datasets...")
         self.loaders = {split: self._tokenize_and_collate(dataset[split]) for split in splits}
         if "train" in self.loaders:
             self.loaders["train"].shuffle = True
@@ -110,13 +110,13 @@ class WikiMLM(WikiModelFromConfig):
         if "from_config" in self.config:
             model_config = CONFIG_MAPPING[self.config["model_type"]].from_json_file(self.config["from_config"])
             model_config.vocab_size = self.tokenizer.vocab_size
-            logging.info(f"Initializing model with config: {model_config}")
+            logger.info(f"Initializing model with config: {model_config}")
             self.model = AutoModelForMaskedLM.from_config(
                 model_config
             )
 
         elif "from_pretrained" in self.config:
-            logging.info(f"Loading model from hub: {self.config['from_pretrained']}.{self.wiki_id}")
+            logger.info(f"Loading model from hub: {self.config['from_pretrained']}.{self.wiki_id}")
             # TODO: Fix hardcoding of model type with wiki_id. This should be configurable.
             self.model = AutoModelForMaskedLM.from_pretrained(
                 f"{self.config['from_pretrained']}.{self.wiki_id}"
@@ -126,8 +126,8 @@ class WikiMLM(WikiModelFromConfig):
             raise ValueError("`from_config` or `from_pretrained` must be in the configuration.")
 
         self.model = self.model.to(self.device, dtype=self.torch_dtype)
-        logging.info(f"{self.model.config.model_type} for MLM loaded.")
-        logging.info(f"Number of parameters: {round(self.model.num_parameters() / 1e6)}M")
+        logger.info(f"{self.model.config.model_type} for MLM loaded.")
+        logger.info(f"Number of parameters: {round(self.model.num_parameters() / 1e6)}M")
 
         self.accelerator = Accelerator()
 
@@ -191,7 +191,7 @@ class WikiMLM(WikiModelFromConfig):
                 self.loaders["test"]
             )
 
-        logging.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
+        logger.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
         progress_bar = tqdm(range(num_train_steps))
         for epoch in range(num_train_epochs):
             self.model.train()
@@ -221,7 +221,7 @@ class WikiMLM(WikiModelFromConfig):
         wandb.log({"eval_loss": eval_loss.item()})
         wandb.log({"eval_ppl": perplexity.item()})
 
-        logging.info("Training complete.")
+        logger.info("Training complete.")
 
     def test(self, dataset):
 
@@ -243,7 +243,7 @@ class WikiNER(WikiModelFromConfig):
         self.collator = DataCollatorForTokenClassification(tokenizer=self.tokenizer)
 
         splits = dataset.keys()
-        logging.info("Tokenizing and batching datasets...")
+        logger.info("Tokenizing and batching datasets...")
         self.loaders = {split: self._tokenize_and_collate(dataset[split]) for split in splits}
         if "train" in self.loaders:
             self.loaders["train"].shuffle = True
@@ -330,7 +330,7 @@ class WikiNER(WikiModelFromConfig):
         for k, loader in self.loaders.items():
             self.loaders[k] = self.accelerator.prepare(loader)
 
-        logging.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
+        logger.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
         progress_bar = tqdm(range(num_train_steps))
         for epoch in range(num_train_epochs):
             self.model.train()

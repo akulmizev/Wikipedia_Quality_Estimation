@@ -4,7 +4,7 @@ import yaml
 from dataclasses import dataclass
 
 from data.data import WikiDatasetFromConfig
-from tokenizer.tokenizer import WikiTokenizerFromConfig, WikiTokenizerFast
+from tokenizer.tokenizer import FastTokenizerFromConfig
 from model.model import WikiMLM
 # from model.model import WikiNER
 
@@ -39,12 +39,14 @@ def main():
 
     if "tokenizer" in config:
         if "from_config" in config["tokenizer"]:
-            tokenizer = WikiTokenizerFast(config=config)
-            tokenizer.train(dataset["train"], batch_size=1000)
+            tokenizer = FastTokenizerFromConfig.train_from_config(
+                dataset["train"],
+                config_path=config["tokenizer"]["from_config"],
+                batch_size=1000)
             if "export" in config["tokenizer"]:
                 tokenizer.save()
         elif "from_pretrained" in config["tokenizer"]:
-            tokenizer = WikiTokenizerFast.from_pretrained(config["tokenizer"]["from_pretrained"])
+            tokenizer = FastTokenizerFromConfig.from_pretrained(config["tokenizer"]["from_pretrained"])
 
     if "pretrain" in config:
         model = WikiMLM(config, tokenizer, dataset)

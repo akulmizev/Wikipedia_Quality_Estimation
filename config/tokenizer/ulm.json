@@ -19,6 +19,6 @@
         "cls_token": "[CLS]"
     },
     "unk_token": "[UNK]",
-    "vocab_size": 9376,
+    "vocab_size": 9000,
     "min_frequency": 2
 }

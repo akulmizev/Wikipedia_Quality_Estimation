@@ -1,26 +1,29 @@
 experiment:
   id: "ak_testing_2"
   wandb_project: "wikiquality"
+  local_path: "/Users/akulmizev/Documents/Work/Wiki_Quality_Estimation/experiments/"
+  push_to_hub: true
+  hub_path: "WikiQuality"
 
 data:
   import:
     import_type: "raw"
-    # path: "WikiQuality/raw_wiki"
-#  split:
-#    train: 0.9
-#    test : 0.1
-#    seed: 42
-#    shuffle: true
-#  export:
-#    export_type: "local"
-#    path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/data"
+    path: "WikiQuality/raw_wiki"
+  pre_filter:
+    script_regex: true
+    lang_id: true
+    char_cutoff: 15
+  split:
+    train: 0.9
+    test : 0.1
+    seed: 42
+    shuffle: true
+  export: true
 
 tokenizer:
   # from_pretrained: "WikiQuality/ak_testing_2"
   from_config: "/Users/akulmizev/Documents/Work/Wikipedia_Quality_Estimation/config/tokenizer/ulm.json"
-#  export:
-#    export_type: "hub"
-#    path: "WikiQuality"
+  export: true
 
 pretrain:
   #from_pretrained: "WikiQuality/ak_testing_2"
@@ -38,9 +41,7 @@ pretrain:
   test_data:
     import_type: "hub"
     path: "WikiQuality/raw_wiki"
-  export:
-    export_type: "hub"
-    path: "WikiQuality"
+  export: true
 
 #finetune:
 #  model_type: "deberta"
