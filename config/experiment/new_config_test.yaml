@@ -1,47 +1,79 @@
 experiment:
-  id: "ak_testing_2"
+  experiment_id: "ak_testing_2"
   wandb_project: "wikiquality"
-  local_path: "/Users/akulmizev/Documents/Work/Wiki_Quality_Estimation/experiments/"
-  push_to_hub: true
+  local_path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/experiments"
   hub_path: "WikiQuality"
 
 data:
-  import:
-    import_type: "raw"
-    path: "WikiQuality/raw_wiki"
-  pre_filter:
-    script_regex: true
-    lang_id: true
-    char_cutoff: 15
-  split:
-    train: 0.9
-    test : 0.1
-    seed: 42
-    shuffle: true
+  load:
+    method: "hub"
+    path: "WikiQuality/ak_testing_2"
+#  pre_filter:
+#    script_regex: true
+#    lang_id: false
+#    char_cutoff: 15
+#  partition:
+#    method: "balanced_chars"
+#    metric_type: "all"
+#    quality: true
+#    all_partitions_join_method: "intersection"
+#  split:
+#    train: 0.9
+#    test : 0.1
+#    seed: 42
+#    shuffle: true
   export: true
-
+  push_to_hub: true
+#
 tokenizer:
-  # from_pretrained: "WikiQuality/ak_testing_2"
-  from_config: "/Users/akulmizev/Documents/Work/Wikipedia_Quality_Estimation/config/tokenizer/ulm.json"
+  load:
+    method: "config"
+#    path: "WikiQuality/ak_testing_2"
+  parameters:
+    model: "unigram"
+    normalizer: "nfkc"
+    pre_tokenizer: [
+      "metaspace",
+      "unicode_scripts",
+      "digits"
+      ]
+    decoder: "metaspace"
+    trainer: "unigram"
+    post_processor: true
+    special_tokens: {
+      mask_token: "[MASK]",
+      bos_token: "[BOS]",
+      eos_token: "[EOS]",
+      sep_token: "[SEP]",
+      pad_token: "[PAD]",
+      unk_token: "[UNK]",
+      cls_token: "[CLS]"
+      }
+    unk_token: "[UNK]"
+    vocab_size: "auto"
+    min_frequency: 2
   export: true
-
-pretrain:
-  #from_pretrained: "WikiQuality/ak_testing_2"
-  from_config: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/config/model/tiny_deberta/config.json"
-  model_type: "deberta"
-  task: "mlm"
-  train: true
-  max_length: 512
-  mask_prob: 0.4
-  num_train_epochs: 30
-  batch_size: 32
-  lr: 5e-5
-  eval_steps: 100
-  save_steps: 2000
-  test_data:
-    import_type: "hub"
-    path: "WikiQuality/raw_wiki"
-  export: true
+#
+#pretrain:
+#  #from_pretrained: "WikiQuality/ak_testing_2"
+#  load:
+#    method: "hub"
+#    path: "WikiQuality/ak_testing_2"
+#  train: true
+#  training_parameters:
+#    model_type: "deberta"
+#    task: "mlm"
+#    max_length: 512
+#    mask_prob: 0.4
+#    num_train_epochs: 30
+#    batch_size: 32
+#    lr: 5e-5
+#    eval_steps: 100
+#    ckpt_steps: 2000
+#  test_data:
+#    method: "hub"
+#    path: "WikiQuality/raw_wiki"
+#  export: true
 
 #finetune:
 #  model_type: "deberta"

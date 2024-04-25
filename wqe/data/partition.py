@@ -1,72 +1,57 @@
 import numpy as np
-from datasets import Dataset
-from tokenizers.pre_tokenizers import UnicodeScripts, Whitespace, Sequence, ByteLevel, WhitespaceSplit
+from tokenizers.pre_tokenizers import Whitespace
+# from tokenizers.pre_tokenizers import UnicodeScripts, Sequence, ByteLevel, WhitespaceSplit
 from transformers import PreTrainedTokenizerFast
-from tokenizers import Tokenizer
 from nltk.util import ngrams
 
 
 class Partition:
     def __init__(self, config):
         # config is now passed from within the WikiDatasetFromConfig class
-        self.config = config["partition"]
-        self.type = self.config["partition_type"]
+        self.__dict__.update(config.__dict__)
+        self.higher_is_better = False
+        if config.tokenizer:
+            self.tokenizer = PreTrainedTokenizerFast(tokenizer_file=config.tokenizer)
 
     def __call__(self, dataset):
+
+        """
+        This method partitions the dataset into two partitions based on the metric.
+        :param dataset: A dataset object
+
+        :return: A dataset object
+
+        """
+
         metric_per_doc = [self.metric(item) for item in dataset["text"]]
-        if self.config["partition_type"] == "mean_cutoff":
+
+        if self.method == "mean_cutoff":
             mean_cutoff = np.mean(metric_per_doc)  # + np.std(metric_per_doc)
             partition_1 = np.where(metric_per_doc < mean_cutoff)[0]
             partition_2 = np.where(metric_per_doc >= mean_cutoff)[0]
-        elif self.config["partition_type"] == "balanced":
+
+        elif self.method == "balanced_docs":
             half_point = len(dataset) // 2
             partition_1 = np.argsort(metric_per_doc)[:half_point]
             partition_2 = np.argsort(metric_per_doc)[half_point:]
-        elif self.config["partition_type"] == "balanced_character_budget":
-            text = dataset["text"]
-            budget = sum(len(item) for item in text) / 2
-            a_l = []
-            total_num_chars = 0
+
+        elif self.method == "balanced_chars":
+            sorted_indices = np.argsort(metric_per_doc).tolist()
+            char_budget = len("".join(dataset["text"])) // 2
+            char_counter = 0
             partition_1 = []
-            partition_2 = []
-            for i in range(len(text)):
-                a_l.append((text[i], metric_per_doc[i]))
-            a_lsorted = sorted(a_l, key=lambda x: x[1])
-            for i, j in a_lsorted:
-                if total_num_chars < budget:
-                    partition_1.append(metric_per_doc.index(j))
-                    total_num_chars += len(i)
-                else:
-                    partition_2.append(metric_per_doc.index(j))
+            while char_counter < char_budget:
+                char_counter += len(dataset[sorted_indices[0]]["text"])
+                partition_1.append(sorted_indices.pop(0))
+            partition_2 = sorted_indices
+
         else:
-            raise ValueError("Partition type not recognized.")
+            raise ValueError("Partition method not recognized.")
 
-        # Not sure if this will work...
-        if self.config["partition_metric"] != "all":
-            if ((self.config["higher_is_better"] and self.config["quality"]) or
-                    (not self.config["higher_is_better"] and not self.config["quality"])):
-                dataset = dataset.select(partition_2)
-            else:
-                dataset = dataset.select(partition_1)
+        if (self.higher_is_better and self.quality) or (not self.higher_is_better and not self.quality):
+            return partition_2
         else:
-            dataset = dataset.select(partition_2)
-
-        # elif (self.config["higher_is_better"] and not self.config["quality"]) \
-        #         or (not self.config["higher_is_better"] and self.config["quality"]):
-        #     dataset = dataset.select(partition_1)
-
-        # if self.config["higher_is_better"]:
-        #     if self.config["quality"]:
-        #         dataset = dataset.select(partition_2)
-        #     else:
-        #         dataset = dataset.select(partition_1)
-        # else:
-        #     if self.config["quality"]:
-        #         dataset = dataset.select(partition_1)
-        #     else:
-        #         dataset = dataset.select(partition_2)
-
-        return dataset
+            return partition_1
 
     def metric(self, example):
         raise NotImplementedError("Metric not implemented. Please use a subclass.")
@@ -78,6 +63,7 @@ class Partition:
 class Length(Partition):
     def __init__(self, config):
         super().__init__(config)
+        self.higher_is_better = True
 
     def metric(self, example):
         return len(example)
@@ -85,30 +71,25 @@ class Length(Partition):
 
 class UniqueSubwords(Partition):
     def __init__(self, config):
+        if not config.tokenizer:
+            raise ValueError("Pass a tokenizer for this metric.")
         super().__init__(config)
-        self.config = config["partition"]
-        # self.tokenizer = tokenizer
+        self.higher_is_better = True
 
     def metric(self, example):
-        tokenizer_file = self.config["partition_tokenizer"]
-        if tokenizer_file is False:
-            raise ValueError("Pass a tokenizer for this metric.")
-        tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_file)
-        tokens = tokenizer.tokenize(example)
+        tokens = self.tokenizer.tokenize(example)
         return len(set(tokens))
 
 
 class UniqueSubwordTrigrams(Partition):
     def __init__(self, config):
+        if not config.tokenizer:
+            raise ValueError("Pass a tokenizer for this metric.")
         super().__init__(config)
-        self.config = config["partition"]
+        self.higher_is_better = True
 
     def metric(self, example):
-        tokenizer_file = self.config["partition_tokenizer"]
-        if tokenizer_file is False:
-            raise ValueError("Pass a tokenizer for this metric.")
-        tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_file)
-        tokens = tokenizer.tokenize(example)
+        tokens = self.tokenizer.tokenize(example)
         trigrams = list(ngrams(tokens, 3))
         return len(set(trigrams))
 
@@ -116,6 +97,7 @@ class UniqueSubwordTrigrams(Partition):
 class UniqueTrigrams(Partition):
     def __init__(self, config):
         super().__init__(config)
+        self.higher_is_better = True
 
     def metric(self, example):
         words = [word[0] for word in Whitespace().pre_tokenize_str(example)]
@@ -126,6 +108,7 @@ class UniqueTrigrams(Partition):
 class UniqueWords(Partition):
     def __init__(self, config):
         super().__init__(config)
+        self.higher_is_better = True
 
     def metric(self, example):
         words = [word[0] for word in Whitespace().pre_tokenize_str(example)]
@@ -135,6 +118,7 @@ class UniqueWords(Partition):
 class UniqueCharacters(Partition):
     def __init__(self, config):
         super().__init__(config)
+        self.higher_is_better = True
 
     def metric(self, example):
         return len(set(example))
@@ -143,6 +127,7 @@ class UniqueCharacters(Partition):
 class UniqueCharacterTrigrams(Partition):
     def __init__(self, config):
         super().__init__(config)
+        self.higher_is_better = True
 
     def metric(self, example):
         trigrams = list(ngrams(example, 3))
@@ -152,6 +137,7 @@ class UniqueCharacterTrigrams(Partition):
 class AlphaChars(Partition):
     def __init__(self, config):
         super().__init__(config)
+        self.higher_is_better = False
 
     def metric(self, example):
         return sum([1 for char in example if char.isalpha()])

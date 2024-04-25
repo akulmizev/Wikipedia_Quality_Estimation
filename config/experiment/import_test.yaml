@@ -17,7 +17,7 @@ data:
 
 tokenizer:
   # from_pretrained: "WikiQuality/ak_testing_2"
-  from_config: "/Users/akulmizev/Documents/Work/Wikipedia_Quality_Estimation/config/tokenizer/ulm.json"
+  from_config: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/config/tokenizer/ulm.json"
 #  export:
 #    export_type: "hub"
 #    path: "WikiQuality"
