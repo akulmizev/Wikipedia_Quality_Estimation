@@ -4,7 +4,6 @@ import logging
 import torch
 import wandb
 
-from accelerate import Accelerator
 from tqdm import tqdm
 from transformers import CONFIG_MAPPING
 from transformers import AutoModelForMaskedLM
@@ -25,9 +24,10 @@ class WikiMLM(WikiModelFromConfig):
                  tokenizer,
                  load_method,
                  load_path,
+                 **kwargs
                  ):
 
-        super().__init__(config, tokenizer)
+        super().__init__(config, tokenizer, **kwargs)
         self.collator = DataCollatorForLanguageModeling(
             tokenizer=self.tokenizer,
             mlm=True,
@@ -35,7 +35,7 @@ class WikiMLM(WikiModelFromConfig):
         )
 
         if load_method == "config":
-            model_config = CONFIG_MAPPING[load_method].from_json_file(load_path)
+            model_config = CONFIG_MAPPING[self.model_type].from_json_file(load_path)
             model_config.vocab_size = self.tokenizer.vocab_size
             logger.info(f"Initializing model with config: {model_config}")
             self.model = AutoModelForMaskedLM.from_config(model_config)
@@ -50,8 +50,6 @@ class WikiMLM(WikiModelFromConfig):
         self.model = self.model.to(self.device, dtype=self.torch_dtype)
         logger.info(f"{self.model.config.model_type} for MLM loaded.")
         logger.info(f"Number of parameters: {round(self.model.num_parameters() / 1e6)}M")
-
-        self.accelerator = Accelerator(project_dir=self.export_path) if self.export_path else Accelerator()
 
     def _tokenize_and_collate(self, dataset):
 
@@ -124,7 +122,7 @@ class WikiMLM(WikiModelFromConfig):
                  loaders["test"]]
             )
         self.accelerator.register_for_checkpointing(scheduler)
-        self.accelerator.save_state()
+        self.accelerator.save_state("checkpoint.pt")
 
         logger.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
         progress_bar = tqdm(range(num_train_steps))
@@ -150,7 +148,7 @@ class WikiMLM(WikiModelFromConfig):
                     logger.info(f"Eval loss: {eval_loss}, PPL: {perplexity}")
 
                 self.model.train()
-            self.accelerator.save_state()
+            self.accelerator.save_state("checkpoint.pt")
 
         self.accelerator.end_training()
         eval_loss, perplexity = self._eval_loop(loaders["test"])

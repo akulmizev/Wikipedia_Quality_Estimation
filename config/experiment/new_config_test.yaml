@@ -1,18 +1,18 @@
 experiment:
   experiment_id: "ak_testing_2"
-  wandb_project: "wikiquality"
-#  local_path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/experiments"
-  local_path: "/Users/akulmizev/Documents/Work/Wikipedia_Quality_Estimation/experiments"
+  wandb_entity: "wikiquality"
+  local_path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/experiments"
+#  local_path: "/Users/akulmizev/Documents/Work/Wikipedia_Quality_Estimation/experiments"
   hub_path: "WikiQuality"
 
 data:
   load:
     method: "hub"
     path: "WikiQuality/ak_testing_2"
-#  pre_filter:
-#    script_regex: true
+  pre_filter:
+    script_regex: true
 #    lang_id: false
-#    char_cutoff: 15
+    char_cutoff: 15
 #  partition:
 #    method: "balanced_chars"
 #    metric_type: "all"
@@ -23,8 +23,8 @@ data:
 #    test : 0.1
 #    seed: 42
 #    shuffle: true
-  export: true
-  push_to_hub: true
+  export: false
+  push_to_hub: false
 
 tokenizer:
   load:
@@ -53,29 +53,29 @@ tokenizer:
     unk_token: "[UNK]"
     vocab_size: "auto"
     min_frequency: 2
-  export: true
-  push_to_hub: true
+  export: false
+  push_to_hub: false
 #
-#pretrain:
-#  #from_pretrained: "WikiQuality/ak_testing_2"
-#  load:
-#    method: "hub"
+pretrain:
+  #from_pretrained: "WikiQuality/ak_testing_2"
+  load:
+    method: "config"
 #    path: "WikiQuality/ak_testing_2"
-#  train: true
-#  parameters:
-#    model_type: "deberta"
-#    task: "mlm"
-#    max_length: 512
-#    mask_prob: 0.4
-#    num_train_epochs: 30
-#    batch_size: 32
-#    lr: 5e-5
-#    eval_steps: 100
-#    ckpt_steps: 2000
-#  test_data:
-#    method: "hub"
-#    path: "WikiQuality/raw_wiki"
-#  export: true
+    path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/config/model/tiny_deberta/config.json"
+  train: true
+  training_parameters:
+    model_type: "deberta"
+    task: "mlm"
+    max_length: 512
+    mask_prob: 0.4
+    num_train_epochs: 30
+    batch_size: 32
+    lr: 5e-5
+    eval_steps: 100
+  test_data:
+    method: "hub"
+    path: "WikiQuality/raw_wiki"
+  export: true
 
 #finetune:
 #  model_type: "deberta"

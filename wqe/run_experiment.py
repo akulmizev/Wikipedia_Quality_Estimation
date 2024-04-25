@@ -74,9 +74,9 @@ def main():
             load_path=pretrain_cfg.load.path,
             export_path=export_path
         )
-        if experiment_cfg.wandb_project:
+        if experiment_cfg.wandb_entity:
             model.init_wandb(
-                project=experiment_cfg.wandb_project,
+                project=f"{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}",
                 entity=experiment_cfg.wandb_entity,
                 parameters=pretrain_cfg.training_parameters
             )

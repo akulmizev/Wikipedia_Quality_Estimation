@@ -16,9 +16,9 @@ class Load:
 
 @dataclass
 class PreFilter:
-    script_regex: bool
-    lang_id: bool
-    char_cutoff: Optional[int]
+    script_regex: Optional[bool] = None
+    lang_id: Optional[bool] = None
+    char_cutoff: Optional[int] = None
 
 
 @dataclass
@@ -73,7 +73,6 @@ class TrainingParameters:
     task: str
     num_train_epochs: int
     eval_steps: int
-    ckpt_steps: int
     max_length: int = 512
     batch_size: int = 8
     mask_prob: float = 0.4
@@ -83,14 +82,14 @@ class TrainingParameters:
         if self.task not in ["mlm", "ner"]:
             raise ValueError(f"Invalid task: {self.task}")
 
-    # TODO: Consolidate for fine-tuning
+    # TODO: Consolidate for fine-tuning, which might have different params
 
 
 @dataclass
 class Experiment:
     wiki_id: str
     experiment_id: str
-    wandb_project: str
+    wandb_entity: str
     local_path: str
     hub_path: Optional[str]
 

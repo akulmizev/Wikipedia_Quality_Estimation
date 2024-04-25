@@ -3,6 +3,7 @@ import logging
 import torch
 import wandb
 
+from accelerate import Accelerator
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,8 +19,9 @@ class WikiModelFromConfig:
         self.__dict__.update(config.__dict__)
         self.torch_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.accelerator = Accelerator(project_dir=export_path) if export_path else Accelerator()
         self.tokenizer = tokenizer
-        self.export_path = export_path
+        # self.export_path = export_path
         self.model = None
         self.collator = None
         self.wandb = False
@@ -28,7 +30,7 @@ class WikiModelFromConfig:
         wandb.init(
             project=project,
             entity=entity,
-            config={**parameters}
+            config={**parameters.__dict__}
         )
 
     def _tokenize_and_collate(self, dataset):
