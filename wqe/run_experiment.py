@@ -8,11 +8,11 @@ from data.data import WikiLoader
 from utils.config import parse_config
 
 from tokenizer.tokenizer import FastTokenizerFromConfig
-# from model.model import WikiMLM
+from model.wiki_mlm import WikiMLM
 # from model.model import WikiNER
 
 def main():
-    global experiment_path
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default=None, type=str, required=True,
                         help="Specify path to configuration file.")
@@ -64,6 +64,48 @@ def main():
             )
             if tokenizer_cfg.export:
                 tokenizer.save_pretrained(f"{experiment_path}/model/{experiment_cfg.wiki_id}")
+
+    if pretrain_cfg:
+        export_path = f"{experiment_path}/model/{experiment_cfg.wiki_id}" if pretrain_cfg.export else None
+        model = WikiMLM(
+            pretrain_cfg.training_parameters,
+            tokenizer,
+            load_method=pretrain_cfg.load.method,
+            load_path=pretrain_cfg.load.path,
+            export_path=export_path
+        )
+        if experiment_cfg.wandb_project:
+            model.init_wandb(
+                project=experiment_cfg.wandb_project,
+                entity=experiment_cfg.wandb_entity,
+                parameters=pretrain_cfg.training_parameters
+            )
+        if pretrain_cfg.train:
+            model.train(dataset)
+
+        # model.train(dataset)
+        # model.save(f"{experiment_path}/model/{experiment_cfg.wiki_id}")
+        # if api.repo_exists(f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}"):
+        #     api.create_repo(
+        #         repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}",
+        #         repo_type="model",
+        #         private=False
+        #     )
+        # api.upload_folder(
+        #     folder_path=f"{experiment_path}/model/",
+        #     repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}",
+        #     repo_type="model"
+        # )
+        #     if config["pretrain"]["train"]:
+        #         model.train(dataset)
+        #     if "test_data" in config["pretrain"]:
+        #         test_dataset = WikiDatasetFromConfig.load_dataset_directly(
+        #             config["pretrain"]["test_data"],
+        #             wiki_id=args.wiki_id, split="test"
+        #         )
+        #         model.test(test_dataset)
+
+
         # elif "from_pretrained" in tokenizer_cfg:
         #     tokenizer = FastTokenizerFromConfig.from_pretrained(tokenizer_cfg["from_pretrained"])
     # if "tokenizer" in config:

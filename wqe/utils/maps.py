@@ -1,4 +1,7 @@
 from tokenizers import decoders, models, normalizers, pre_tokenizers, trainers
+from transformers import AutoModelForMaskedLM, AutoModelForTokenClassification
+from transformers import DataCollatorForTokenClassification, DataCollatorForLanguageModeling
+
 from ..data.partition import (
     Length,
     UniqueSubwords,
@@ -51,4 +54,15 @@ TOKENIZER_PARAM_MAP = {
         "bpe": trainers.BpeTrainer,
         "wordpiece": trainers.WordPieceTrainer
     },
+}
+
+TASK_MAPPING = {
+    "mlm": {
+        "model": AutoModelForMaskedLM,
+        "collator": DataCollatorForLanguageModeling
+    },
+    "ner": {
+        "model": AutoModelForTokenClassification,
+        "collator": DataCollatorForTokenClassification
+    }
 }

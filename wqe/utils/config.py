@@ -51,10 +51,7 @@ class TokenizerParameters:
     pre_tokenizer: Union[str, List[str]] = "byte_level"
     decoder: str = "byte_level"
     vocab_size: Union[int, str] = "auto"
-    unk_token: str = "[UNK]"
     trainer: str = "unigram"
-    post_processor: Optional[bool] = False
-    min_frequency: int = 5
     special_tokens: Dict[str, str] = field(
         default_factory=lambda: {
             "pad_token": "[PAD]",
@@ -63,6 +60,9 @@ class TokenizerParameters:
             "sep_token": "[SEP]"
         }
     )
+    unk_token: str = "[UNK]"
+    post_processor: Optional[bool] = False
+    min_frequency: Optional[int] = None
 
     # TODO: Add type-checking for parameters
 
