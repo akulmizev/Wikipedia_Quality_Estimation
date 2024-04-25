@@ -68,7 +68,7 @@ pretrain:
     task: "mlm"
     max_length: 512
     mask_prob: 0.4
-    num_train_epochs: 30
+    num_train_epochs: 1
     batch_size: 32
     lr: 5e-5
     eval_steps: 100

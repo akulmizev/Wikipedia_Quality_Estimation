@@ -19,9 +19,9 @@ class WikiModelFromConfig:
         self.__dict__.update(config.__dict__)
         self.torch_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.accelerator = Accelerator(project_dir=export_path) if export_path else Accelerator()
+        self.export_path = export_path
+        self.accelerator = Accelerator(project_dir=self.export_path) if self.export_path else Accelerator()
         self.tokenizer = tokenizer
-        # self.export_path = export_path
         self.model = None
         self.collator = None
         self.wandb = False

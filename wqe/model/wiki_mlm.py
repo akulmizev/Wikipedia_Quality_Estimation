@@ -116,13 +116,13 @@ class WikiMLM(WikiModelFromConfig):
 
         self.model, optimizer, loaders["train"], loaders["test"] = \
             self.accelerator.prepare(
-                [self.model,
+                self.model,
                  optimizer,
                  loaders["train"],
-                 loaders["test"]]
+                 loaders["test"]
             )
         self.accelerator.register_for_checkpointing(scheduler)
-        self.accelerator.save_state("checkpoint.pt")
+        self.accelerator.save_state(self.export_path)
 
         logger.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
         progress_bar = tqdm(range(num_train_steps))
@@ -148,9 +148,9 @@ class WikiMLM(WikiModelFromConfig):
                     logger.info(f"Eval loss: {eval_loss}, PPL: {perplexity}")
 
                 self.model.train()
-            self.accelerator.save_state("checkpoint.pt")
+            self.accelerator.save_state()
 
-        self.accelerator.end_training()
+        self.accelerator.end_training(self.export_path)
         eval_loss, perplexity = self._eval_loop(loaders["test"])
         if self.wandb:
             wandb.log({"eval_loss": eval_loss.item()})
