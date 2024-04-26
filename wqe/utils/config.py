@@ -69,15 +69,14 @@ class TokenizerParameters:
 
 @dataclass
 class TrainingParameters:
-    train: bool  #added this later - kushal, config was giving an error before
     model_type: str
     task: str
     num_train_epochs: int
-    eval_steps: int
     max_length: int = 512
     batch_size: int = 8
-    mask_prob: float = 0.4
     lr: float = 1e-5
+    mask_prob: Optional[float] = None
+    eval_steps: Optional[int] = None
 
     def __post_init__(self):
         if self.task not in ["mlm", "ner"]:
@@ -123,6 +122,8 @@ class Tokenizer:
 
     def __post_init__(self):
         self.load = Load(**self.load)
+        if self.load.method == "config" and not self.parameters:
+            raise ValueError("Parameters are required for config-based tokenizer training.")
         if self.parameters:
             self.parameters = TokenizerParameters(**self.parameters)
 
@@ -132,7 +133,7 @@ class Pretrain:
     load: Dict[str, str]
     export: bool
     push_to_hub: bool = False
-    train: bool = False
+    do_train: bool = False
     training_parameters: Optional[Dict[str, Union[str, int, float, bool]]] = None
     test_data: Optional[Dict[str, str]] = None
 
@@ -143,11 +144,24 @@ class Pretrain:
         if self.test_data:
             self.test_data = Load(**self.test_data)
 
+@dataclass
+class Finetune:
+    load: Dict[str, str]
+    export: bool
+    push_to_hub: bool = False
+    do_train: bool = False
+    training_parameters: Optional[Dict[str, Union[str, int, float, bool]]] = None
+
+    def __post_init__(self):
+        self.load = Load(**self.load)
+        if self.training_parameters:
+            self.training_parameters = TrainingParameters(**self.training_parameters)
 
 def parse_config(config):
     experiment = Experiment(**config["experiment"])
     data = Dataset(**config["data"]) if "data" in config else None
     tokenizer = Tokenizer(**config["tokenizer"]) if "tokenizer" in config else None
     pretrain = Pretrain(**config["pretrain"]) if "pretrain" in config else None
+    finetune = Finetune(**config["finetune"]) if "finetune" in config else None
 
-    return experiment, data, tokenizer, pretrain
+    return experiment, data, tokenizer, pretrain, finetune

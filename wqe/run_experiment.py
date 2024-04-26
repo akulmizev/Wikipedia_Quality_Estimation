@@ -7,10 +7,9 @@ from huggingface_hub import HfApi
 from data.data import WikiLoader
 from utils.config import parse_config
 
-from tokenizer.tokenizer import FastTokenizerFromConfig
-from transformers import PreTrainedTokenizerFast
+from tokenizer.tokenizer import PreTrainedTokenizerFast
 
-from model.wiki_mlm import WikiMLM
+from model.pretrain import WikiMLM
 # from model.model import WikiNER
 
 def main():
@@ -26,7 +25,7 @@ def main():
         config = yaml.safe_load(f)
         config["experiment"].update({"wiki_id": args.wiki_id})
 
-    experiment_cfg, data_cfg, tokenizer_cfg, pretrain_cfg = parse_config(config)
+    experiment_cfg, data_cfg, tokenizer_cfg, pretrain_cfg, finetune_cfg = parse_config(config)
 
     if experiment_cfg.local_path:
         experiment_path = f"{experiment_cfg.local_path}/{experiment_cfg.experiment_id}"
@@ -61,7 +60,7 @@ def main():
 
     if tokenizer_cfg:
         if tokenizer_cfg.load.method == "config":
-            tokenizer = FastTokenizerFromConfig.train_from_config(
+            tokenizer = PreTrainedTokenizerFast.train_from_config(
                 dataset["train"],
                 config=tokenizer_cfg.parameters,
                 batch_size=1000
@@ -86,8 +85,8 @@ def main():
                 entity=experiment_cfg.wandb_entity,
                 parameters=pretrain_cfg.training_parameters
                 )
-        if pretrain_cfg.train:
-            model.train_(dataset)
+        if pretrain_cfg.do_train:
+            model.train(dataset)
         
         if pretrain_cfg.test_data:
             test_dataset = WikiLoader.load_dataset_directly(import_config=pretrain_cfg.test_data,
@@ -95,21 +94,20 @@ def main():
             model.test(dataset=test_dataset)
 
         if pretrain_cfg.push_to_hub:
-            # if not api.repo_exists(f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}"):
             api.create_repo(
                 repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}",
                 repo_type="model",
                 private=True,
                 exist_ok=True
-                )
+            )
             api.upload_folder(
                 folder_path=f"{export_path}",
                 repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}",
                 repo_type="model"
-                )
+            )
 
-
-        
+    if fine_tune_cfg:
+        pass
 
         # model.train(dataset)
         # model.save(f"{experiment_path}/model/{experiment_cfg.wiki_id}")

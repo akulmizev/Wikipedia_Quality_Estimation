@@ -5,14 +5,14 @@ experiment:
 #  local_path: "/Users/akulmizev/Documents/Work/Wikipedia_Quality_Estimation/experiments"
   hub_path: "WikiQuality"
 
-data:
-  load:
-    method: "hub" #or pretrained
-    path: "WikiQuality/ak_testing_2"
-  pre_filter:
-    script_regex: true
-#    lang_id: false
-    char_cutoff: 15
+#data:
+#  load:
+#    method: "hub" #or pretrained
+#    path: "WikiQuality/pre_filtered"
+#  pre_filter:
+#    script_regex: true
+##    lang_id: false
+#    char_cutoff: 15
 #  partition:
 #    method: "balanced_chars"
 #    metric_type: "all"
@@ -23,65 +23,72 @@ data:
 #    test : 0.1
 #    seed: 42
 #    shuffle: true
-  export: false #this needs to be in the config, even when loading from hub and not doing anything else
-  push_to_hub: false
+#  export: false #this needs to be in the config, even when loading from hub and not doing anything else
+#  push_to_hub: false
 
 tokenizer:
   load:
-    method: "config"
-#    path: "WikiQuality/ak_testing_2"
-  parameters:
-    model: "unigram"
-    normalizer: "nfkc"
-    pre_tokenizer: [
-      "metaspace",
-      "unicode_scripts",
-      "digits"
-      ]
-    decoder: "metaspace"
-    trainer: "unigram"
-    post_processor: true
-    special_tokens: {
-      mask_token: "[MASK]",
-      bos_token: "[BOS]",
-      eos_token: "[EOS]",
-      sep_token: "[SEP]",
-      pad_token: "[PAD]",
-      unk_token: "[UNK]",
-      cls_token: "[CLS]"
-      }
-    unk_token: "[UNK]"
-    vocab_size: "auto"
-    min_frequency: 2
+    method: "pretrained"
+    path: "WikiQuality/ak_testing_2"
+#  parameters:
+#    model: "unigram"
+#    normalizer: "nfkc"
+#    pre_tokenizer: [
+#      "metaspace",
+#      "unicode_scripts",
+#      "digits"
+#      ]
+#    decoder: "metaspace"
+#    trainer: "unigram"
+#    post_processor: true
+#    special_tokens: {
+#      mask_token: "[MASK]",
+#      bos_token: "[BOS]",
+#      eos_token: "[EOS]",
+#      sep_token: "[SEP]",
+#      pad_token: "[PAD]",
+#      unk_token: "[UNK]",
+#      cls_token: "[CLS]"
+#      }
+#    unk_token: "[UNK]"
+#    vocab_size: "auto"
+#    min_frequency: 2
   export: false
   push_to_hub: false
 #
-pretrain:
-  #from_pretrained: "WikiQuality/ak_testing_2"
+#pretrain:
+#  #from_pretrained: "WikiQuality/ak_testing_2"
+#  load:
+#    method: "config"
+##    path: "WikiQuality/ak_testing_2"
+#    path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/config/model/tiny_deberta/config.json"
+#  do_train: true #this gives an error
+#  training_parameters:
+#    model_type: "deberta"
+#    task: "mlm"
+#    max_length: 512
+#    mask_prob: 0.4
+#    num_train_epochs: 3
+#    batch_size: 8
+#    lr: 5e-5
+#    eval_steps: 500
+#  test_data:
+#    method: "hub"
+#    path: "WikiQuality/raw_wiki"
+#  export: true
+#  push_to_hub: true
+
+finetune:
   load:
-    method: "config"
-#    path: "WikiQuality/ak_testing_2"
-    path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/config/model/tiny_deberta/config.json"
-  train: true #this gives an error
+    method: "pretrained"
+    path: "WikiQuality/ak_testing_2"
+  do_train: true #this gives an error
   training_parameters:
     model_type: "deberta"
     task: "mlm"
     max_length: 512
-    mask_prob: 0.4
-    num_train_epochs: 1
-    batch_size: 32
+    num_train_epochs: 3
+    batch_size: 8
     lr: 5e-5
-    eval_steps: 100
-  test_data:
-    method: "hub"
-    path: "WikiQuality/raw_wiki"
-  export: true
-
-#finetune:
-#  model_type: "deberta"
-#  from_pretrained: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/models/deberta_tiny_mlm"
-#  num_train_epochs: 1
-#  batch_size: 8
-#  lr: 5e-5
-#  task: "ner"
-#  dataset: "ai4bharat/naamapadam"
+  export: false
+  push_to_hub: false

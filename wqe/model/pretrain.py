@@ -76,7 +76,6 @@ class WikiMLM(WikiModelFromConfig):
 
     def _eval_loop(self, loader):
 
-        self.model.eval()
         losses = []
         for batch in loader:
             with torch.no_grad():
@@ -91,7 +90,7 @@ class WikiMLM(WikiModelFromConfig):
 
         return eval_loss, perplexity
 
-    def train_(self, dataset): #had to add train_ because the run_exp script did not recognize it as the function, but as the boolean argument passes in the pretrain_cfg for some reason
+    def train(self, dataset):
 
         splits = dataset.keys()
         if "train" not in splits or "test" not in splits:
@@ -141,13 +140,14 @@ class WikiMLM(WikiModelFromConfig):
                 progress_bar.update(1)
 
                 if i > 0 and i % self.eval_steps == 0:
+                    self.model.eval()
                     eval_loss, perplexity = self._eval_loop(loaders["test"])
                     if self.wandb:
                         wandb.log({"eval_loss": eval_loss.item()})
                         wandb.log({"eval_ppl": perplexity.item()})
                     logger.info(f"Eval loss: {eval_loss}, PPL: {perplexity}")
+                    self.model.train()
 
-                self.model.train()
             self.accelerator.save_state(self.export_path)
 
         self.accelerator.end_training()
@@ -164,5 +164,6 @@ class WikiMLM(WikiModelFromConfig):
         loader = self.accelerator.prepare(loader) #removed the ([loader]) - outputs = self.model(**batch) gave an error needing "mapping" not "loader"
         loss, perplexity = self._eval_loop(loader)
 
-        wandb.summary["test_loss"] = loss.item()
-        wandb.summary["test_ppl"] = perplexity.item()
+        if self.wandb:
+            wandb.summary["test_loss"] = loss.item()
+            wandb.summary["test_ppl"] = perplexity.item()

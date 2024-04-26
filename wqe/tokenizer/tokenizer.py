@@ -1,20 +1,19 @@
-import json
 import logging
 
 from tokenizers import Tokenizer, processors, pre_tokenizers
 from transformers import PreTrainedTokenizerFast
 
-# from wqe.utils.maps import TOKENIZER_PARAM_MAP as PARAM_MAP
-from utils.maps import TOKENIZER_PARAM_MAP as PARAM_MAP
+from wqe.utils.maps import TOKENIZER_PARAM_MAP as PARAM_MAP
+# from ..utils.maps import TOKENIZER_PARAM_MAP as PARAM_MAP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class FastTokenizerFromConfig(PreTrainedTokenizerFast):
+class PreTrainedTokenizerFast(PreTrainedTokenizerFast):
 
     @classmethod
-    def train_from_config(cls, dataset, config, batch_size=1000):
+    def train_from_config(cls, dataset, config, batch_size=1000, **kwargs):
 
         logger.info("Building tokenizer from config.")
 
@@ -60,7 +59,8 @@ class FastTokenizerFromConfig(PreTrainedTokenizerFast):
 
         logging.info(f"Trained a tokenizer with vocab size: {tokenizer.get_vocab_size()}")
 
-        return cls(tokenizer_object=tokenizer, unk_id=0, **config.special_tokens)
+        return cls(tokenizer_object=tokenizer, unk_id=0, **config.special_tokens, **kwargs)
+
 
     @staticmethod
     def predict_vocab_size(length_in_chars):
@@ -85,3 +85,4 @@ class FastTokenizerFromConfig(PreTrainedTokenizerFast):
         """
         for i in range(0, len(dataset), batch_size):
             yield dataset[i: i + batch_size]["text"]
+

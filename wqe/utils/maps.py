@@ -1,9 +1,21 @@
-from tokenizers import decoders, models, normalizers, pre_tokenizers, trainers
-from transformers import AutoModelForMaskedLM, AutoModelForTokenClassification
-from transformers import DataCollatorForTokenClassification, DataCollatorForLanguageModeling
+from tokenizers import (
+    decoders,
+    models,
+    normalizers,
+    pre_tokenizers,
+    trainers
+)
 
-# from ..data.partition import (
-from data.partition import (
+from transformers import (
+    AutoModelForMaskedLM,
+    AutoModelForTokenClassification,
+    AutoModelForSequenceClassification,
+    DataCollatorForTokenClassification,
+    DataCollatorForLanguageModeling,
+    DataCollatorWithPadding
+)
+
+from ..data.partition import (
     Length,
     UniqueSubwords,
     UniqueSubwordTrigrams,
@@ -57,13 +69,17 @@ TOKENIZER_PARAM_MAP = {
     },
 }
 
-TASK_MAPPING = {
+TASK_TO_MODEL_AND_COLLATOR_MAPPING = {
     "mlm": {
         "model": AutoModelForMaskedLM,
         "collator": DataCollatorForLanguageModeling
     },
-    "ner": {
+    "named_entity": {
         "model": AutoModelForTokenClassification,
         "collator": DataCollatorForTokenClassification
+    },
+    "sentiment_analysis": {
+        "model": AutoModelForSequenceClassification,
+        "collator": DataCollatorWithPadding
     }
 }

@@ -33,6 +33,8 @@ class WikiModelFromConfig:
             config={**parameters.__dict__}
         )
 
+        self.wandb = True
+
     def _tokenize_and_collate(self, dataset):
         raise NotImplementedError("Subclasses must implement this method.")
 
