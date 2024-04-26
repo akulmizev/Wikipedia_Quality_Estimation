@@ -87,8 +87,8 @@ finetune:
   training_parameters:
     model_type: "deberta"
     max_length: 512
-    num_train_epochs: 3
-    batch_size: 8
+    num_train_epochs: 10
+    batch_size: 32
     lr: 5e-5
   export: false
   push_to_hub: false

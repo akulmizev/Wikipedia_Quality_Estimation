@@ -117,12 +117,12 @@ def main():
                 label_set=label_set,
                 load_path=f"{finetune_cfg.load.path}.{experiment_cfg.wiki_id}"
             )
-        # if experiment_cfg.wandb_entity:
-        #     model.init_wandb(
-        #         project=f"{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}",
-        #         entity=experiment_cfg.wandb_entity,
-        #         parameters=finetune_cfg.training_parameters
-        #     )
+        if experiment_cfg.wandb_entity:
+            model.init_wandb(
+                project=f"{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}",
+                entity=experiment_cfg.wandb_entity,
+                parameters=finetune_cfg.training_parameters
+            )
         if finetune_cfg.do_train:
             model.train(finetune_dataset)
 

@@ -4,12 +4,8 @@ import logging
 import torch
 import wandb
 
-from accelerate import Accelerator
+from sklearn.metrics import classification_report, precision_recall_fscore_support
 from tqdm import tqdm
-from transformers import CONFIG_MAPPING
-# from transformers import MODEL_FOR_MASKED_LM_MAPPING, MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING
-from transformers import AutoModelForMaskedLM, AutoModelForTokenClassification
-from transformers import DataCollatorForTokenClassification, DataCollatorForLanguageModeling
 from transformers import get_scheduler
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
@@ -94,7 +90,9 @@ class GenericModelforFineTuning(ModelFromConfig):
             self.model.train()
             for i, batch in enumerate(loaders["train"]):
                 outputs = self.model(**batch)
-                loss = outputs. loss
+                loss = outputs.loss
+                if wandb:
+                    wandb.log({"loss": loss.item()})
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
@@ -103,7 +101,6 @@ class GenericModelforFineTuning(ModelFromConfig):
 
             if "validation" in loaders:
                 self._eval_loop(loaders["validation"])
-                self.model.train()
 
 
 class NER(GenericModelforFineTuning):
@@ -175,51 +172,31 @@ class NER(GenericModelforFineTuning):
                 results["preds"].extend(true_preds)
                 results["labels"].extend(true_labels)
 
-        pass
+        report = classification_report(
+            results["labels"],
+            results["preds"],
+            labels=[i for i in range(len(self.label_set))],
+            target_names=self.label_set,
+            zero_division=0.0
+        )
 
-    # def train(self, dataset):
-    #
-    #     splits = dataset.keys()
-    #     logger.info("Tokenizing and batching datasets...")
-    #     loaders = {split: self._tokenize_and_collate(dataset[split]) for split in splits}
-    #     if "train" in loaders:
-    #         loaders["train"].shuffle = True
-    #
-    #     num_train_epochs = self.num_train_epochs
-    #     num_train_steps = num_train_epochs * len(loaders["train"])
-    #     optimizer = AdamW(self.model.parameters(), lr=float(self.lr))
-    #     scheduler = get_scheduler(
-    #         "linear",
-    #         optimizer=optimizer,
-    #         num_warmup_steps=0,
-    #         num_training_steps=num_train_steps
-    #     )
-    #
-    #     self.model, optimizer = self.accelerator.prepare(self.model, optimizer)
-    #     for k, loader in loaders.items():
-    #         loaders[k] = self.accelerator.prepare(loader)
-    #
-    #     logger.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
-    #     progress_bar = tqdm(range(num_train_steps))
-    #     for epoch in range(num_train_epochs):
-    #         self.model.train()
-    #         for i, batch in enumerate(loaders["train"]):
-    #             outputs = self.model(**batch)
-    #             loss = outputs.loss
-    #             loss.backward()
-    #             optimizer.step()
-    #             scheduler.step()
-    #             optimizer.zero_grad()
-    #             progress_bar.update(1)
-    #
-    #         if "validation" in loaders:
-    #             self.model.eval()
-    #             running_loss = 0.0
-    #             for dev_batch in loaders["validation"]:
-    #                 with torch.no_grad():
-    #                     outputs = self.model(**dev_batch)
-    #                 true_preds, true_labels = self._process_outputs_for_eval(outputs)
-    #
-    #             val_loss = running_loss / len(loaders["validation"])
-    #             progress_bar.set_description(f"Validation loss: {val_loss}")
-    #             self.model.train()
+        # print(report)
+
+
+class SentimentAnalysis(GenericModelforFineTuning):
+    def __init__(self, config, tokenizer, **kwargs):
+        super().__init__(config, tokenizer, task="ner", **kwargs)
+
+    def _tokenize_and_collate(self, dataset):
+        batched_dataset = dataset.map(
+            self._align_labels,
+            remove_columns=dataset.column_names
+        )
+
+        loader = DataLoader(
+            batched_dataset,
+            collate_fn=self.collator,
+            batch_size=self.batch_size
+        )
+
+        return loader
