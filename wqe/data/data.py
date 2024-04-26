@@ -11,7 +11,8 @@ from datasets import load_dataset
 from huggingface_hub import hf_hub_download
 
 from .partition import *
-from wqe.utils.maps import PARTITION_MAP
+# from wqe.utils.maps import PARTITION_MAP
+from utils.maps import PARTITION_MAP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class WikiLoader:
                 self.data = load_dataset(self.load.path)
             elif self.load.method == "hub":
                 logger.info(f"Loading dataset from hub: {self.load.path}/{self.wiki_id}")
-                self.data = load_dataset(f"{self.load.path}", data_dir=self.wiki_id)
+                self.data = load_dataset(f"{self.load.path}", data_dir=f"{self.wiki_id}")
             elif self.load.method == "raw":
                 logger.info(f"Loading raw dataset from Wikimedia/Wikipedia: {self.wiki_id}")
                 self.data = load_dataset(
@@ -51,7 +52,6 @@ class WikiLoader:
         with resources.open_text("data.resources", "wiki_mappings.json") as f:
             self.wiki_mappings = json.load(f)[self.wiki_id]
 
-        # TODO change this to - if loading pre_filtered data for partitions, it logs both train and test
         self.n_chars = len("".join(self.data["train"]["text"]))
         self.n_docs = len(self.data["train"])
         logger.info(f"Loaded {self.n_docs} articles with {self.n_chars} characters (train).")
@@ -97,7 +97,7 @@ class WikiLoader:
             dataset = load_dataset(import_config.path)
         elif import_config.method == "hub":
             logger.info(f"Loading dataset from hub: {import_config.path}/{wiki_id}")
-            dataset = load_dataset(f"{import_config.path}", wiki_id)
+            dataset = load_dataset(f"{import_config.path}", data_dir=wiki_id)
         else:
             raise ValueError("Invalid import type. Please specify either 'local' or 'hub'.")
 

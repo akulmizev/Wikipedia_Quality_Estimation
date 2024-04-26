@@ -8,6 +8,8 @@ from data.data import WikiLoader
 from utils.config import parse_config
 
 from tokenizer.tokenizer import FastTokenizerFromConfig
+from transformers import PreTrainedTokenizerFast
+
 from model.wiki_mlm import WikiMLM
 # from model.model import WikiNER
 
@@ -43,17 +45,19 @@ def main():
             dataset.generate_splits()
         if data_cfg.export:
             dataset.save(f"{experiment_path}/data/{experiment_cfg.wiki_id}")
-            if api.repo_exists(f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}"):
+            if data_cfg.push_to_hub:
+                # if api.repo_exists(f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}"):
                 api.create_repo(
                     repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}",
                     repo_type="dataset",
-                    private=False
+                    private=True,
+                    exist_ok=True
                 )
-            api.upload_folder(
-                folder_path=f"{experiment_path}/data/",
-                repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}",
-                repo_type="dataset"
-            )
+                api.upload_folder(
+                    folder_path=f"{experiment_path}/data/",
+                    repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}",
+                    repo_type="dataset"
+                )
 
     if tokenizer_cfg:
         if tokenizer_cfg.load.method == "config":
@@ -64,6 +68,8 @@ def main():
             )
             if tokenizer_cfg.export:
                 tokenizer.save_pretrained(f"{experiment_path}/model/{experiment_cfg.wiki_id}")
+        elif tokenizer_cfg.load.method == "pretrained":
+            tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{tokenizer_cfg.load.path}.{experiment_cfg.wiki_id}")
 
     if pretrain_cfg:
         export_path = f"{experiment_path}/model/{experiment_cfg.wiki_id}" if pretrain_cfg.export else None
@@ -73,15 +79,37 @@ def main():
             load_method=pretrain_cfg.load.method,
             load_path=pretrain_cfg.load.path,
             export_path=export_path
-        )
+            )
         if experiment_cfg.wandb_entity:
             model.init_wandb(
                 project=f"{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}",
                 entity=experiment_cfg.wandb_entity,
                 parameters=pretrain_cfg.training_parameters
-            )
+                )
         if pretrain_cfg.train:
-            model.train(dataset)
+            model.train_(dataset)
+        
+        if pretrain_cfg.test_data:
+            test_dataset = WikiLoader.load_dataset_directly(import_config=pretrain_cfg.test_data,
+                                                            wiki_id=experiment_cfg.wiki_id)
+            model.test(dataset=test_dataset)
+
+        if pretrain_cfg.push_to_hub:
+            # if not api.repo_exists(f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}"):
+            api.create_repo(
+                repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}",
+                repo_type="model",
+                private=True,
+                exist_ok=True
+                )
+            api.upload_folder(
+                folder_path=f"{export_path}",
+                repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}",
+                repo_type="model"
+                )
+
+
+        
 
         # model.train(dataset)
         # model.save(f"{experiment_path}/model/{experiment_cfg.wiki_id}")

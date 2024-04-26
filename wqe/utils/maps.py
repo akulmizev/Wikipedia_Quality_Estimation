@@ -2,7 +2,8 @@ from tokenizers import decoders, models, normalizers, pre_tokenizers, trainers
 from transformers import AutoModelForMaskedLM, AutoModelForTokenClassification
 from transformers import DataCollatorForTokenClassification, DataCollatorForLanguageModeling
 
-from ..data.partition import (
+# from ..data.partition import (
+from data.partition import (
     Length,
     UniqueSubwords,
     UniqueSubwordTrigrams,

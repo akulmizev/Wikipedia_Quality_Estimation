@@ -1,5 +1,5 @@
 experiment:
-  experiment_id: "raw_wiki"
+  experiment_id: "all.low_quality"
   wandb_entity: "wikiquality"
   local_path: "/lustre1/project/stg_00120/kushal/Wikipedia/Wikipedia_Quality_Estimation/WikiQuality"
   hub_path: "WikiQuality"
@@ -7,36 +7,15 @@ experiment:
 data:
   load:
     method: "hub"
-    path: "WikiQuality/raw_wiki"
+    path: "WikiQuality/all.low_quality"
   export: false
+
 
 tokenizer:
   load:
-    method: "config"
-  parameters:
-    model: "unigram"
-    normalizer: "nfkc"
-    pre_tokenizer: [
-      "metaspace",
-      "unicode_scripts",
-      "digits"
-    ]
-    decoder: "metaspace"
-    trainer: "unigram"
-    post_processor: true
-    special_tokens: {
-      mask_token: "[MASK]",
-      bos_token: "[BOS]",
-      eos_token: "[EOS]",
-      sep_token: "[SEP]",
-      pad_token: "[PAD]",
-      unk_token: "[UNK]",
-      cls_token: "[CLS]"
-    }
-    unk_token: "[UNK]"
-    vocab_size: "auto"
-    min_frequency: 2
-  export: true
+    method: "pretrained"
+    path: "WikiQuality/pre_filtered"
+  export: false
 
 pretrain:
   load:
@@ -50,7 +29,7 @@ pretrain:
     max_length: 512
     mask_prob: 0.4
     num_train_epochs: 1
-    batch_size: 8
+    batch_size: 32
     lr: 5e-05
     eval_steps: 100
   test_data:

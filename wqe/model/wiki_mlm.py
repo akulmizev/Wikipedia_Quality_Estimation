@@ -91,7 +91,7 @@ class WikiMLM(WikiModelFromConfig):
 
         return eval_loss, perplexity
 
-    def train(self, dataset):
+    def train_(self, dataset): #had to add train_ because the run_exp script did not recognize it as the function, but as the boolean argument passes in the pretrain_cfg for some reason
 
         splits = dataset.keys()
         if "train" not in splits or "test" not in splits:
@@ -148,9 +148,9 @@ class WikiMLM(WikiModelFromConfig):
                     logger.info(f"Eval loss: {eval_loss}, PPL: {perplexity}")
 
                 self.model.train()
-            self.accelerator.save_state()
+            self.accelerator.save_state(self.export_path)
 
-        self.accelerator.end_training(self.export_path)
+        self.accelerator.end_training()
         eval_loss, perplexity = self._eval_loop(loaders["test"])
         if self.wandb:
             wandb.log({"eval_loss": eval_loss.item()})
@@ -161,7 +161,7 @@ class WikiMLM(WikiModelFromConfig):
     def test(self, dataset):
 
         loader = self._tokenize_and_collate(dataset)
-        loader = self.accelerator.prepare([loader])
+        loader = self.accelerator.prepare(loader) #removed the ([loader]) - outputs = self.model(**batch) gave an error needing "mapping" not "loader"
         loss, perplexity = self._eval_loop(loader)
 
         wandb.summary["test_loss"] = loss.item()

@@ -7,7 +7,7 @@ experiment:
 
 data:
   load:
-    method: "hub"
+    method: "hub" #or pretrained
     path: "WikiQuality/ak_testing_2"
   pre_filter:
     script_regex: true
@@ -23,7 +23,7 @@ data:
 #    test : 0.1
 #    seed: 42
 #    shuffle: true
-  export: false
+  export: false #this needs to be in the config, even when loading from hub and not doing anything else
   push_to_hub: false
 
 tokenizer:
@@ -62,7 +62,7 @@ pretrain:
     method: "config"
 #    path: "WikiQuality/ak_testing_2"
     path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/config/model/tiny_deberta/config.json"
-  train: true
+  train: true #this gives an error
   training_parameters:
     model_type: "deberta"
     task: "mlm"

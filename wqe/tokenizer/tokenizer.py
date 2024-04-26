@@ -4,7 +4,8 @@ import logging
 from tokenizers import Tokenizer, processors, pre_tokenizers
 from transformers import PreTrainedTokenizerFast
 
-from wqe.utils.maps import TOKENIZER_PARAM_MAP as PARAM_MAP
+# from wqe.utils.maps import TOKENIZER_PARAM_MAP as PARAM_MAP
+from utils.maps import TOKENIZER_PARAM_MAP as PARAM_MAP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

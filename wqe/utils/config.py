@@ -69,6 +69,7 @@ class TokenizerParameters:
 
 @dataclass
 class TrainingParameters:
+    train: bool  #added this later - kushal, config was giving an error before
     model_type: str
     task: str
     num_train_epochs: int
