@@ -126,6 +126,7 @@ class MLM(ModelFromConfig):
 
         logger.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
         progress_bar = tqdm(range(num_train_steps))
+        running_loss = np.Inf
         for epoch in range(num_train_epochs):
             self.model.train()
             for i, batch in enumerate(loaders["train"]):
@@ -140,17 +141,18 @@ class MLM(ModelFromConfig):
                 optimizer.zero_grad()
                 progress_bar.update(1)
 
-                if i > 0 and i % self.eval_steps == 0:
-                    self.model.eval()
-                    eval_loss, perplexity = self._eval_loop(loaders["test"])
-                    if self.wandb:
-                        wandb.log({"eval_loss": eval_loss.item()})
-                        wandb.log({"eval_ppl": perplexity.item()})
-                    logger.info(f"Eval loss: {eval_loss}, PPL: {perplexity}")
-                    self.model.train()
-
             # self.accelerator.save_state(self.export_path)
             self.model.save_pretrained(self.export_path)
+            self.model.eval()
+            eval_loss, perplexity = self._eval_loop(loaders["test"])
+            if self.wandb:
+                wandb.log({"eval_loss": eval_loss.item()})
+                wandb.log({"eval_ppl": perplexity.item()})
+            logger.info(f"Eval loss: {eval_loss}, PPL: {perplexity}")
+            if eval_loss < running_loss:
+                logger.info(f"Saving model checkpoint at epoch {epoch}.")
+                self.accelerator.save_state(self.export_path)
+                running_loss = eval_loss.item()
 
         self.accelerator.end_training()
         eval_loss, perplexity = self._eval_loop(loaders["test"])
