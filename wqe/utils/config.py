@@ -70,17 +70,12 @@ class TokenizerParameters:
 @dataclass
 class TrainingParameters:
     model_type: str
-    task: str
     num_train_epochs: int
     max_length: int = 512
     batch_size: int = 8
     lr: float = 1e-5
     mask_prob: Optional[float] = None
     eval_steps: Optional[int] = None
-
-    def __post_init__(self):
-        if self.task not in ["mlm", "ner"]:
-            raise ValueError(f"Invalid task: {self.task}")
 
     # TODO: Consolidate for fine-tuning, which might have different params
 
@@ -131,6 +126,7 @@ class Tokenizer:
 @dataclass
 class Pretrain:
     load: Dict[str, str]
+    task: str
     export: bool
     push_to_hub: bool = False
     do_train: bool = False
@@ -144,9 +140,12 @@ class Pretrain:
         if self.test_data:
             self.test_data = Load(**self.test_data)
 
+
 @dataclass
 class Finetune:
     load: Dict[str, str]
+    task: str
+    dataset_path: str
     export: bool
     push_to_hub: bool = False
     do_train: bool = False
@@ -156,6 +155,7 @@ class Finetune:
         self.load = Load(**self.load)
         if self.training_parameters:
             self.training_parameters = TrainingParameters(**self.training_parameters)
+
 
 def parse_config(config):
     experiment = Experiment(**config["experiment"])

@@ -74,7 +74,7 @@ TASK_TO_MODEL_AND_COLLATOR_MAPPING = {
         "model": AutoModelForMaskedLM,
         "collator": DataCollatorForLanguageModeling
     },
-    "named_entity": {
+    "ner": {
         "model": AutoModelForTokenClassification,
         "collator": DataCollatorForTokenClassification
     },

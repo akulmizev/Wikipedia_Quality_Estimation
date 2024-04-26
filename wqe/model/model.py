@@ -8,7 +8,7 @@ from accelerate import Accelerator
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class WikiModelFromConfig:
+class ModelFromConfig:
 
     def __init__(self,
                  config,

@@ -12,13 +12,13 @@ from transformers import get_scheduler
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
-from .model import WikiModelFromConfig
+from .model import ModelFromConfig
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class WikiMLM(WikiModelFromConfig):
+class MLM(ModelFromConfig):
     def __init__(self,
                  config,
                  tokenizer,
@@ -121,7 +121,8 @@ class WikiMLM(WikiModelFromConfig):
                  loaders["test"]
             )
         self.accelerator.register_for_checkpointing(scheduler)
-        self.accelerator.save_state(self.export_path)
+        # self.accelerator.save_state(self.export_path)
+        self.model.save_pretrained(self.export_path)
 
         logger.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
         progress_bar = tqdm(range(num_train_steps))
@@ -148,7 +149,8 @@ class WikiMLM(WikiModelFromConfig):
                     logger.info(f"Eval loss: {eval_loss}, PPL: {perplexity}")
                     self.model.train()
 
-            self.accelerator.save_state(self.export_path)
+            # self.accelerator.save_state(self.export_path)
+            self.model.save_pretrained(self.export_path)
 
         self.accelerator.end_training()
         eval_loss, perplexity = self._eval_loop(loaders["test"])

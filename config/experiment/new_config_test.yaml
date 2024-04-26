@@ -1,35 +1,34 @@
 experiment:
-  experiment_id: "ak_testing_2"
+  experiment_id: "finetune_test"
   wandb_entity: "wikiquality"
   local_path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/experiments"
-#  local_path: "/Users/akulmizev/Documents/Work/Wikipedia_Quality_Estimation/experiments"
   hub_path: "WikiQuality"
 
 #data:
 #  load:
 #    method: "hub" #or pretrained
 #    path: "WikiQuality/pre_filtered"
-#  pre_filter:
-#    script_regex: true
-##    lang_id: false
-#    char_cutoff: 15
-#  partition:
-#    method: "balanced_chars"
-#    metric_type: "all"
-#    quality: true
-#    all_partitions_join_method: "intersection"
-#  split:
-#    train: 0.9
-#    test : 0.1
-#    seed: 42
-#    shuffle: true
+##  pre_filter:
+##    script_regex: true
+##    lang_id: true
+##    char_cutoff: 15
+###  partition:
+###    method: "balanced_chars"
+###    metric_type: "all"
+###    quality: true
+###    all_partitions_join_method: "intersection"
+##  split:
+##    train: 0.9
+##    test : 0.1
+##    seed: 42
+##    shuffle: true
 #  export: false #this needs to be in the config, even when loading from hub and not doing anything else
 #  push_to_hub: false
 
 tokenizer:
   load:
     method: "pretrained"
-    path: "WikiQuality/ak_testing_2"
+    path: "WikiQuality/finetune_test"
 #  parameters:
 #    model: "unigram"
 #    normalizer: "nfkc"
@@ -63,15 +62,15 @@ tokenizer:
 ##    path: "WikiQuality/ak_testing_2"
 #    path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/config/model/tiny_deberta/config.json"
 #  do_train: true #this gives an error
+#  task: "mlm"
 #  training_parameters:
 #    model_type: "deberta"
-#    task: "mlm"
 #    max_length: 512
 #    mask_prob: 0.4
-#    num_train_epochs: 3
+#    num_train_epochs: 5
 #    batch_size: 8
 #    lr: 5e-5
-#    eval_steps: 500
+#    eval_steps: 1000
 #  test_data:
 #    method: "hub"
 #    path: "WikiQuality/raw_wiki"
@@ -81,11 +80,12 @@ tokenizer:
 finetune:
   load:
     method: "pretrained"
-    path: "WikiQuality/ak_testing_2"
+    path: "WikiQuality/finetune_test"
   do_train: true #this gives an error
+  task: "ner"
+  dataset_path: "WikiQuality/named_entity"
   training_parameters:
     model_type: "deberta"
-    task: "mlm"
     max_length: 512
     num_train_epochs: 3
     batch_size: 8

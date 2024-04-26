@@ -2,6 +2,7 @@ import argparse
 import os
 import yaml
 
+from datasets import load_dataset
 from huggingface_hub import HfApi
 
 from data.data import WikiLoader
@@ -9,8 +10,8 @@ from utils.config import parse_config
 
 from tokenizer.tokenizer import PreTrainedTokenizerFast
 
-from model.pretrain import WikiMLM
-# from model.model import WikiNER
+from model.pretrain import MLM
+from model.finetune import NER
 
 def main():
 
@@ -72,7 +73,7 @@ def main():
 
     if pretrain_cfg:
         export_path = f"{experiment_path}/model/{experiment_cfg.wiki_id}" if pretrain_cfg.export else None
-        model = WikiMLM(
+        model = MLM(
             pretrain_cfg.training_parameters,
             tokenizer,
             load_method=pretrain_cfg.load.method,
@@ -106,8 +107,24 @@ def main():
                 repo_type="model"
             )
 
-    if fine_tune_cfg:
-        pass
+    if finetune_cfg:
+        if finetune_cfg.task == "ner":
+            finetune_dataset = load_dataset(finetune_cfg.dataset_path, experiment_cfg.wiki_id)
+            label_set = finetune_dataset["train"].features["ner_tags"].feature.names
+            model = NER(
+                finetune_cfg.training_parameters,
+                tokenizer,
+                label_set=label_set,
+                load_path=f"{finetune_cfg.load.path}.{experiment_cfg.wiki_id}"
+            )
+        # if experiment_cfg.wandb_entity:
+        #     model.init_wandb(
+        #         project=f"{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}",
+        #         entity=experiment_cfg.wandb_entity,
+        #         parameters=finetune_cfg.training_parameters
+        #     )
+        if finetune_cfg.do_train:
+            model.train(finetune_dataset)
 
         # model.train(dataset)
         # model.save(f"{experiment_path}/model/{experiment_cfg.wiki_id}")
