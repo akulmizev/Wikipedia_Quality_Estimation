@@ -11,7 +11,8 @@ from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
 from .model import ModelFromConfig
-from wqe.utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
+# from wqe.utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
+from utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -15,7 +15,8 @@ from transformers import (
     DataCollatorWithPadding
 )
 
-from ..data.partition import (
+# from ..data.partition import (
+from data.partition import (
     Length,
     UniqueSubwords,
     UniqueSubwordTrigrams,
