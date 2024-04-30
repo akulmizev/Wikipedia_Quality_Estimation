@@ -43,12 +43,12 @@ pretrain:
     method: "config"
     path: "/lustre1/project/stg_00120/kushal/Wikipedia/Wikipedia_Quality_Estimation/config/model/tiny_deberta/config.json"
   do_train: true
+  task: "mlm"
   training_parameters:
     model_type: "deberta"
-    task: "mlm"
     max_length: 512
     mask_prob: 0.4
-    num_train_epochs: 5
+    num_train_epochs: 150
     batch_size: 8
     lr: 5e-05
     eval_steps: 100
