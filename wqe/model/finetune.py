@@ -11,8 +11,8 @@ from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
 from .model import ModelFromConfig
-# from wqe.utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
-from utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
+from wqe.utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
+# from .utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -184,7 +184,7 @@ class NER(GenericModelForFineTuning):
         # print(report)
 
 
-class SentimentAnalysis(GenericModelforFineTuning):
+class SentimentAnalysis(GenericModelForFineTuning):
     def __init__(self, config, tokenizer, **kwargs):
         super().__init__(config, tokenizer, task="ner", **kwargs)
 

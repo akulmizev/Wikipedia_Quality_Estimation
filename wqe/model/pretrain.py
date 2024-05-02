@@ -3,7 +3,6 @@ import logging
 import numpy as np
 import torch
 import wandb
-import math
 
 from tqdm import tqdm
 from transformers import CONFIG_MAPPING
@@ -70,28 +69,22 @@ class MLM(ModelFromConfig):
         loader = DataLoader(
             batched_dataset,
             collate_fn=self.collator,
-            batch_size=self.batch_size
+            batch_size=self.batch_size,
+            shuffle=True
         )
 
         return loader
 
     def _eval_loop(self, loader):
 
-        # losses = []
         running = 0.0
         for batch in loader:
             with torch.no_grad():
                 outputs = self.model(**batch)
                 loss = outputs.loss
                 running += loss.item()
-                # losses.append(
-                    # self.accelerator.gather_for_metrics(loss.repeat(self.batch_size))
-                # )
-        # losses = torch.cat(losses)
-        # eval_loss = torch.mean(losses)
         eval_loss = running / len(loader)
-        perplexity = math.exp(eval_loss)
-        # perplexity = torch.exp(eval_loss)
+        perplexity = np.exp(eval_loss)
 
         return eval_loss, perplexity
 
@@ -110,7 +103,11 @@ class MLM(ModelFromConfig):
 
         num_train_epochs = self.num_train_epochs
         num_train_steps = num_train_epochs * len(loaders["train"])
-        optimizer = AdamW(self.model.parameters(), lr=float(self.lr))
+        optimizer = AdamW(
+            self.model.parameters(),
+            lr=float(self.lr),
+            weight_decay=0.05
+        )
         scheduler = get_scheduler(
             "linear",
             optimizer=optimizer,
@@ -121,12 +118,11 @@ class MLM(ModelFromConfig):
         self.model, optimizer, loaders["train"], loaders["test"] = \
             self.accelerator.prepare(
                 self.model,
-                 optimizer,
-                 loaders["train"],
-                 loaders["test"]
+                optimizer,
+                loaders["train"],
+                loaders["test"]
             )
         self.accelerator.register_for_checkpointing(scheduler)
-        # self.accelerator.save_state(self.export_path)
         self.model.save_pretrained(self.export_path)
 
         logger.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
@@ -139,26 +135,32 @@ class MLM(ModelFromConfig):
             self.model.train()
             for i, batch in enumerate(loaders["train"]):
                 outputs = self.model(**batch)
-                loss = outputs.loss / 4 #gradient accum steps
-                self.accelerator.backward(loss)
+                loss = outputs.loss
                 if self.wandb:
                     wandb.log({"train_loss": loss.item()})
                     wandb.log({"train_ppl": torch.exp(loss).item()})
-                if i % 4 == 0:
-                # loss.backward()
+                self.accelerator.backward(loss / 4)
+                if (i + 1) % 4 == 0:
+                    # loss.backward()
                     optimizer.step()
                     scheduler.step()
                     optimizer.zero_grad()
                 progress_bar.update(1)
 
-            # self.accelerator.save_state(self.export_path)
-            self.model.save_pretrained(self.export_path)
+                if i % self.eval_steps == 0:
+                    self.model.eval()
+                    eval_loss, perplexity = self._eval_loop(loaders["test"])
+                    if self.wandb:
+                        wandb.log({"eval_loss": eval_loss})
+                        wandb.log({"eval_ppl": perplexity})
+                    self.model.train()
+
             self.model.eval()
             eval_loss, perplexity = self._eval_loop(loaders["test"])
-            if self.wandb:
-                wandb.log({"eval_loss": eval_loss})
-                wandb.log({"eval_ppl": perplexity})
-            logger.info(f"Eval loss: {round(eval_loss, 2)}, PPL: {round(perplexity, 2)}")
+            # if self.wandb:
+            #     wandb.log({"eval_loss": eval_loss})
+            #     wandb.log({"eval_ppl": perplexity})
+            # logger.info(f"Eval loss: {round(eval_loss, 2)}, PPL: {round(perplexity, 2)}")
             if eval_loss < running_loss:
                 logger.info(f"Saving model checkpoint at epoch {epoch}.")
                 self.model.save_pretrained(self.export_path)
@@ -167,8 +169,8 @@ class MLM(ModelFromConfig):
         self.accelerator.end_training()
         eval_loss, perplexity = self._eval_loop(loaders["test"])
         if self.wandb:
-                wandb.log({"eval_loss": eval_loss})
-                wandb.log({"eval_ppl": perplexity})
+            wandb.log({"eval_loss": eval_loss})
+            wandb.log({"eval_ppl": perplexity})
 
         logger.info("Training complete.")
 
