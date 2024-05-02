@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class GenericModelforFineTuning(ModelFromConfig):
+class GenericModelForFineTuning(ModelFromConfig):
 
     def __init__(self,
                  config,
@@ -103,7 +103,7 @@ class GenericModelforFineTuning(ModelFromConfig):
                 self._eval_loop(loaders["validation"])
 
 
-class NER(GenericModelforFineTuning):
+class NER(GenericModelForFineTuning):
     def __init__(self, config, tokenizer, **kwargs):
         super().__init__(config, tokenizer, task="ner", **kwargs)
 
