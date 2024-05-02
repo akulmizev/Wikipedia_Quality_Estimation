@@ -114,7 +114,7 @@ class MLM(ModelFromConfig):
         scheduler = get_scheduler(
             "linear",
             optimizer=optimizer,
-            num_warmup_steps=0,
+            num_warmup_steps=500,
             num_training_steps=num_train_steps
         )
 
@@ -132,18 +132,23 @@ class MLM(ModelFromConfig):
         logger.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
         progress_bar = tqdm(range(num_train_steps))
         running_loss = np.Inf
+
+        self.model.gradient_checkpointing_enable()
+
         for epoch in range(num_train_epochs):
             self.model.train()
             for i, batch in enumerate(loaders["train"]):
                 outputs = self.model(**batch)
-                loss = outputs.loss
+                loss = outputs.loss / 4 #gradient accum steps
+                self.accelerator.backward(loss)
                 if self.wandb:
                     wandb.log({"train_loss": loss.item()})
                     wandb.log({"train_ppl": torch.exp(loss).item()})
-                loss.backward()
-                optimizer.step()
-                scheduler.step()
-                optimizer.zero_grad()
+                if i % 4 == 0:
+                # loss.backward()
+                    optimizer.step()
+                    scheduler.step()
+                    optimizer.zero_grad()
                 progress_bar.update(1)
 
             # self.accelerator.save_state(self.export_path)
