@@ -1,8 +1,9 @@
 import logging
 
-# import numpy as np
+import numpy as np
 import torch
 import wandb
+import math
 
 from tqdm import tqdm
 from transformers import CONFIG_MAPPING
@@ -76,17 +77,21 @@ class MLM(ModelFromConfig):
 
     def _eval_loop(self, loader):
 
-        losses = []
+        # losses = []
+        running = 0.0
         for batch in loader:
             with torch.no_grad():
                 outputs = self.model(**batch)
                 loss = outputs.loss
-                losses.append(
-                    self.accelerator.gather_for_metrics(loss.repeat(self.batch_size))
-                )
-        losses = torch.cat(losses)
-        eval_loss = torch.mean(losses)
-        perplexity = torch.exp(eval_loss)
+                running += loss.item()
+                # losses.append(
+                    # self.accelerator.gather_for_metrics(loss.repeat(self.batch_size))
+                # )
+        # losses = torch.cat(losses)
+        # eval_loss = torch.mean(losses)
+        eval_loss = running / len(loader)
+        perplexity = math.exp(eval_loss)
+        # perplexity = torch.exp(eval_loss)
 
         return eval_loss, perplexity
 
@@ -146,28 +151,28 @@ class MLM(ModelFromConfig):
             self.model.eval()
             eval_loss, perplexity = self._eval_loop(loaders["test"])
             if self.wandb:
-                wandb.log({"eval_loss": eval_loss.item()})
-                wandb.log({"eval_ppl": perplexity.item()})
-            logger.info(f"Eval loss: {eval_loss}, PPL: {perplexity}")
+                wandb.log({"eval_loss": eval_loss})
+                wandb.log({"eval_ppl": perplexity})
+            logger.info(f"Eval loss: {round(eval_loss, 2)}, PPL: {round(perplexity, 2)}")
             if eval_loss < running_loss:
                 logger.info(f"Saving model checkpoint at epoch {epoch}.")
-                self.accelerator.save_state(self.export_path)
-                running_loss = eval_loss.item()
+                self.model.save_pretrained(self.export_path)
+                running_loss = eval_loss
 
         self.accelerator.end_training()
         eval_loss, perplexity = self._eval_loop(loaders["test"])
         if self.wandb:
-            wandb.log({"eval_loss": eval_loss.item()})
-            wandb.log({"eval_ppl": perplexity.item()})
+                wandb.log({"eval_loss": eval_loss})
+                wandb.log({"eval_ppl": perplexity})
 
         logger.info("Training complete.")
 
     def test(self, dataset):
 
         loader = self._tokenize_and_collate(dataset)
-        loader = self.accelerator.prepare(loader) #removed the ([loader]) - outputs = self.model(**batch) gave an error needing "mapping" not "loader"
+        loader = self.accelerator.prepare(loader) 
         loss, perplexity = self._eval_loop(loader)
 
         if self.wandb:
-            wandb.summary["test_loss"] = loss.item()
-            wandb.summary["test_ppl"] = perplexity.item()
+            wandb.summary["test_loss"] = round(loss, 2)
+            wandb.summary["test_ppl"] = round(perplexity, 2)

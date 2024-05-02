@@ -11,8 +11,8 @@ from datasets import load_dataset
 from huggingface_hub import hf_hub_download
 
 from .partition import *
-from wqe.utils.maps import PARTITION_MAP
-# from utils.maps import PARTITION_MAP
+# from wqe.utils.maps import PARTITION_MAP
+from utils.maps import PARTITION_MAP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class WikiLoader:
                 self.data = load_dataset(self.load.path)
             elif self.load.method == "hub":
                 logger.info(f"Loading dataset from hub: {self.load.path}/{self.wiki_id}")
-                self.data = load_dataset(f"{self.load.path}", f"{self.wiki_id}")
+                self.data = load_dataset(f"{self.load.path}", data_dir=f"{self.wiki_id}")
             elif self.load.method == "raw":
                 logger.info(f"Loading raw dataset from Wikimedia/Wikipedia: {self.wiki_id}")
                 self.data = load_dataset(
@@ -97,7 +97,7 @@ class WikiLoader:
             dataset = load_dataset(import_config.path)
         elif import_config.method == "hub":
             logger.info(f"Loading dataset from hub: {import_config.path}/{wiki_id}")
-            dataset = load_dataset(f"{import_config.path}", wiki_id)
+            dataset = load_dataset(f"{import_config.path}", data_dir=f"{wiki_id}")
         else:
             raise ValueError("Invalid import type. Please specify either 'local' or 'hub'.")
 

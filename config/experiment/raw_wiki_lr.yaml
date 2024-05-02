@@ -1,5 +1,5 @@
 experiment:
-  experiment_id: "pre_filtered"
+  experiment_id: "raw_wiki_lr1e01"
   wandb_entity: "wikiquality"
   local_path: "/lustre1/project/stg_00120/kushal/Wikipedia/Wikipedia_Quality_Estimation/WikiQuality"
   hub_path: "WikiQuality"
@@ -7,7 +7,7 @@ experiment:
 data:
   load:
     method: "hub"
-    path: "WikiQuality/pre_filtered"
+    path: "WikiQuality/raw_wiki"
   export: false
 
 tokenizer:
@@ -48,15 +48,15 @@ pretrain:
     model_type: "deberta"
     max_length: 512
     mask_prob: 0.4
-    num_train_epochs: 150
+    num_train_epochs: 10
     batch_size: 8
-    lr: 5e-05
+    lr: 1e-02
     eval_steps: 100
   test_data:
     method: "hub"
     path: "WikiQuality/raw_wiki"
   export: true
-  push_to_hub: true
+  push_to_hub: false
 
 #finetune:
 #  model_type: "deberta"
