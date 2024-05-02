@@ -59,7 +59,7 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerFast):
 
         logging.info(f"Trained a tokenizer with vocab size: {tokenizer.get_vocab_size()}")
 
-        return cls(tokenizer_object=tokenizer, unk_id=0, **config.special_tokens, **kwargs)
+        return cls(tokenizer_object=tokenizer, unk_id=1, **config.special_tokens, **kwargs)
 
 
     @staticmethod
