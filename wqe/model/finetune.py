@@ -6,12 +6,12 @@ import wandb
 
 from sklearn.metrics import classification_report, precision_recall_fscore_support
 from tqdm import tqdm
-from transformers import get_scheduler
+from transformers import get_scheduler, PreTrainedTokenizerFast
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
 from .model import ModelFromConfig
-from wqe.utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
+from utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
 # from .utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
 
 logging.basicConfig(level=logging.INFO)
@@ -22,23 +22,24 @@ class GenericModelForFineTuning(ModelFromConfig):
 
     def __init__(self,
                  config,
-                 tokenizer,
                  label_set,
                  load_path,
                  task,
                  **kwargs
                  ):
 
-        super().__init__(config, tokenizer, **kwargs)
+        super().__init__(config, **kwargs)
 
         self.label_set = label_set
         self.label_to_id = {label: i for i, label in enumerate(self.label_set)}
         self.id_to_label = {i: label for i, label in enumerate(self.label_set)}
         self.task = task
 
+        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(load_path)
         self.collator = TASK_TO_MODEL_AND_COLLATOR_MAPPING[self.task]["collator"](tokenizer=self.tokenizer)
         self.model = TASK_TO_MODEL_AND_COLLATOR_MAPPING[self.task]["model"].from_pretrained(
             load_path,
+            num_labels=len(self.label_set),
             id2label=self.id_to_label,
             label2id=self.label_to_id
         )
@@ -46,20 +47,9 @@ class GenericModelForFineTuning(ModelFromConfig):
 
     def _tokenize_and_collate(self, dataset):
 
-        batched_dataset = dataset.map(
-            self.tokenizer,
-            remove_columns=dataset.column_names
-        )
+        raise NotImplementedError("Subclasses must implement this method.")
 
-        loader = DataLoader(
-            batched_dataset,
-            collate_fn=self.collator,
-            batch_size=self.batch_size
-        )
-
-        return loader
-
-    def _eval_loop(self, loader):
+    def _eval_loop(self, loader, split="validation"):
 
         raise NotImplementedError("Subclasses must implement this method.")
 
@@ -101,12 +91,19 @@ class GenericModelForFineTuning(ModelFromConfig):
                 progress_bar.update(1)
 
             if "validation" in loaders:
-                self._eval_loop(loaders["validation"])
+                scores = self._eval_loop(loaders["validation"], split="validation")
+                wandb.log(scores)
+                if epoch+1 == num_train_epochs:
+                    wandb.run.summary.update(scores)
+
+        if "test" in loaders:
+            scores = self._eval_loop(loaders["test"], split="test")
+            wandb.run.summary.update(scores)
 
 
-class NER(GenericModelForFineTuning):
-    def __init__(self, config, tokenizer, **kwargs):
-        super().__init__(config, tokenizer, task="ner", **kwargs)
+class Tagger(GenericModelForFineTuning):
+    def __init__(self, config, **kwargs):
+        super().__init__(config, task="tagger", **kwargs)
 
     def _align_labels(self, example):
         tokenized_input = self.tokenizer(
@@ -120,7 +117,7 @@ class NER(GenericModelForFineTuning):
             if idx in seen:
                 labels.append(-100)
             else:
-                labels.append(example['ner_tags'][idx])
+                labels.append(example["tags"][idx])
                 seen.add(idx)
 
         tokenized_input["labels"] = [-100] + labels + [-100]
@@ -142,7 +139,7 @@ class NER(GenericModelForFineTuning):
 
         return loader
 
-    def _eval_loop(self, loader):
+    def _eval_loop(self, loader, split="validation"):
 
         self.model.eval()
 
@@ -173,6 +170,74 @@ class NER(GenericModelForFineTuning):
                 results["preds"].extend(true_preds)
                 results["labels"].extend(true_labels)
 
+        # report = classification_report(
+        #     results["labels"],
+        #     results["preds"],
+        #     labels=[i for i in range(len(self.label_set))],
+        #     target_names=self.label_set,
+        #     zero_division=0.0
+        # )
+
+        scores = precision_recall_fscore_support(
+            results["labels"],
+            results["preds"],
+            labels=[i for i in range(len(self.label_set))],
+            zero_division=0.0,
+            average="weighted"
+        )
+
+        score_dict = {f"{split}_{k}": v for (k, v) in zip(["precision", "recall", "f1"], scores[:3])}
+
+        return score_dict
+
+
+class Classifier(GenericModelForFineTuning):
+    def __init__(self, config, **kwargs):
+        super().__init__(config, task="classifier", **kwargs)
+
+    def _tokenize_and_collate(self, dataset):
+        batched_dataset = dataset.map(
+            lambda examples: self.tokenizer(
+                examples["text"],
+                max_length=self.max_length,
+                padding="max_length",
+                truncation=True
+            ),
+            batched=True,
+            remove_columns=["text"]
+        )
+
+        loader = DataLoader(
+            batched_dataset,
+            collate_fn=self.collator,
+            batch_size=self.batch_size,
+            shuffle=True
+        )
+
+        return loader
+
+    def _eval_loop(self, loader):
+
+        self.model.eval()
+
+        results = {"preds": [], "labels": []}
+        for batch in loader:
+            with torch.no_grad():
+                outputs = self.model(**batch)
+                predictions = outputs.logits.argmax(dim=-1)
+                labels = batch["labels"]
+
+                # Necessary to pad predictions and labels for being gathered
+                predictions = self.accelerator.pad_across_processes(
+                    predictions, dim=1, pad_index=-100
+                )
+                labels = self.accelerator.pad_across_processes(
+                    labels, dim=1, pad_index=-100
+                )
+
+                results["preds"].extend(self.accelerator.gather(predictions).detach().cpu().clone().numpy().tolist())
+                results["labels"].extend(self.accelerator.gather(labels).detach().cpu().clone().numpy().tolist())
+
         report = classification_report(
             results["labels"],
             results["preds"],
@@ -181,23 +246,4 @@ class NER(GenericModelForFineTuning):
             zero_division=0.0
         )
 
-        # print(report)
-
-
-class SentimentAnalysis(GenericModelForFineTuning):
-    def __init__(self, config, tokenizer, **kwargs):
-        super().__init__(config, tokenizer, task="ner", **kwargs)
-
-    def _tokenize_and_collate(self, dataset):
-        batched_dataset = dataset.map(
-            self._align_labels,
-            remove_columns=dataset.column_names
-        )
-
-        loader = DataLoader(
-            batched_dataset,
-            collate_fn=self.collator,
-            batch_size=self.batch_size
-        )
-
-        return loader
+        print(report)

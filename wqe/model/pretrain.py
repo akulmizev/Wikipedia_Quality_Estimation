@@ -27,7 +27,8 @@ class MLM(ModelFromConfig):
                  **kwargs
                  ):
 
-        super().__init__(config, tokenizer, **kwargs)
+        super().__init__(config, **kwargs)
+        self.tokenizer = tokenizer
         self.collator = DataCollatorForLanguageModeling(
             tokenizer=self.tokenizer,
             mlm=True,

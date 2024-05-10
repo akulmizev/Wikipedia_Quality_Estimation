@@ -11,8 +11,8 @@ from datasets import load_dataset
 from huggingface_hub import hf_hub_download
 
 from .partition import *
-from wqe.utils.maps import PARTITION_MAP
-# from utils.maps import PARTITION_MAP
+# from wqe.utils.maps import PARTITION_MAP
+from utils.maps import PARTITION_MAP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

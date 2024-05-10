@@ -1,10 +1,19 @@
 import logging
 
-from tokenizers import Tokenizer, processors, pre_tokenizers
+from tokenizers import (
+    Tokenizer,
+    Regex,
+    normalizers,
+    processors,
+    pre_tokenizers,
+    decoders
+)
+
 from transformers import PreTrainedTokenizerFast
 
-# from wqe.utils.maps import TOKENIZER_PARAM_MAP as PARAM_MAP
 from utils.maps import TOKENIZER_PARAM_MAP as PARAM_MAP
+
+# from ..utils.maps import TOKENIZER_PARAM_MAP as PARAM_MAP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,12 +32,36 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerFast):
 
         tokenizer.add_special_tokens(list(config.special_tokens.values()))
 
+        replacement = "▁"
+        add_prefix_space = True
+        # replacement = config.replacement if config.replacement else "▁"
+        # add_prefix_space = config.add_prefix_space if config.add_prefix_space else True
+
         if isinstance(config.pre_tokenizer, list):
             tokenizer.pre_tokenizer = pre_tokenizers.Sequence(
                 [PARAM_MAP["pre_tokenizer"][pt]() for pt in config.pre_tokenizer]
             )
         else:
             tokenizer.pre_tokenizer = PARAM_MAP["pre_tokenizer"][config.pre_tokenizer]()
+
+        # tokenizer.normalizer = normalizers.Sequence(
+        #     [
+        #         normalizers.Nmt(),
+        #         normalizers.NFKC(),
+        #         normalizers.Replace(Regex(" {2,}"), " ")
+        #     ]
+        # )
+
+        # tokenizer.pre_tokenizer = pre_tokenizers.Sequence(
+        #     [
+        #         pre_tokenizers.Metaspace(replacement=replacement, prepend_scheme="always"),
+        #         pre_tokenizers.UnicodeScripts(),
+        #         pre_tokenizers.Digits(individual_digits=True)
+        #     ]
+        # )
+
+        # tokenizer.decoder = decoders.Metaspace(replacement=replacement)
+
         tokenizer.decoder = PARAM_MAP["decoder"][config.decoder]()
         tokenizer.normalizer = PARAM_MAP["normalizer"][config.normalizer]()
 
@@ -37,7 +70,6 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerFast):
 
         trainer = PARAM_MAP["trainer"][config.trainer](
             vocab_size=config.vocab_size,
-            # min_frequency=config.min_frequency,
             special_tokens=list(config.special_tokens.values()),
             unk_token=config.unk_token
         )
@@ -60,7 +92,6 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerFast):
         logging.info(f"Trained a tokenizer with vocab size: {tokenizer.get_vocab_size()}")
 
         return cls(tokenizer_object=tokenizer, unk_id=1, **config.special_tokens, **kwargs)
-
 
     @staticmethod
     def predict_vocab_size(length_in_chars):
@@ -85,4 +116,3 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerFast):
         """
         for i in range(0, len(dataset), batch_size):
             yield dataset[i: i + batch_size]["text"]
-

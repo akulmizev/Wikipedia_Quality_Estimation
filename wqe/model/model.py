@@ -12,7 +12,6 @@ class ModelFromConfig:
 
     def __init__(self,
                  config,
-                 tokenizer,
                  export_path=None,
                  **kwargs):
 
@@ -21,7 +20,6 @@ class ModelFromConfig:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.export_path = export_path
         self.accelerator = Accelerator(project_dir="self.export_path") if self.export_path else Accelerator()
-        self.tokenizer = tokenizer
         self.model = None
         self.collator = None
         self.wandb = False

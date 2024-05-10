@@ -91,15 +91,15 @@ class Experiment:
 
 @dataclass
 class Dataset:
-    load: Dict[str, str]
-    export: bool
-    push_to_hub: bool = False
+    dataset_load: Dict[str, str]
+    dataset_export: bool
+    dataset_push_to_hub: bool = False
     pre_filter: Optional[Dict[str, str]] = None
     partition: Optional[Dict[str, str]] = None
     split: Optional[Dict[str, str]] = None
 
     def __post_init__(self):
-        self.load = Load(**self.load)
+        self.dataset_load = Load(**self.load)
         if self.pre_filter:
             self.pre_filter = PreFilter(**self.pre_filter)
         if self.partition:

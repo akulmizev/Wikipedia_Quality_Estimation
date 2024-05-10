@@ -11,7 +11,7 @@ from utils.config import parse_config
 from tokenizer.tokenizer import PreTrainedTokenizerFast
 
 from model.pretrain import MLM
-from model.finetune import NER
+from model.finetune import Tagger, Classifier
 
 def main():
 
@@ -68,7 +68,7 @@ def main():
             )
             if tokenizer_cfg.export:
                 tokenizer.save_pretrained(f"{experiment_path}/model/{experiment_cfg.wiki_id}")
-        elif tokenizer_cfg.load.method == "pretrained":
+        elif tokenizer_cfg.load.method == "hub":
             tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{tokenizer_cfg.load.path}.{experiment_cfg.wiki_id}")
 
     if pretrain_cfg:
@@ -108,12 +108,29 @@ def main():
             )
 
     if finetune_cfg:
-        if finetune_cfg.task == "ner":
+        try:
             finetune_dataset = load_dataset(finetune_cfg.dataset_path, experiment_cfg.wiki_id)
-            label_set = finetune_dataset["train"].features["ner_tags"].feature.names
-            model = NER(
+        except:
+            raise ValueError("Dataset not found. Please specify a valid dataset path.")
+
+        if finetune_cfg.task == "ner":
+            label_set = finetune_dataset["train"].features["tags"].feature.names
+            model = Tagger(
                 finetune_cfg.training_parameters,
-                tokenizer,
+                label_set=label_set,
+                load_path=f"{finetune_cfg.load.path}.{experiment_cfg.wiki_id}"
+            )
+        elif finetune_cfg.task == "pos":
+            label_set = finetune_dataset["train"].features["tags"].feature.names
+            model = Tagger(
+                finetune_cfg.training_parameters,
+                label_set=label_set,
+                load_path=f"{finetune_cfg.load.path}.{experiment_cfg.wiki_id}"
+            )
+        elif finetune_cfg.task == "sentiment_analysis":
+            label_set = finetune_dataset["train"].features["label"].names
+            model = Classifier(
+                finetune_cfg.training_parameters,
                 label_set=label_set,
                 load_path=f"{finetune_cfg.load.path}.{experiment_cfg.wiki_id}"
             )
