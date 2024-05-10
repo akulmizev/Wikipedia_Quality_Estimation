@@ -11,12 +11,12 @@ parser.add_argument("--lang", default=None, type=str, required=False,
 args = parser.parse_args()
 
 # lang = "ur"
-# vocab_mapper = json.load(open(f"../wqe/data/resources/wiki_mappings.json", "r"))
-# vocab_size = vocab_mapper[lang]
+vocab_mapper = json.load(open(f"../wqe/data/resources/wiki_mappings.json", "r"))
+vocab_size = vocab_mapper[args.lang]
 
 config = DebertaConfig()
 config.base_model = "deberta"
-# config.vocab_size = vocab_size
+config.vocab_size = vocab_size
 config.num_hidden_layers = 4
 config.hidden_size = 312
 config.intermediate_size = 1200
@@ -26,4 +26,4 @@ config.max_position_embeddings = 512
 
 if not os.path.exists(f"../config"):
     os.makedirs(f"../config")
-config.save_pretrained(f"../config/model/tiny_deberta")
+config.save_pretrained(f"../config/{args.lang}/config_tiny_deberta")

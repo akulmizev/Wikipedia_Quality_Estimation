@@ -1,0 +1,22 @@
+experiment:
+  experiment_id: "length_low_quality"
+  wandb_entity: "wikiquality"
+  local_path: "/lustre1/project/stg_00120/kushal/Wikipedia/Wikipedia_Quality_Estimation/WikiQuality"
+  hub_path: "WikiQuality"
+  
+data:
+  load:
+    method: "hub"
+    path: "WikiQuality/pre_filtered"
+  # partition:
+  #   method: "balanced_chars"
+  #   metric_type: "unique_trigrams"
+  #   quality: false
+  #   all_partitions_join_method: "intersection" # intersection or union
+  # split:
+  #   train: 0.9
+  #   test : 0.1
+  #   seed: 42
+  #   shuffle: true
+  export: true
+  push_to_hub: true

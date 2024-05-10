@@ -4,6 +4,7 @@ import yaml
 
 from datasets import load_dataset
 from huggingface_hub import HfApi
+from transformers import AutoModel
 
 from data.data import WikiLoader
 from utils.config import parse_config
@@ -46,18 +47,10 @@ def main():
         if data_cfg.export:
             dataset.save(f"{experiment_path}/data/{experiment_cfg.wiki_id}")
             if data_cfg.push_to_hub:
-                # if api.repo_exists(f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}"):
-                api.create_repo(
-                    repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}",
-                    repo_type="dataset",
-                    private=True,
-                    exist_ok=True
-                )
-                api.upload_folder(
-                    folder_path=f"{experiment_path}/data/",
-                    repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}",
-                    repo_type="dataset"
-                )
+                data = load_dataset(f"{experiment_path}/data/{experiment_cfg.wiki_id}")
+                data.push_to_hub(f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}", 
+                                 config_name=f"{experiment_cfg.wiki_id}", 
+                                 private=True)
 
     if tokenizer_cfg:
         if tokenizer_cfg.load.method == "config":
@@ -70,6 +63,8 @@ def main():
                 tokenizer.save_pretrained(f"{experiment_path}/model/{experiment_cfg.wiki_id}")
         elif tokenizer_cfg.load.method == "hub":
             tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{tokenizer_cfg.load.path}.{experiment_cfg.wiki_id}")
+        if tokenizer_cfg.push_to_hub:
+            tokenizer.push_to_hub(f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}", private=True)
 
     if pretrain_cfg:
         export_path = f"{experiment_path}/model/{experiment_cfg.wiki_id}" if pretrain_cfg.export else None
@@ -95,17 +90,8 @@ def main():
             model.test(dataset=test_dataset)
 
         if pretrain_cfg.push_to_hub:
-            api.create_repo(
-                repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}",
-                repo_type="model",
-                private=True,
-                exist_ok=True
-            )
-            api.upload_folder(
-                folder_path=f"{export_path}",
-                repo_id=f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}",
-                repo_type="model"
-            )
+            model = AutoModel.from_pretrained(f"{export_path}")
+            model.push_to_hub(f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}", private=True)
 
     if finetune_cfg:
         try:

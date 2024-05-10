@@ -1,20 +1,19 @@
 #!/bin/bash
 
-source activate hf
-
 export WANDB_API_KEY="2f9506e16930f137abbd18a3fb16f6b31840a830"
 export WANDB_PROJECT="WikiQuality"
 
 lang=$1
 partition=$2
 
-config_file="./config/$lang/config_deberta.json"
+config_file="./config/$lang/config_tiny_deberta/config.json"
 
 python scripts/run_mlm.py \
   --model_type "deberta" \
   --config_name $config_file \
   --tokenizer_name "WikiQuality/$partition.$lang" \
-  --dataset_name 'WikiQuality/' \
+  --train_file "data/$lang/$partition.train.txt" \
+  --validation_file "data/$lang/$partition.valid.txt" \
   --output_dir "$lang\_$partition\_$epochs\_8_tiny_deberta" \
   --do_train \
   --do_eval \
@@ -27,9 +26,10 @@ python scripts/run_mlm.py \
   --line_by_line \
   --report_to 'wandb' \
   --run_name "$lang\_$partition\_$epochs\_8_tiny_deberta" \
-  --num_train_epochs $epochs \
+  --num_train_epochs 5 \
   --save_strategy 'epoch' \
   --evaluation_strategy 'epoch' \
   --save_total_limit 5 \
   --load_best_model_at_end \
-  --metric_for_best_model 'eval_loss'
+  --metric_for_best_model 'eval_loss' \
+  --fp16

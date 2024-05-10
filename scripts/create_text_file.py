@@ -12,13 +12,22 @@ args = parser.parse_args()
 lang = args.lang
 partition = args.partition
 
-text = []
-dataset = datasets.load_dataset(f"WikiQuality/{lang}.{partition}")['train']
+train_text = []
+dataset = datasets.load_dataset(f"WikiQuality/{partition}", data_dir=f"{lang}")['train']
 for data in dataset:
-    text.append(data['text'])
+    train_text.append(data['text'])
 
 if not os.path.exists(f"./data/{lang}"):
     os.makedirs(f"./data/{lang}")
 
-with open(f"./data/{lang}/wiki_{lang}.txt", "w") as f:
-    f.write("\n".join(text))
+with open(f"./data/{lang}/{partition}.train.txt", "w") as f:
+    f.write("\n".join(train_text))
+
+valid_text = []
+dataset = datasets.load_dataset(f"WikiQuality/{partition}", data_dir=f"{lang}")['test']
+for data in dataset:
+    valid_text.append(data['text'])
+
+with open(f"./data/{lang}/{partition}.valid.txt", "w") as f:
+    f.write("\n".join(valid_text))
+
