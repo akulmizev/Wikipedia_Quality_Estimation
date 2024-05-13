@@ -10,6 +10,8 @@ from transformers import get_scheduler, PreTrainedTokenizerFast
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
+from collections import Counter
+
 from .model import ModelFromConfig
 from utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
 # from .utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
@@ -108,17 +110,29 @@ class Tagger(GenericModelForFineTuning):
     def _align_labels(self, example):
         tokenized_input = self.tokenizer(
             example["tokens"],
-            is_split_into_words=True
+            is_split_into_words=True,
         )
 
-        seen = set()
+        seen = []
         labels = []
         for idx in tokenized_input.word_ids()[1:-1]:
-            if idx in seen:
-                labels.append(-100)
-            else:
+            seen.append(idx)
+            if Counter(seen)[idx] == 2:
                 labels.append(example["tags"][idx])
-                seen.add(idx)
+            else:
+                labels.append(-100)
+
+        # seen = set()
+        # labels = []
+        # for idx in tokenized_input.word_ids()[1:-1]:
+        #     if idx in seen:
+        #         labels.append(-100)
+        #     else:
+        #         labels.append(example["tags"][idx])
+        #         seen.add(idx)
+
+
+                
 
         tokenized_input["labels"] = [-100] + labels + [-100]
 
@@ -216,7 +230,7 @@ class Classifier(GenericModelForFineTuning):
 
         return loader
 
-    def _eval_loop(self, loader):
+    def _eval_loop(self, loader, split="validation"):
 
         self.model.eval()
 
@@ -238,12 +252,22 @@ class Classifier(GenericModelForFineTuning):
                 results["preds"].extend(self.accelerator.gather(predictions).detach().cpu().clone().numpy().tolist())
                 results["labels"].extend(self.accelerator.gather(labels).detach().cpu().clone().numpy().tolist())
 
-        report = classification_report(
+        # report = classification_report(
+        #     results["labels"],
+        #     results["preds"],
+        #     labels=[i for i in range(len(self.label_set))],
+        #     target_names=self.label_set,
+        #     zero_division=0.0
+        # )
+
+        scores = precision_recall_fscore_support(
             results["labels"],
             results["preds"],
             labels=[i for i in range(len(self.label_set))],
-            target_names=self.label_set,
-            zero_division=0.0
+            zero_division=0.0,
+            average="weighted"
         )
 
-        print(report)
+        score_dict = {f"{split}_{k}": v for (k, v) in zip(["precision", "recall", "f1"], scores[:3])}
+
+        return score_dict
