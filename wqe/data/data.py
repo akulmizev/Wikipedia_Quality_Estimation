@@ -38,7 +38,7 @@ class WikiLoader:
                 self.data = load_dataset(self.load.path)
             elif self.load.method == "hub":
                 logger.info(f"Loading dataset from hub: {self.load.path}/{self.wiki_id}")
-                self.data = load_dataset(f"{self.load.path}", f"{self.wiki_id}")
+                self.data = load_dataset(f"{self.load.path}", data_dir=f"{self.wiki_id}")
             elif self.load.method == "raw":
                 logger.info(f"Loading raw dataset from Wikimedia/Wikipedia: {self.wiki_id}")
                 self.data = load_dataset(
