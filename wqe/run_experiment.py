@@ -4,12 +4,12 @@ import yaml
 
 from datasets import load_dataset
 from huggingface_hub import HfApi
-from transformers import AutoModel
+from transformers import AutoModel, AutoTokenizer
 
 from data.data import WikiLoader
 from utils.config import parse_config
 
-from tokenizer.tokenizer import PreTrainedTokenizerFast
+from tokenizer.tokenizer import PreTrainedTokenizerFast, SentencePieceUnigramTokenizer, SentencePieceTokenizer
 
 from model.pretrain import MLM
 from model.finetune import Tagger, Classifier
@@ -59,10 +59,15 @@ def main():
                 config=tokenizer_cfg.parameters,
                 batch_size=1000
             )
+            # tokenizer = SentencePieceTokenizer.train_from_iterator(
+            #     self=SentencePieceTokenizer(config=tokenizer_cfg.parameters),
+            #     config=tokenizer_cfg.parameters,
+            #     dataset=dataset['train']
+            # )
             if tokenizer_cfg.export:
                 tokenizer.save_pretrained(f"{experiment_path}/model/{experiment_cfg.wiki_id}")
         elif tokenizer_cfg.load.method == "hub":
-            tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{tokenizer_cfg.load.path}.{experiment_cfg.wiki_id}")
+            tokenizer = AutoTokenizer.from_pretrained(f"{tokenizer_cfg.load.path}.{experiment_cfg.wiki_id}")
         if tokenizer_cfg.push_to_hub:
             tokenizer.push_to_hub(f"{experiment_cfg.hub_path}/{experiment_cfg.experiment_id}.{experiment_cfg.wiki_id}", private=True)
 

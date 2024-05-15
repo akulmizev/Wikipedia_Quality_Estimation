@@ -1,16 +1,16 @@
 experiment:
-  experiment_id: "pre_filtered.ner"
+  experiment_id: "pre_filtered.pos"
   wandb_entity: "wikiquality"
-  local_path: "/home/akulmizev/Repos/Wikipedia_Quality_Estimation/experiments"
+  local_path: "/home/kushal/Wikipedia/Wikipedia_Quality_Estimation/experiments"
   hub_path: "WikiQuality"
 
 finetune:
   load:
     method: "pretrained"
     path: "WikiQuality/pre_filtered"
-  do_train: true #this gives an error
-  task: "ner"
-  dataset_path: "WikiQuality/ner"
+  do_train: false #this gives an error
+  task: "pos"
+  dataset_path: "WikiQuality/pos"
   training_parameters:
     model_type: "deberta"
     max_length: 512

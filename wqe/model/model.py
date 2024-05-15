@@ -16,7 +16,8 @@ class ModelFromConfig:
                  **kwargs):
 
         self.__dict__.update(config.__dict__)
-        self.torch_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32
+        # self.torch_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32
+        self.torch_dtype = torch.float32
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.export_path = export_path
         self.accelerator = Accelerator(project_dir="self.export_path") if self.export_path else Accelerator()

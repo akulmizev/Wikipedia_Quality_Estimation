@@ -48,14 +48,18 @@ TOKENIZER_PARAM_MAP = {
         "nfc": normalizers.NFC,
         "nfd": normalizers.NFD,
         "nfkc": normalizers.NFKC,
-        "nfkd": normalizers.NFKD
+        "nfkd": normalizers.NFKD,
+        "nmt": normalizers.Nmt,
     },
     "pre_tokenizer": {
         "byte_level": pre_tokenizers.ByteLevel,
         "metaspace": pre_tokenizers.Metaspace,
         "whitespace": pre_tokenizers.Whitespace,
+        "whitespace_split": pre_tokenizers.WhitespaceSplit,
         "unicode_scripts": pre_tokenizers.UnicodeScripts,
-        "digits": pre_tokenizers.Digits
+        "punctuation": pre_tokenizers.Punctuation,
+        "digits": pre_tokenizers.Digits,
+        "bert": pre_tokenizers.BertPreTokenizer
     },
     "decoder": {
         "metaspace": decoders.Metaspace,

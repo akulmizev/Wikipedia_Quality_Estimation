@@ -15,10 +15,9 @@
   "pad_token_id": 0,
   "pooler_dropout": 0,
   "pooler_hidden_act": "gelu",
-  "pooler_hidden_size": 768,
   "pos_att_type": null,
   "position_biased_input": true,
-  "relative_attention": false,
+  "relative_attention": true,
   "transformers_version": "4.32.1",
   "type_vocab_size": 0
 }
