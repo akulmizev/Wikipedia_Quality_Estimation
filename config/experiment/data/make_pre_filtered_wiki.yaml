@@ -1,0 +1,16 @@
+experiment:
+  experiment_id: "pre_filtered"
+  wandb_entity: "wikiquality"
+  local_path: "/lustre1/project/stg_00120/kushal/Wikipedia/Wikipedia_Quality_Estimation/WikiQuality"
+  hub_path: "WikiQuality"
+
+data:
+  load:
+    method: "hub"
+    path: "WikiQuality/raw_wiki"
+  pre_filter:
+    script_regex: true
+    lang_id: true
+    char_cutoff: 15
+  export: true
+  push_to_hub: true

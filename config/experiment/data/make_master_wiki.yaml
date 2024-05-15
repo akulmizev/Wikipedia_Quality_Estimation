@@ -1,0 +1,16 @@
+experiment:
+  experiment_id: "kushal_test"
+  wandb_entity: "wikiquality"
+  local_path: "/lustre1/project/stg_00120/kushal/Wikipedia/Wikipedia_Quality_Estimation/WikiQuality"
+  hub_path: "WikiQuality"
+
+data:
+  load:
+    method: "raw"
+  split:
+    train: 0.95
+    test : 0.05
+    seed: 42
+    shuffle: true
+  export: true
+  push_to_hub: true

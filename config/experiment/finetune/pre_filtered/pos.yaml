@@ -1,0 +1,21 @@
+experiment:
+  experiment_id: "pre_filtered.pos"
+  wandb_entity: "wikiquality"
+  local_path: "/home/kushal/Wikipedia/Wikipedia_Quality_Estimation/experiments"
+  hub_path: "WikiQuality"
+
+finetune:
+  load:
+    method: "pretrained"
+    path: "WikiQuality/pre_filtered"
+  do_train: true 
+  task: "pos"
+  dataset_path: "WikiQuality/pos"
+  training_parameters:
+    model_type: "deberta"
+    max_length: 512
+    num_train_epochs: 10
+    batch_size: 32
+    lr: 3e-03
+  export: false
+  push_to_hub: false
