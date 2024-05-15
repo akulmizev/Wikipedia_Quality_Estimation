@@ -9,7 +9,7 @@ from transformers import AutoModel, AutoTokenizer
 from data.data import WikiLoader
 from utils.config import parse_config
 
-from tokenizer.tokenizer import PreTrainedTokenizerFast, SentencePieceUnigramTokenizer, SentencePieceTokenizer
+from tokenizer.tokenizer import PreTrainedTokenizerFast
 
 from model.pretrain import MLM
 from model.finetune import Tagger, Classifier

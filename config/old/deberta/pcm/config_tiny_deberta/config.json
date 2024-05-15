@@ -7,7 +7,7 @@
   "initializer_range": 0.02,
   "intermediate_size": 1200,
   "layer_norm_eps": 1e-07,
-  "max_position_embeddings": 512,
+  "max_position_embeddings": 1024,
   "max_relative_positions": -1,
   "model_type": "deberta",
   "num_attention_heads": 12,
@@ -15,9 +15,11 @@
   "pad_token_id": 0,
   "pooler_dropout": 0,
   "pooler_hidden_act": "gelu",
-  "pos_att_type": "c2p|p2c",
+  "pooler_hidden_size": 768,
+  "pos_att_type": null,
   "position_biased_input": true,
-  "relative_attention": true,
-  "transformers_version": "4.32.1",
-  "type_vocab_size": 0
+  "relative_attention": false,
+  "transformers_version": "4.39.0.dev0",
+  "type_vocab_size": 0,
+  "vocab_size": 2595
 }

@@ -1,7 +1,7 @@
 experiment:
   experiment_id: "pre_filtered.ner"
   wandb_entity: "wikiquality"
-  local_path: "/home/kushal/Wikipedia/Wikipedia_Quality_Estimation/experiments"
+  local_path: "/lustre1/project/stg_00120/kushal/Wikipedia/Wikipedia_Quality_Estimation/experiments"
   hub_path: "WikiQuality"
 
 finetune:

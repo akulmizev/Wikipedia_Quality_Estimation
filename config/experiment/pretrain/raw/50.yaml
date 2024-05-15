@@ -56,7 +56,7 @@ pretrain:
     method: "hub"
     path: "WikiQuality/raw_wiki"
   export: true
-  push_to_hub: false
+  push_to_hub: true
 
 #finetune:
 #  model_type: "deberta"

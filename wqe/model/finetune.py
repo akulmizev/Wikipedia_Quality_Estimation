@@ -113,28 +113,33 @@ class Tagger(GenericModelForFineTuning):
             is_split_into_words=True,
         )
 
-        seen = []
-        labels = []
-        for idx in tokenized_input.word_ids()[1:-1]:
-            seen.append(idx)
-            if Counter(seen)[idx] == 2:
-                labels.append(example["tags"][idx])
-            else:
-                labels.append(-100)
-
-        # seen = set()
+        # seen = []
         # labels = []
         # for idx in tokenized_input.word_ids()[1:-1]:
-        #     if idx in seen:
-        #         labels.append(-100)
-        #     else:
+        #     seen.append(idx)
+        #     if Counter(seen)[idx] == 2:
         #         labels.append(example["tags"][idx])
-        #         seen.add(idx)
+        #     else:
+        #         labels.append(-100)
 
+        seen = set()
+        labels = []
+        word_ids = list(tokenized_input.word_ids())
+        for i in range(len(word_ids)):
+            idx = word_ids[i]
+            if i == 0 or len(word_ids) - i == 1:
+                labels.append(-100)
+            elif tokenized_input['input_ids'][i] == 7: #so as to not assign a label to the metaspace char
+                labels.append(-100)
+            elif idx in seen:
+                labels.append(-100)
+            else:
+                labels.append(example["tags"][idx])
+                seen.add(idx)
 
-                
+        # tokenized_input["labels"] = [-100] + labels + [-100]
 
-        tokenized_input["labels"] = [-100] + labels + [-100]
+        tokenized_input['labels'] = labels
 
         return tokenized_input
 
