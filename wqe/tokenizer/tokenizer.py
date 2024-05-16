@@ -49,7 +49,8 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerFast):
             tokenizer.pre_tokenizer = PARAM_MAP["pre_tokenizer"][config.pre_tokenizer]()
 
         tokenizer.decoder = PARAM_MAP["decoder"][config.decoder]()
-        if isinstance(config.pre_tokenizer, list):
+        
+        if isinstance(config.normalizer, list):
             tokenizer.normalizer = normalizers.Sequence(
                 [PARAM_MAP["normalizer"][pt]() for pt in config.normalizer]
             )
