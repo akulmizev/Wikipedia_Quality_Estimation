@@ -97,7 +97,7 @@ class WikiLoader:
             dataset = load_dataset(import_config.path)
         elif import_config.method == "hub":
             logger.info(f"Loading dataset from hub: {import_config.path}/{wiki_id}")
-            dataset = load_dataset(f"{import_config.path}", f"{wiki_id}")
+            dataset = load_dataset(f"{import_config.path}", data_dir=f"{wiki_id}")
         else:
             raise ValueError("Invalid import type. Please specify either 'local' or 'hub'.")
 

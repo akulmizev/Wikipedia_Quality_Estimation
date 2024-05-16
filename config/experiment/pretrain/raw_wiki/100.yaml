@@ -1,5 +1,5 @@
 experiment:
-  experiment_id: "raw_wiki_lr1e03_warmup_grad_8"
+  experiment_id: "raw_wiki"
   wandb_entity: "wikiquality"
   local_path: "/lustre1/project/stg_00120/kushal/Wikipedia/Wikipedia_Quality_Estimation/WikiQuality"
   hub_path: "WikiQuality"
