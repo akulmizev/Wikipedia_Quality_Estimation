@@ -13,7 +13,7 @@ data:
 
 tokenizer:
   load:
-    method: "pretrained"
+    method: "hub"
     path: "WikiQuality/pre_filtered"
   export: false
   push_to_hub: true #keep this to push the tokenizer with the model
