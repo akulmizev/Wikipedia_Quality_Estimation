@@ -10,11 +10,8 @@ from transformers import get_scheduler, PreTrainedTokenizerFast
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
-from collections import Counter
-
 from .model import ModelFromConfig
-from utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
-# from .utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
+from ..utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -95,7 +92,7 @@ class GenericModelForFineTuning(ModelFromConfig):
             if "validation" in loaders:
                 scores = self._eval_loop(loaders["validation"], split="validation")
                 wandb.log(scores)
-                if epoch+1 == num_train_epochs:
+                if epoch + 1 == num_train_epochs:
                     wandb.run.summary.update(scores)
 
         if "test" in loaders:
@@ -129,7 +126,7 @@ class Tagger(GenericModelForFineTuning):
             idx = word_ids[i]
             if i == 0 or len(word_ids) - i == 1:
                 labels.append(-100)
-            elif tokenized_input['input_ids'][i] == 7: #so as to not assign a label to the metaspace char
+            elif tokenized_input['input_ids'][i] == 7:  #so as to not assign a label to the metaspace char
                 labels.append(-100)
             elif idx in seen:
                 labels.append(-100)
@@ -180,22 +177,14 @@ class Tagger(GenericModelForFineTuning):
                 predictions = self.accelerator.gather(predictions).detach().cpu().clone().numpy()
                 labels = self.accelerator.gather(labels).detach().cpu().clone().numpy()
 
-                true_labels = [lab for label in labels for lab in label if lab != -100]
+                true_labels = [l for label in labels for l in label if l != -100]
                 true_preds = [
-                    pred for prediction, label in zip(predictions, labels)
-                    for pred, lab in zip(prediction, label) if lab != -100
+                    p for prediction, label in zip(predictions, labels)
+                    for p, l in zip(prediction, label) if l != -100
                 ]
 
                 results["preds"].extend(true_preds)
                 results["labels"].extend(true_labels)
-
-        # report = classification_report(
-        #     results["labels"],
-        #     results["preds"],
-        #     labels=[i for i in range(len(self.label_set))],
-        #     target_names=self.label_set,
-        #     zero_division=0.0
-        # )
 
         scores = precision_recall_fscore_support(
             results["labels"],
@@ -236,7 +225,6 @@ class Classifier(GenericModelForFineTuning):
         return loader
 
     def _eval_loop(self, loader, split="validation"):
-
         self.model.eval()
 
         results = {"preds": [], "labels": []}

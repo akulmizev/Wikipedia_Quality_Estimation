@@ -1,0 +1,14 @@
+load:
+  method: "pretrained"
+  path: "WikiQuality/length.high_quality"
+do_train: true
+task: "pos"
+dataset_path: "WikiQuality/pos"
+training_parameters:
+  model_type: "deberta"
+  max_length: 512
+  num_train_epochs: 10
+  batch_size: 32
+  lr: 3e-03
+export: true
+push_to_hub: true

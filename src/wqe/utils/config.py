@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Union, Optional
+from typing import Any, Dict, List, Union, Optional
 
 
 @dataclass
@@ -38,8 +38,7 @@ class Partition:
 
 @dataclass
 class Split:
-    train: float
-    test: float
+    test_size: Optional[float] = 0.1
     seed: Optional[int] = 12345
     shuffle: Optional[bool] = True
 
@@ -82,17 +81,18 @@ class TrainingParameters:
 
 @dataclass
 class Experiment:
-    wiki_id: str
-    experiment_id: str
-    wandb_entity: str
-    local_path: str
-    hub_path: Optional[str]
+    experiment_id: str = "default"
+    wiki_id: Optional[str] = "sw"
+    local_path: Optional[str] = field(default=None, metadata={"help": "Local path to save experiment data"})
+    hub_path: Optional[str] = None
+    wandb_entity: Optional[str] = None
+
 
 
 @dataclass
 class Dataset:
     load: Dict[str, str]
-    export: bool
+    export: bool = False
     push_to_hub: bool = False
     pre_filter: Optional[Dict[str, str]] = None
     partition: Optional[Dict[str, str]] = None
@@ -116,6 +116,8 @@ class Tokenizer:
     parameters: Optional[Dict[str, Union[str, int, bool, Dict[str, str]]]] = None
 
     def __post_init__(self):
+        if not self.load:
+            raise ValueError("Load is required if calling tokenizer.")
         self.load = Load(**self.load)
         if self.load.method == "config" and not self.parameters:
             raise ValueError("Parameters are required for config-based tokenizer training.")
@@ -134,6 +136,8 @@ class Pretrain:
     test_data: Optional[Dict[str, str]] = None
 
     def __post_init__(self):
+        if not self.load:
+            raise ValueError("Load is required if calling pretrain.")
         self.load = Load(**self.load)
         if self.training_parameters:
             self.training_parameters = TrainingParameters(**self.training_parameters)
@@ -152,16 +156,38 @@ class Finetune:
     training_parameters: Optional[Dict[str, Union[str, int, float, bool]]] = None
 
     def __post_init__(self):
+        if not self.load:
+            raise ValueError("Load is required if calling finetune.")
         self.load = Load(**self.load)
         if self.training_parameters:
             self.training_parameters = TrainingParameters(**self.training_parameters)
 
 
-def parse_config(config):
-    experiment = Experiment(**config["experiment"])
-    data = Dataset(**config["data"]) if "data" in config else None
-    tokenizer = Tokenizer(**config["tokenizer"]) if "tokenizer" in config else None
-    pretrain = Pretrain(**config["pretrain"]) if "pretrain" in config else None
-    finetune = Finetune(**config["finetune"]) if "finetune" in config else None
+@dataclass
+class MainConfig:
+    experiment: Dict[str, Any]
+    data: Optional[Dict[str, Any]] = None
+    tokenizer: Optional[Dict[str, Any]] = None
+    pretrain: Optional[Dict[str, Any]] = None
+    finetune: Optional[Dict[str, Any]] = None
 
-    return experiment, data, tokenizer, pretrain, finetune
+    def __post_init__(self):
+        self.experiment = Experiment(**self.experiment)
+        if self.data:
+            self.data = Dataset(**self.data)
+        if self.tokenizer:
+            self.tokenizer = Tokenizer(**self.tokenizer)
+        if self.pretrain:
+            self.pretrain = Pretrain(**self.pretrain)
+        if self.finetune:
+            self.finetune = Finetune(**self.finetune)
+
+#
+# def parse_config(config):
+#     experiment = Experiment(**config["experiment"])
+#     data = Dataset(**config["data"]) if "data" in config else None
+#     tokenizer = Tokenizer(**config["tokenizer"]) if "tokenizer" in config else None
+#     pretrain = Pretrain(**config["pretrain"]) if "pretrain" in config else None
+#     finetune = Finetune(**config["finetune"]) if "finetune" in config else None
+#
+#     return experiment, data, tokenizer, pretrain, finetune

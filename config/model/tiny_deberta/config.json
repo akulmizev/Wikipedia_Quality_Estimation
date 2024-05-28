@@ -18,6 +18,5 @@
   "pos_att_type": "c2p|p2c",
   "position_biased_input": true,
   "relative_attention": true,
-  "transformers_version": "4.32.1",
   "type_vocab_size": 0
 }
