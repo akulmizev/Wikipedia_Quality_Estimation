@@ -1,0 +1,13 @@
+config_path: "~/Documents/Repos/WikiQuality/config/model/tiny_deberta/config.json"
+task: "mlm"
+training_parameters:
+  model_type: "deberta"
+  max_length: 512
+  mask_prob: 0.4
+  num_train_epochs: 150
+  batch_size: 8
+  lr: 1e-03 #DO NOT CHANGE THIS
+  eval_steps: 100
+test_data_path: "WikiQuality/raw_wiki"
+export: true
+push_to_hub: true

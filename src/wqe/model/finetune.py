@@ -10,7 +10,7 @@ from transformers import get_scheduler, PreTrainedTokenizerFast
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
-from .model import ModelFromConfig
+from .base import ModelFromConfig
 from ..utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
 
 logging.basicConfig(level=logging.INFO)

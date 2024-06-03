@@ -1,6 +1,6 @@
 from datasets import Dataset
 from datasets import load_dataset
-#load dataset from parquet file
+#load dataset_cfg from parquet file
 ur = load_dataset('WikiQuality/pcm_filtered')
 print(ur)
 for example in ur:

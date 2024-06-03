@@ -32,10 +32,10 @@ model.push_to_hub("WikiQuality/raw_wiki.ur", private=True)
 #     repo_id="WikiQuality/raw_wiki.as"
 # )
 
-# data = datasets.load_dataset("Wikipedia/Wikipedia_Quality_Estimation/WikiQuality/pre_filtered/ur")
-# print(data)
+# dataset_cfg = datasets.load_dataset("Wikipedia/Wikipedia_Quality_Estimation/WikiQuality/pre_filtered/ur")
+# print(dataset_cfg)
 
-# data.push_to_hub("WikiQuality/pre_filtered", config_name="ur", private=True)
+# dataset_cfg.push_to_hub("WikiQuality/pre_filtered", config_name="ur", private=True)
 
 # config = datasets.get_dataset_config_names("WikiQuality/pre_filtered")
 # print(config)

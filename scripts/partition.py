@@ -64,7 +64,7 @@ class Partition():
                 high_quality.append(id)
                 # total_num_chars += length
         # length = {}
-        # for example in tqdm(self.dataset):
+        # for example in tqdm(self.dataset_cfg):
         #     text = example['text'].strip()
         #     length[example['id']] = len(text)
         # mean = int(np.mean(list(length.values())))
@@ -110,14 +110,14 @@ class Partition():
         # g_mean = gmean(list(unique_word_counts.values()))
         # a_mean = np.mean(list(unique_word_counts.values()))
         #
-        # high_quality_amean = [(example['id'], example['text']) for example in self.dataset if unique_word_counts[example['id']] >= a_mean]
-        # high_quality_gmean = [(example['id'], example['text']) for example in self.dataset if unique_word_counts[example['id']] >= g_mean]
+        # high_quality_amean = [(example['id'], example['text']) for example in self.dataset_cfg if unique_word_counts[example['id']] >= a_mean]
+        # high_quality_gmean = [(example['id'], example['text']) for example in self.dataset_cfg if unique_word_counts[example['id']] >= g_mean]
         #
         # difference = [a for a in high_quality_gmean if a not in high_quality_amean]
         # print("Difference between high quality articles using gmean and amean: ", difference)
 
         #unique word count of the entire wiki
-        # wiki = ' '.join([example['text'] for example in tqdm(self.dataset)])
+        # wiki = ' '.join([example['text'] for example in tqdm(self.dataset_cfg)])
         # unique_word_counts = Counter(wiki.split())
         # word_counts = len(wiki.split())
         # char_counts = len(wiki)
@@ -162,7 +162,7 @@ class Partition():
         # calculate fertility - comment out the above and uncomment this
         # fertility= sum([v[1] for v in unique_subword_counts.values()])/sum([v[2] for v in unique_subword_counts.values()])
         fertility = subword_counter/word_counter
-        print("Fertility of the tokenizer: ", fertility)
+        print("Fertility of the tokenizer_cfg: ", fertility)
 
 
 
@@ -239,7 +239,7 @@ class Partition():
 
         high_quality = []
         low_quality = []
-        # for example in tqdm(self.dataset):   #splitting on ratio of english characters
+        # for example in tqdm(self.dataset_cfg):   #splitting on ratio of english characters
         #     text = example['text'].strip()
         #     match = 0
         #     for char in text:
@@ -369,7 +369,7 @@ class Partition():
 
 
         # high_quality = []
-        # for example in tqdm(self.dataset):
+        # for example in tqdm(self.dataset_cfg):
         #     if example['id'] in low_quality_wordlength or \
         #         example['text'] in low_quality_ngrams or \
         #         example['text'] in low_quality_unique_words or \
@@ -487,7 +487,7 @@ class Partition():
 
 
         # for chunk level perplexity
-        # for example in tqdm(self.dataset):
+        # for example in tqdm(self.dataset_cfg):
         #     text = example['text'].split('\n')
         #     ex_perp = []
         #     for sent in text:
@@ -495,8 +495,8 @@ class Partition():
         #             if sent == '' or sent == ' ':
         #                 continue
         #             sent = sent.strip()
-        #             tokenize_input = tokenizer.tokenize(sent, truncation=True, max_length=512)
-        #             tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
+        #             tokenize_input = tokenizer_cfg.tokenize(sent, truncation=True, max_length=512)
+        #             tensor_input = torch.tensor([tokenizer_cfg.convert_tokens_to_ids(tokenize_input)]).cuda()
         #             with torch.no_grad():
         #                 loss = model(tensor_input, labels=tensor_input)[0]
         #             result = np.exp(loss.cpu().detach().numpy()) ##change this to make it faster
@@ -509,9 +509,9 @@ class Partition():
 
         # for article level perplexity
 
-        # for example in tqdm(self.dataset):
-        #     tokenize_input = tokenizer.tokenize(example['text'], truncation=True, max_length=512)
-        #     tensor_input = torch.tensor([tokenizer.convert_tokens_to_ids(tokenize_input)]).cuda()
+        # for example in tqdm(self.dataset_cfg):
+        #     tokenize_input = tokenizer_cfg.tokenize(example['text'], truncation=True, max_length=512)
+        #     tensor_input = torch.tensor([tokenizer_cfg.convert_tokens_to_ids(tokenize_input)]).cuda()
         #     with torch.no_grad():
         #         loss = model(tensor_input, labels=tensor_input)[0]
         #     result = np.exp(loss.cpu().detach().numpy())

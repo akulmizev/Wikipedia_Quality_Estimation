@@ -1,0 +1,5 @@
+wiki_id: "simple"
+experiment_id: "default"
+wandb_entity: "wikiquality"
+local_path: "~/Repos/WikiQuality/experiments"
+hub_path: "Wikipedia_Quality_Estimation"

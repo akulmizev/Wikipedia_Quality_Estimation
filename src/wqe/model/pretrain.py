@@ -1,5 +1,8 @@
 import logging
 
+from typing import Optional
+
+import evaluate
 import numpy as np
 import torch
 import wandb
@@ -9,10 +12,12 @@ from transformers import CONFIG_MAPPING
 from transformers import AutoModelForMaskedLM
 from transformers import DataCollatorForLanguageModeling
 from transformers import get_scheduler
+from transformers import PreTrainedTokenizerFast
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
-from .model import ModelFromConfig
+from .base import ModelFromConfig
+from ..utils.config import TrainingParameters
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -93,7 +98,7 @@ class MLM(ModelFromConfig):
 
         splits = dataset.keys()
         if "train" not in splits or "test" not in splits:
-            raise ValueError("Both train and test splits must be present in the dataset.")
+            raise ValueError("Both train and test splits must be present in the dataset_cfg.")
         if len(splits) > 2:
             logger.warning("More than two splits present. Ignoring all but train and test.")
 
@@ -128,7 +133,7 @@ class MLM(ModelFromConfig):
 
         logger.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
         progress_bar = tqdm(range(num_train_steps))
-        running_loss = np.Inf
+        running_loss = torch.inf
 
         self.model.gradient_checkpointing_enable()
 
@@ -184,3 +189,82 @@ class MLM(ModelFromConfig):
         if self.wandb:
             wandb.summary["test_loss"] = round(loss, 2)
             wandb.summary["test_ppl"] = round(perplexity, 2)
+
+
+class MLMTest:
+    def __init__(self,
+                 load_path: str,
+                 config: TrainingParameters,
+                 tokenizer: Optional[str] = None,
+                 **kwargs
+                 ):
+
+        super().__init__(config, **kwargs)
+        self.metrics = self._init_metrics()
+
+        if isinstance(tokenizer, PreTrainedTokenizerFast):
+            self.tokenizer = tokenizer
+        else:
+            self.tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer)
+
+        self.collator = DataCollatorForLanguageModeling(
+            tokenizer=self.tokenizer,
+            mlm=True,
+            mlm_probability=self.mask_prob
+        )
+
+        if load_path.endswith(".json"):
+            model_config = CONFIG_MAPPING[self.model_type].from_json_file(load_path)
+            model_config.vocab_size = self.tokenizer.vocab_size
+            logger.info(f"Initializing model with config: {model_config}")
+            self.model = AutoModelForMaskedLM.from_config(model_config)
+        else:
+            logger.info(f"Loading model from hub: {load_path}.")
+            self.model = AutoModelForMaskedLM.from_pretrained(f"{load_path}")
+
+        self.model = self.model.to(self.device, dtype=self.torch_dtype)
+        logger.info(f"{self.model.config.model_type} for MLM loaded.")
+        logger.info(f"Number of parameters: {round(self.model.num_parameters() / 1e6)}M")
+
+    @staticmethod
+    def _init_metrics():
+
+        return [evaluate.load("loss"), evaluate.load("perplexity")]
+
+    def _tokenize_and_collate(self, dataset):
+
+        batched_dataset = dataset.map(
+            lambda examples: self.tokenizer(
+                examples["text"],
+                max_length=self.max_length,
+                padding="max_length",
+                truncation=True,
+                return_overflowing_tokens=True),
+            batched=True,
+            remove_columns=dataset.column_names
+        )
+
+        batched_dataset = batched_dataset.remove_columns("overflow_to_sample_mapping")
+
+        loader = DataLoader(
+            batched_dataset,
+            collate_fn=self.collator,
+            batch_size=self.batch_size,
+            shuffle=True
+        )
+
+        return loader
+
+    def _eval_loop(self, loader):
+
+        loss = 0.0
+        for batch in loader:
+            with torch.no_grad():
+                outputs = self.model(**batch)
+                loss = outputs.loss
+                loss += loss.item()
+        eval_loss = loss / len(loader)
+        perplexity = np.exp(eval_loss)
+
+        return {"loss": eval_loss, "perplexity": perplexity}
+

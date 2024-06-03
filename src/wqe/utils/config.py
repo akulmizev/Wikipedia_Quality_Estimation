@@ -23,17 +23,15 @@ class PreFilter:
 
 @dataclass
 class Partition:
-    method: str
-    metric_type: str
-    quality: bool
+    metric: Union[str, List[str]]
+    method: Optional[str] = "balanced_chars"
+    quality: Optional[bool] = True
     tokenizer: Optional[str] = None
-    all_partitions_join_method: Optional[str] = None
+    join_method: Optional[str] = "union"
 
     def __post_init__(self):
-        if self.method not in ["mean_cutoff", "balanced_docs", "balanced_chars"]:
+        if self.method not in ["mean_cutoff", "median_cutoff", "balanced_docs", "balanced_chars"]:
             raise ValueError(f"Invalid partition method: {self.method}")
-        if self.metric_type == "all" and not self.all_partitions_join_method:
-            raise ValueError(f"Join method is required for 'all' partition type")
 
 
 @dataclass
@@ -72,7 +70,7 @@ class TrainingParameters:
     num_train_epochs: int
     max_length: int = 512
     batch_size: int = 8
-    lr: float = 1e-5
+    lr: float = 1e-3
     mask_prob: Optional[float] = None
     eval_steps: Optional[int] = None
 
@@ -83,23 +81,21 @@ class TrainingParameters:
 class Experiment:
     experiment_id: str = "default"
     wiki_id: Optional[str] = "sw"
-    local_path: Optional[str] = field(default=None, metadata={"help": "Local path to save experiment data"})
+    local_path: Optional[str] = field(default=None, metadata={"help": "Local path to save experiment_cfg dataset_cfg"})
     hub_path: Optional[str] = None
     wandb_entity: Optional[str] = None
 
 
-
 @dataclass
 class Dataset:
-    load: Dict[str, str]
     export: bool = False
     push_to_hub: bool = False
+    load_path: Optional[str] = None
     pre_filter: Optional[Dict[str, str]] = None
     partition: Optional[Dict[str, str]] = None
-    split: Optional[Dict[str, str]] = None
+    split: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
-        self.load = Load(**self.load)
         if self.pre_filter:
             self.pre_filter = PreFilter(**self.pre_filter)
         if self.partition:
@@ -110,17 +106,17 @@ class Dataset:
 
 @dataclass
 class Tokenizer:
-    load: Dict[str, str]
-    export: bool
+    export: bool = False
     push_to_hub: bool = False
+    load_path: Optional[str] = None
     parameters: Optional[Dict[str, Union[str, int, bool, Dict[str, str]]]] = None
 
     def __post_init__(self):
-        if not self.load:
-            raise ValueError("Load is required if calling tokenizer.")
-        self.load = Load(**self.load)
-        if self.load.method == "config" and not self.parameters:
-            raise ValueError("Parameters are required for config-based tokenizer training.")
+        # if not self.load:
+        #     raise ValueError("Load is required if calling tokenizer_cfg.")
+        # self.load = Load(**self.load)
+        # if self.load.method == "config" and not self.parameters:
+        #     raise ValueError("Parameters are required for config-based tokenizer_cfg training.")
         if self.parameters:
             self.parameters = TokenizerParameters(**self.parameters)
 
@@ -137,7 +133,7 @@ class Pretrain:
 
     def __post_init__(self):
         if not self.load:
-            raise ValueError("Load is required if calling pretrain.")
+            raise ValueError("Load is required if calling pretrain_cfg.")
         self.load = Load(**self.load)
         if self.training_parameters:
             self.training_parameters = TrainingParameters(**self.training_parameters)
@@ -157,7 +153,7 @@ class Finetune:
 
     def __post_init__(self):
         if not self.load:
-            raise ValueError("Load is required if calling finetune.")
+            raise ValueError("Load is required if calling finetune_cfg.")
         self.load = Load(**self.load)
         if self.training_parameters:
             self.training_parameters = TrainingParameters(**self.training_parameters)
@@ -165,29 +161,19 @@ class Finetune:
 
 @dataclass
 class MainConfig:
-    experiment: Dict[str, Any]
-    data: Optional[Dict[str, Any]] = None
-    tokenizer: Optional[Dict[str, Any]] = None
-    pretrain: Optional[Dict[str, Any]] = None
-    finetune: Optional[Dict[str, Any]] = None
+    experiment_cfg: Dict[str, Any]
+    dataset_cfg: Optional[Dict[str, Any]] = None
+    tokenizer_cfg: Optional[Dict[str, Any]] = None
+    pretrain_cfg: Optional[Dict[str, Any]] = None
+    finetune_cfg: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
-        self.experiment = Experiment(**self.experiment)
-        if self.data:
-            self.data = Dataset(**self.data)
-        if self.tokenizer:
-            self.tokenizer = Tokenizer(**self.tokenizer)
-        if self.pretrain:
-            self.pretrain = Pretrain(**self.pretrain)
-        if self.finetune:
-            self.finetune = Finetune(**self.finetune)
-
-#
-# def parse_config(config):
-#     experiment = Experiment(**config["experiment"])
-#     data = Dataset(**config["data"]) if "data" in config else None
-#     tokenizer = Tokenizer(**config["tokenizer"]) if "tokenizer" in config else None
-#     pretrain = Pretrain(**config["pretrain"]) if "pretrain" in config else None
-#     finetune = Finetune(**config["finetune"]) if "finetune" in config else None
-#
-#     return experiment, data, tokenizer, pretrain, finetune
+        self.experiment_cfg = Experiment(**self.experiment_cfg)
+        if self.dataset_cfg:
+            self.dataset_cfg = Dataset(**self.dataset_cfg)
+        if self.tokenizer_cfg:
+            self.tokenizer_cfg = Tokenizer(**self.tokenizer_cfg)
+        if self.pretrain_cfg:
+            self.pretrain_cfg = Pretrain(**self.pretrain_cfg)
+        if self.finetune_cfg:
+            self.finetune_cfg = Finetune(**self.finetune_cfg)
