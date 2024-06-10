@@ -1,21 +1,22 @@
 import logging
-from typing import List, Union
+from typing import List
 
 from transformers import PreTrainedTokenizerFast
-from tokenizers import AddedToken, Tokenizer, normalizers, processors, pre_tokenizers
+from tokenizers import Tokenizer, normalizers, pre_tokenizers
+from ..utils.config import TokenizerConfig
 from ..utils.maps import TOKENIZER_PARAM_MAP as PARAM_MAP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class PreTrainedTokenizerFast(PreTrainedTokenizerFast):
+class FastTokenizerFromConfig(PreTrainedTokenizerFast):
 
     """
-    A tokenizer class that extends `tokenizer.PreTrainedTokenizerFast`.
-    Adds a class method for training a tokenizer given a configuration and dataset.
+    A tokenizer class that extends `tokenizer.FastTokenizerFromConfig`.
+    Adds a class method for training a tokenizer given a dataset and configuration.
 
-    It is necessary to do this because `PreTrainedTokenizerFast`
+    It is necessary to do this because `FastTokenizerFromConfig`
     (or its parents class `PreTrainedTokenizer`) cannot be easily extended for training
     flexible tokenizers with a variety of (changing) parameters.
 
@@ -23,26 +24,14 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerFast):
     that class is a Rust port and offers limited functionality within the Hugging Face ecosystem.
     This class provides a workaround for this limitation.
 
-    While something like `FastTokenizerFromConfig` would be more appropriate, that is not
-    a signature that is currently supported by the Hugging Face Tokenizer API and will throw
-    a warning if loaded. In older versions of the library, it will throw an error. As such,
-    overwriting the `PreTrainedTokenizerFast` signature is a temporary compromise.
-
     Methods
     -------
     train_from_config(
         dataset,
-        model,
-        normalizer,
-        pre_tokenizer,
-        decoder,
-        post_processor,
-        special_tokens,
-        vocab_size,
-        batch_size,
+        config,
         **kwargs
     ):
-        Trains a tokenizer based on provided configuration and dataset.
+        Trains a tokenizer based on provided dataset and configuration.
         Components generally follow the huggingface `Tokenizers` API,
         though full cross-compatibility is not guaranteed.
 
@@ -55,17 +44,10 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerFast):
 
     @classmethod
     def train_from_config(
-        cls,
-        dataset: List[str],
-        model: str = "unigram",
-        normalizer: Union[str, List[str]] = "nfkc",
-        pre_tokenizer: Union[str, List[str]] = "metaspace",
-        decoder: str = "metaspace",
-        post_processor: bool = False,
-        special_tokens: List[Union[str, AddedToken]] = None,
-        vocab_size: Union[int, str] = "auto",
-        batch_size: int = 1000,
-        **kwargs
+            cls,
+            dataset: List[str],
+            config: TokenizerConfig,
+            **kwargs
     ):
 
         """
@@ -74,23 +56,10 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerFast):
         Parameters
         ----------
         dataset : list of str
-            A list of strings representing the dataset.
-        model : str, optional
-            The model type for the tokenizer (default is "unigram").
-        normalizer : Union[str, list of str], optional
-            The normalizer(s) to use (default is "nfkc").
-        pre_tokenizer : Union[str, list of str], optional
-            The pre-tokenizer(s) to use (default is "metaspace").
-        decoder : str, optional
-            The decoder to use (default is "metaspace").
-        post_processor : bool, optional
-            Whether to use an MLM-based post-processor (default is False).
-        special_tokens : list of Union[str, AddedToken], optional
-            A list of special tokens to add (default is None).
-        vocab_size : Union[int, str], optional
-            The vocabulary size or "auto" to predict it (default is "auto").
-        batch_size : int, optional
-            The batch size for training (default is 1000).
+            A list of documents representing the dataset.
+        config : TokenizerConfig
+            A configuration object for the tokenizer.
+            See `wqe.utils.config.TokenizerConfig` for details.
         **kwargs
             Additional keyword arguments.
 
@@ -101,50 +70,44 @@ class PreTrainedTokenizerFast(PreTrainedTokenizerFast):
         """
 
         logger.info("Building tokenizer from config:")
-        tokenizer = Tokenizer(PARAM_MAP["model"][model]())
+
+        tokenizer = Tokenizer(PARAM_MAP["model"][config.model.type](**config.model.args))
+        special_tokens = config.special_tokens
         tokenizer.add_special_tokens(list(special_tokens.values()))
 
-        # Handle normalizer
-        if isinstance(normalizer, str):
-            tokenizer.normalizer = PARAM_MAP["normalizer"][normalizer]()
-        else:
+        if isinstance(config.normalizer, list):
             tokenizer.normalizer = normalizers.Sequence(
-                [PARAM_MAP["normalizer"][norm]() for norm in normalizer]
+                [PARAM_MAP["normalizer"][norm.type](**norm.args) for norm in config.normalizer]
             )
-
-        # Handle pre_tokenizer
-        if isinstance(pre_tokenizer, str):
-            tokenizer.pre_tokenizer = PARAM_MAP["pre_tokenizer"][pre_tokenizer]()
         else:
+            tokenizer.normalizer = PARAM_MAP["normalizer"][config.normalizer.type](**config.normalizer.args)
+
+        if isinstance(config.pre_tokenizer, list):
             tokenizer.pre_tokenizer = pre_tokenizers.Sequence(
-                [PARAM_MAP["pre_tokenizer"][pt]() for pt in pre_tokenizer]
+                [PARAM_MAP["pre_tokenizer"][pt.type](**pt.args) for pt in config.pre_tokenizer]
             )
+        else:
+            tokenizer.pre_tokenizer = PARAM_MAP["pre_tokenizer"][config.pre_tokenizer.type](**config.pre_tokenizer.args)
 
-        tokenizer.decoder = PARAM_MAP["decoder"][decoder]()
+        tokenizer.decoder = PARAM_MAP["decoder"][config.decoder.type](**config.decoder.args)
 
-        # Determine vocab_size
-        if vocab_size == "auto":
-            vocab_size = cls.predict_vocab_size(len("".join(dataset)))
+        vocab_size = cls.predict_vocab_size(len("".join(dataset))) if config.vocab_size == "auto" else config.vocab_size
 
-        trainer = PARAM_MAP["trainer"][model](
+        trainer = PARAM_MAP["trainer"][config.trainer.type](
             vocab_size=vocab_size,
             special_tokens=list(special_tokens.values()),
-            unk_token=special_tokens["unk_token"]
+            unk_token=special_tokens["unk_token"],
+            **config.trainer.args
         )
 
-        if post_processor:
-            tokenizer.post_processor = processors.TemplateProcessing(
-                single="[CLS] $A [SEP]",
-                pair="[CLS] $A [SEP] $B:1 [SEP]:1",
-                special_tokens=[("[CLS]", 1), ("[SEP]", 2)]
-            )
+        logging.info(f"Training {config.model.type} tokenizer on {len(dataset)} samples...")
 
-        logging.info(f"Training tokenizer_cfg on {len(dataset)} samples...")
         tokenizer.train_from_iterator(
-            cls.batch_iterator(dataset, batch_size=batch_size),
+            cls.batch_iterator(dataset, batch_size=config.batch_size),
             trainer=trainer,
             length=len(dataset)
         )
+
         logging.info(f"Trained a tokenizer_cfg with vocab size: {tokenizer.get_vocab_size()}")
 
         return cls(tokenizer_object=tokenizer, **special_tokens, **kwargs)

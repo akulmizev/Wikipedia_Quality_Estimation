@@ -1,96 +1,140 @@
 import logging
 
-from abc import ABC, abstractmethod
 from dataclasses import asdict
+from typing import Dict, Optional, Union
 
-import evaluate
-import tqdm
 import torch
 import wandb
 
-from accelerate import Accelerator
-from transformers import CONFIG_MAPPING
-from transformers import get_scheduler
+from datasets import Dataset, DatasetDict
+from transformers import get_scheduler, PreTrainedTokenizerFast
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
+from tqdm import tqdm
 
 from .mixins import ModelInitMixin
-from ..utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING as TASK_MAP
+from ..tokenizer.tokenizer import FastTokenizerFromConfig
+from ..utils.config import TrainingParameters
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# class ModelFromConfig:
-#
-#     def __init__(self,
-#                  config,
-#                  export_path=None,
-#                  **kwargs):
-#         self.__dict__.update(config.__dict__)
-#         # self.torch_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32
-#         self.torch_dtype = torch.float32
-#         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-#         self.export_path = export_path
-#         self.accelerator = Accelerator(project_dir=self.export_path) if self.export_path else Accelerator()
-#         self.model = None
-#         self.collator = None
-#         self.wandb = False
-#
-#     def init_wandb(self, project, entity, parameters):
-#         wandb.init(
-#             project=project,
-#             entity=entity,
-#             config={**parameters.__dict__}
-#         )
-#
-#         self.wandb = True
-#
-#     def _tokenize_and_collate(self, dataset):
-#         raise NotImplementedError("Subclasses must implement this method.")
-#
-#     def _eval_loop(self, loader):
-#         raise NotImplementedError("Subclasses must implement this method.")
-#
-#     def train(self, dataset):
-#         raise NotImplementedError("Subclasses must implement this method.")
-#
-#     def test(self, dataset):
-#         raise NotImplementedError("Subclasses must implement this method.")
-
-
 class ModelFromConfig(ModelInitMixin):
+
+    """
+    Base class for loading and training a model from a configuration.
+
+    Parameters
+    ----------
+    load_path : str
+        The path to the model config file to load for training from scratch.
+        Can also be the huggingface model string or path to a hub model,
+        e.g. "bert-base-uncased" or "path/to/model".
+    config : TrainingParameters
+        Configuration for the training parameters.
+        See `wqe.utils.config.TrainingParameters` for details.
+    checkpoint_path : Union[str, None], optional
+        Path to save the model checkpoint during training (default is None).
+
+    Attributes
+    ----------
+    load_path : str
+        Path to load the model from.
+    _model : torch.nn.Module
+        The model instance. Defined in subclasses.
+    tokenizer : PreTrainedTokenizerFast or FastTokenizerFromConfig
+        The tokenizer for the model. Defined in subclasses.
+    collator : callable
+        The collator function for the data loader. Defined in subclasses.
+    """
+
     def __init__(
             self,
-            config,
-            export_path=None
+            load_path: str,
+            config: TrainingParameters,
+            checkpoint_path: Optional[Union[str, None]] = None
     ):
-        super().__init__(export_path=export_path, **asdict(config))
-        self.model = None
+        super().__init__(**asdict(config), checkpoint_path=checkpoint_path)
+        self.load_path = load_path
+        self._model = None
+        self.tokenizer = None
         self.collator = None
-        # self.metrics = self._init_metrics()
+        
+    @property
+    def model(self):
+        return self._model
 
-    def _tokenize_and_collate(self, dataset):
+    def __getattr__(self, item):
+        return getattr(self._model, item)
+
+    def _init_model_and_tokenizer(
+            self,
+            dataset: DatasetDict = None,
+            tokenizer: Optional[Union[PreTrainedTokenizerFast, FastTokenizerFromConfig]] = None
+    ):
+
+        """
+        Initializes the model and tokenizer. Also initializes the collator function, if applicable.
+        This is heavily task-dependent and must be implemented in subclasses.
+        """
+
         raise NotImplementedError("Subclasses must implement this method.")
 
-    def _init_metrics(self):
-        pass
+    def _tokenize_and_collate(self, dataset: Dataset) -> DataLoader:
 
-    def _prepare_for_training(self, dataset):
+        """
+        Tokenizes and collates the dataset into a data loader.
+        """
+
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    def _eval_loop(self, loader) -> Dict[str, float]:
+
+        """
+        Performs an evaluation loop on the given data loader.
+        """
+
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    def _prepare_for_training(
+            self,
+            dataset: DatasetDict
+    ) -> Dict[str, DataLoader]:
+
+        """
+        Prepares the model, optimizers, and schedulers for training.
+
+        Parameters
+        ----------
+        dataset : DatasetDict
+            The dataset to use for training.
+
+        Returns
+        -------
+        Dict[str, DataLoader]
+            A dictionary containing the data loaders for different splits
+            (e.g., 'train', 'validation', 'test').
+
+        Raises
+        ------
+        ValueError
+            If the 'train' split is not present in the dataset.
+        """
 
         splits = dataset.keys()
         if "train" not in splits:
-            raise ValueError("Train split must be present in the dataset_cfg.")
+            raise ValueError("Train split must be present in the dataset.")
 
-        logger.info("Tokenizing and batching datasets...")
+        logger.info("Tokenizing and batching datasets.")
+
         loaders = {split: self._tokenize_and_collate(dataset[split]) for split in splits}
-        loaders["train"].shuffle = True
 
         self.num_train_steps = self.num_train_epochs * len(loaders["train"])
-        self.eval_steps = len(loaders["train"]) if self.eval_steps is None else self.eval_steps
+        self.num_eval_steps = len(loaders["train"]) if self.num_eval_steps is None else self.num_eval_steps
 
         self.optimizer = AdamW(
-            self.model.parameters(),
+            self._model.parameters(),
             lr=float(self.lr),
             weight_decay=0.05
         )
@@ -102,61 +146,154 @@ class ModelFromConfig(ModelInitMixin):
             num_training_steps=self.num_train_steps
         )
 
-        self.model, self.optimizer = self.accelerator.prepare(self.model, self.optimizer)
+        self._model, self.optimizer = self.accelerator.prepare(self._model, self.optimizer)
         for k, loader in loaders.items():
             loaders[k] = self.accelerator.prepare(loader)
 
         self.accelerator.register_for_checkpointing(self.scheduler)
-        self.model.gradient_checkpointing_enable()
+        self._model.gradient_checkpointing_enable()
 
         return loaders
 
-    def _eval_loop(self, loader):
-        pass
+    def _get_average_loss(
+            self,
+            loader: DataLoader
+    ) -> float:
 
-    def train(self, dataset, eval_split="validation"):
+        """
+        Calculates the average loss over the given data loader.
+        Primarily used for checkpointing.
 
+        Parameters
+        ----------
+        loader : DataLoader
+            The data loader to use for calculating the average loss.
+
+        Returns
+        -------
+        float
+            The average loss over the data loader.
+        """
+
+        running_loss = 0.0
+        for batch in loader:
+            with torch.no_grad():
+                outputs = self._model(**batch)
+                loss = outputs.loss
+                running_loss += loss.item()
+        eval_loss = running_loss / len(loader)
+        return eval_loss
+
+    def train(
+            self,
+            dataset: DatasetDict,
+            tokenizer: Optional[Union[PreTrainedTokenizerFast, FastTokenizerFromConfig]] = None,
+            eval_split: str = "validation"
+    ):
+
+        """
+        Trains the model on the provided dataset using a generic training loop.
+        Checkpoints the model at the end of each epoch if a checkpoint path is provided.
+        Uses `eval_split` for evaluation during training, as well as checkpointing.
+        If `eval_split` is not present in the dataset, saves model at the end of each epoch.
+        Otherwise, saves model at the epoch with the lowest loss on the evaluation split.
+
+        Parameters
+        ----------
+        dataset : DatasetDict
+            The dataset to use for training and evaluation.
+            Can be a wqe.data.loader.WikiLoader instance.
+        tokenizer : PreTrainedTokenizerFast or FastTokenizerFromConfig, optional
+            The tokenizer to use for the model.
+            Should only be provided if training from scratch with a config.
+            If not provided, tries to load the tokenizer via the model string, e.g. "bert-base-uncased".
+        eval_split : str, optional
+            The split to use for evaluation during training (default is 'validation').
+        """
+
+        self._init_model_and_tokenizer(dataset=dataset, tokenizer=tokenizer)
         loaders = self._prepare_for_training(dataset)
-        progress_bar = tqdm(range(self.num_train_steps))
         running_loss = torch.inf
+        progress_bar = tqdm(range(self.num_train_steps))
+
+        logger.info(f"Training model for {self.num_train_epochs} epoch(s) ({self.num_train_steps} steps).")
 
         for epoch in range(self.num_train_epochs):
-            self.model.train()
+            self._model.train()
             for i, batch in enumerate(loaders["train"]):
-                outputs = self.model(**batch)
+                outputs = self._model(**batch)
                 loss = outputs.loss
-                if wandb:
-                    wandb.log({"loss": loss.item()})
-                loss.backward()
+                loss_str = f"Step {(i+1) + (epoch * len(loaders['train']))} | Loss: {loss.item():.4f}"
+
+                progress_bar.set_description(loss_str)
+                progress_bar.update(1)
+                if self.wandb:
+                    wandb.log({"train": {"loss": loss.item()}})
+
+                self.accelerator.backward(loss)
                 self.optimizer.step()
                 self.scheduler.step()
                 self.optimizer.zero_grad()
-                progress_bar.update(1)
-                if i+1 % self.eval_steps == 0:
+
+                if (i+1) % self.num_eval_steps == 0:
                     if eval_split in loaders:
                         scores = self._eval_loop(loaders[eval_split])
-                        for score in scores:
-                            # logger.info(f"{k} at epoch {epoch}: {v}")
-                            if self.wandb:
-                                wandb.log(score)
-                        self.model.train()
+                        scores_str = " | ".join([f"val. {k}: {v:.4f}" for k, v in scores.items()])
+                        logger.info(f"Step {(i+1) + (epoch * len(loaders['train']))} | {scores_str}")
+                        if self.wandb:
+                            wandb.log({"val": scores})
+                        self._model.train()
+                    else:
+                        logger.warning(f"No {eval_split} split found. Skipping evaluation.")
 
-            if self.save_checkpoint:
-                loss = 0.0
-                for i, batch in enumerate(loaders[eval_split]):
-                    outputs = self.model(**batch)
-                    loss += outputs.loss.item()
-                eval_loss = loss / len(loaders[eval_split])
-                if eval_loss < running_loss:
-                    logger.info(f"Saving model checkpoint at epoch {epoch}.")
-                    self.model.save_pretrained(self.export_path)
-                    running_loss = eval_loss
+            if self.checkpoint_path:
+                if eval_split not in loaders:
+                    logger.warning(f"No {eval_split} split found. Saving model checkpoint anyway.")
+                    self.accelerator.save_state(self.checkpoint_path)
+                else:
+                    loss = self._get_average_loss(loaders[eval_split])
+                    if loss < running_loss:
+                        logger.info(f"Saving model checkpoint at epoch {epoch}.")
+                        self.accelerator.save_state(self.checkpoint_path)
 
-    def test(self, dataset):
+        progress_bar.close()
+        logger.info("Training complete.")
 
-        loader = self._tokenize_and_collate(dataset)
+    def test(
+            self,
+            dataset: DatasetDict,
+            split: str = "test"
+    ):
+
+        """
+        Evaluates the model on the given dataset split.
+
+        Parameters
+        ----------
+        dataset : DatasetDict
+            The dataset to use for evaluation.
+        split : str, optional
+            The split to use for evaluation (default is 'test').
+        """
+
+        logger.info(f"Running evaluation on {split} split...")
+        loader = self._tokenize_and_collate(dataset[split])
         loader = self.accelerator.prepare(loader)
         scores = self._eval_loop(loader)
-        for score in scores:
-            if self.wandb:
-                wandb.log(score)
+        logger.info(" | ".join([f"{k}: {v:.4f}" for k, v in scores.items()]))
+        if self.wandb:
+            wandb.log({"test": scores})
+
+    def save(self, path: str):
+
+        """
+        Saves the model and optimizer state to the specified path.
+
+        Parameters
+        ----------
+        path : str
+            The path to save the model to.
+        """
+
+        logger.info(f"Saving model to {path}.")
+        self.accelerator.save_state(self.checkpoint_path)

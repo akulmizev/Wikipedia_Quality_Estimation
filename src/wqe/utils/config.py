@@ -3,18 +3,6 @@ from typing import Any, Dict, List, Union, Optional
 
 
 @dataclass
-class Load:
-    method: str
-    path: Optional[str] = None
-
-    def __post_init__(self):
-        if self.method not in ["local", "hub", "raw", "config", "pretrained"]:
-            raise ValueError(f"Invalid load method: {self.method}")
-        if self.method in ["local", "hub", "pretrained"] and not self.path:
-            raise ValueError(f"Path is required for {self.method} method")
-
-
-@dataclass
 class PreFilter:
     script_regex: Optional[bool] = None
     lang_id: Optional[bool] = None
@@ -29,10 +17,6 @@ class Partition:
     tokenizer: Optional[str] = None
     join_method: Optional[str] = "union"
 
-    def __post_init__(self):
-        if self.method not in ["mean_cutoff", "median_cutoff", "balanced_docs", "balanced_chars"]:
-            raise ValueError(f"Invalid partition method: {self.method}")
-
 
 @dataclass
 class Split:
@@ -42,46 +26,66 @@ class Split:
 
 
 @dataclass
-class TokenizerParameters:
-    model: str = "unigram"
-    normalizer: str = "nkfc"
-    pre_tokenizer: Union[str, List[str]] = "byte_level"
-    decoder: str = "byte_level"
+class TokenizerComponent:
+    type: str
+    args: Dict[str, Any]
+
+
+@dataclass
+class TokenizerConfig:
+    model: Dict[str, Any]
+    trainer: Dict[str, Any]
+    normalizer: Union[Dict[str, Any], List[Dict[str, Any]]]
+    pre_tokenizer: Union[Dict[str, Any], List[Dict[str, Any]]]
+    decoder: Dict[str, Any]
     vocab_size: Union[int, str] = "auto"
-    trainer: str = "unigram"
+    batch_size: int = 1000
     special_tokens: Dict[str, str] = field(
         default_factory=lambda: {
             "pad_token": "[PAD]",
             "mask_token": "[MASK]",
             "cls_token": "[CLS]",
-            "sep_token": "[SEP]"
+            "sep_token": "[SEP]",
+            "bos_token": "[BOS]",
+            "eos_token": "[EOS]",
+            "unk_token": "[UNK]",
         }
     )
-    unk_token: str = "[UNK]"
-    post_processor: Optional[bool] = False
-    min_frequency: Optional[int] = None
 
-    # TODO: Add type-checking for parameters
+    @staticmethod
+    def convert_to_tokenizer_component(
+            data: Union[Dict[str, Any], List[Dict[str, Any]]]
+    ) -> Union[TokenizerComponent, List[TokenizerComponent]]:
+
+        if isinstance(data, list):
+            return [TokenizerComponent(type=d.pop("type").lower(), args=d) for d in data]
+        else:
+            return TokenizerComponent(type=data.pop("type").lower(), args=data)
+
+    def __post_init__(self):
+        for attr in ["model", "trainer", "normalizer", "pre_tokenizer", "decoder"]:
+            value = getattr(self, attr)
+            setattr(self, attr, self.convert_to_tokenizer_component(value))
 
 
 @dataclass
 class TrainingParameters:
-    model_type: str
-    num_train_epochs: int
+    model_type: str = "bert-base-uncased"
+    task: str = "classification"
+    num_train_epochs: int = 10
     max_length: int = 512
     batch_size: int = 8
     lr: float = 1e-3
+    padding_strategy: str = "max_length"
     mask_prob: Optional[float] = None
-    eval_steps: Optional[int] = None
-
-    # TODO: Consolidate for fine-tuning, which might have different params
+    num_eval_steps: Optional[int] = None
 
 
 @dataclass
 class Experiment:
     experiment_id: str = "default"
-    wiki_id: Optional[str] = "sw"
-    local_path: Optional[str] = field(default=None, metadata={"help": "Local path to save experiment_cfg dataset_cfg"})
+    wiki_id: str = "simple"
+    local_path: Optional[str] = None
     hub_path: Optional[str] = None
     wandb_entity: Optional[str] = None
 
@@ -109,71 +113,56 @@ class Tokenizer:
     export: bool = False
     push_to_hub: bool = False
     load_path: Optional[str] = None
-    parameters: Optional[Dict[str, Union[str, int, bool, Dict[str, str]]]] = None
+    tokenizer_config: Optional[Dict[str, Union[str, int, bool, Dict[str, str]]]] = None
 
     def __post_init__(self):
-        # if not self.load:
-        #     raise ValueError("Load is required if calling tokenizer_cfg.")
-        # self.load = Load(**self.load)
-        # if self.load.method == "config" and not self.parameters:
-        #     raise ValueError("Parameters are required for config-based tokenizer_cfg training.")
-        if self.parameters:
-            self.parameters = TokenizerParameters(**self.parameters)
+        if self.tokenizer_config:
+            self.tokenizer_config = TokenizerConfig(**self.tokenizer_config)
 
 
 @dataclass
 class Pretrain:
-    load: Dict[str, str]
-    task: str
-    export: bool
+    load_path: str
+    export: bool = False
     push_to_hub: bool = False
-    do_train: bool = False
     training_parameters: Optional[Dict[str, Union[str, int, float, bool]]] = None
-    test_data: Optional[Dict[str, str]] = None
+    checkpoint: Optional[bool] = False
+    test_path: Optional[str] = None
 
     def __post_init__(self):
-        if not self.load:
-            raise ValueError("Load is required if calling pretrain_cfg.")
-        self.load = Load(**self.load)
         if self.training_parameters:
             self.training_parameters = TrainingParameters(**self.training_parameters)
-        if self.test_data:
-            self.test_data = Load(**self.test_data)
 
 
 @dataclass
 class Finetune:
-    load: Dict[str, str]
-    task: str
+    load_path: str
     dataset_path: str
-    export: bool
+    export: bool = False
     push_to_hub: bool = False
     do_train: bool = False
     training_parameters: Optional[Dict[str, Union[str, int, float, bool]]] = None
 
     def __post_init__(self):
-        if not self.load:
-            raise ValueError("Load is required if calling finetune_cfg.")
-        self.load = Load(**self.load)
         if self.training_parameters:
             self.training_parameters = TrainingParameters(**self.training_parameters)
 
 
 @dataclass
 class MainConfig:
-    experiment_cfg: Dict[str, Any]
-    dataset_cfg: Optional[Dict[str, Any]] = None
-    tokenizer_cfg: Optional[Dict[str, Any]] = None
-    pretrain_cfg: Optional[Dict[str, Any]] = None
-    finetune_cfg: Optional[Dict[str, Any]] = None
+    experiment: Dict[str, Any]
+    dataset: Optional[Dict[str, Any]] = None
+    tokenizer: Optional[Dict[str, Any]] = None
+    pretrain: Optional[Dict[str, Any]] = None
+    finetune: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
-        self.experiment_cfg = Experiment(**self.experiment_cfg)
-        if self.dataset_cfg:
-            self.dataset_cfg = Dataset(**self.dataset_cfg)
-        if self.tokenizer_cfg:
-            self.tokenizer_cfg = Tokenizer(**self.tokenizer_cfg)
-        if self.pretrain_cfg:
-            self.pretrain_cfg = Pretrain(**self.pretrain_cfg)
-        if self.finetune_cfg:
-            self.finetune_cfg = Finetune(**self.finetune_cfg)
+        self.experiment = Experiment(**self.experiment)
+        if self.dataset:
+            self.dataset = Dataset(**self.dataset)
+        if self.tokenizer:
+            self.tokenizer = Tokenizer(**self.tokenizer)
+        if self.pretrain:
+            self.pretrain = Pretrain(**self.pretrain)
+        if self.finetune:
+            self.finetune = Finetune(**self.finetune)

@@ -4,14 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wqe"
-version = "2024.05.30"
+version = "2024.06.10"
 requires-python = ">=3.10"
 authors = [
     {name = "Artur Kulmizev", email = "artur.kulmizev@kuleuven.be"},
     {name = "Kushal Tatariya", email = "kushal.tatariya@kuleuven.be"}
 ]
 maintainers = [
-    {name = "Artur Kulmizev", email = "artur.kulmizev@kuleuven.be"}
+    {name = "Artur Kulmizev", email = "artur.kulmizev@kuleuven.be"},
+    {name = "Kushal Tatariya", email = "kushal.tatariya@kuleuven.be"}
 ]
 description = "A package for loading and filtering Wikipedia data."
 readme = "README.md"
@@ -25,13 +26,16 @@ dependencies = [
     "tokenizers",
     "transformers",
     "accelerate",
-    "huggingface_hub",
     "fasttext",
     "nltk",
+    "evaluate",
     "scikit-learn",
-    "wandb",
-    "tqdm"
+    "seqeval",
+    "wandb"
 ]
+
+[project.scripts]
+wqe = "wqe.cli.cli:run_experiment"
 
 [project.urls]
 "Homepage" = "https://github.com/kushaltatariya/Wikipedia_Quality_Estimation"

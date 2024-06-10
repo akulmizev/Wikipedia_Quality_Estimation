@@ -49,6 +49,8 @@ TOKENIZER_PARAM_MAP = {
         "nfkc": normalizers.NFKC,
         "nfkd": normalizers.NFKD,
         "nmt": normalizers.Nmt,
+        "prepend": normalizers.Prepend,
+        "replace": normalizers.Replace
     },
     "pre_tokenizer": {
         "byte_level": pre_tokenizers.ByteLevel,

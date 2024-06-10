@@ -1,38 +1,170 @@
-# Wikipedia_Quality_Estimation
-This is the GitHub for the Wikipedia Quality Estimation Project. All code can be uploaded here. Feel free to create your own branches if necessary!
+# Wikipedia Quality Estimation
 
-The idea here is to have a stream-lined easy-to-run repo which would conceptually follow this framework:
-- partition.py (containing all partition functions)
-- train.py (containing code to train tiny BERT/GPT per language per partition function)
-- finetune.py (containing code to finetune each model on downstream tasks)
-- evaluate.py
-- run.sh (containing one slurm file that runs everything)
+wqe (Wikipedia Quality Estimation) is a simple toolkit for working with 
+Wikipedia data in Python. It allows for loading and processing of Wikipedia
+articles across all supported languages, as well as selecting high quality
+data for training and evaluation of machine learning models.
 
-### To generate splits on partition functions:
-`python partition.py --language [-l] as --partition [-p] stupid_filters` 
-- Specify language in the ISO-2 format.
-- Specify the partition function. Options:
-  -   length
-  -   unique_words
-  -   unique_subwords
-  -   unique_trigrams
-  -   word_length
-  -   english_chars
-  -   stupid_filters (runs all of the above in one function)
-- You can also specify whether you want to use the raw version of the wikiepdia, or the filtered one (where text has been filtered on a regex that removes all latin chars in non-latin languages, and then further filtered using a language ID model) by:
- 
-`python partition.py -l <language> -p <partition> --filtered True/False`
+## Installation
 
-It is set to `True` by default.
+To install the package, simply run:
 
+```
+git clone https://github.com/kushaltatariya/Wikipedia_Quality_Estimation
+cd Wikipedia_Quality_Estimation
+pip install . 
+```
 
-Running this script will create the splits and push them to huggingface hub.
+If you would like to install the package in development mode, run:
 
-### To see stats per partition function:
+```
+pip install -e .
+```
 
-`python partition.py -l <language> -p stats`
+## Example Usage in Python
 
-This will create a directory called 'stats' and save csv files for every partition function, which you can then explore in the jupyter notebook `stats.ipynb`.
+### Load and process the Simple English Wikipedia:
 
-### To add new partition functions:
-The class `Partition()` loads the specified wikipedia upon calling, and creates two variables - `self.language` (containing the language code) and `self.dataset` (containing the huggingface dataset). These are accessible to all the functions contained in `class Partition()`. To add your own partition, define a function in the class partition that returns a string of high_quality and low_quality examples separated by a newline. That function can then be called under main(). 
+```python
+from wqe import WikiLoader
+
+# Load the Hausa wiki
+wiki = WikiLoader('ha')
+wiki.load_dataset()
+wiki.pre_filter(script_regex=True, char_cutoff=100)
+wiki.apply_partition(
+  ["length", "unique_trigrams"], 
+  method="median_cutoff",
+  quality=True
+)
+```
+This will load the Hausa wiki via `wikimedia/wikipedia`
+on the huggingface `datasets` hub, apply a regex filter to remove
+unrecognized scripts (e.g. not `Latn` for English), and filter out articles with less 
+than 100 characters. It will then apply a partition function to select the
+articles with the highest character and unique trigram counts. 
+Currently supported partitions are:
+
+- `length`: article length in characters
+- `unique_trigrams`: number of unique trigrams in the article
+- `unique_words`: number of unique words
+- `unique_chars`: number of unique characters
+- `unique_character_trigrams`: number of unique character trigrams
+- `unique_subwords`: number of unique subwords (tokenizer required)
+- `unique_subword_trigrams`: number of unique subword trigrams (tokenizer required)
+- `alpha_chars`: number of alphabetic characters in the article (`[a-zA-Z]`)
+
+To see which languages are supported, call:
+
+```python
+from wqe import WikiLoader
+
+WikiLoader.show_available_wikis()
+```
+
+... which outputs:
+
+```commandline
+Wiki ID        Language                                639-3     Scripts                       
+----------------------------------------------------------------------------------------
+ab             Abkhazian                               abk       Cyrl                          
+ace            Achinese                                ace       Latn, Arab                    
+ady            Adyghe                                  ady       Cyrl                          
+af             Afrikaans                               afr       Latn                          
+...
+diq            Zazaki                                  diq       Latn                          
+zea            Zeelandic                               zea       Latn                          
+za             Zhuang                                  zha       Hani, Latn                    
+zu             Zulu                                    zul       Latn                    
+```
+
+For details about the Python usage, see `./docs`. 
+
+## Command Line Interface
+
+wqe also provides a `hydra`-powered command line interface (CLI) for working with Wikipedia data. 
+To load, process, and partition the Hausa Wikipedia, run:
+
+```commandline
+wqe --config-dir ./config/wqe +experiment=basic +dataset=basic
+```
+
+This assumes a directory structure like the following:
+
+```
+config/wqe
+├── dataset
+│   └── basic.yaml
+├── experiment
+│   └── basic.yaml
+├── finetune
+│   └── basic.yaml
+├── pretrain
+│   └── basic.yaml
+└── tokenizer
+    └── basic.yaml
+```
+
+... where `basic.yaml` is a configuration file for the respective task to be run, e.g.:
+
+```yaml
+# config/wqe/dataset/basic.yaml
+
+pre_filter:
+  script_regex: false
+  lang_id: false
+  char_cutoff: 100
+
+partition:
+  method: "balanced_chars"
+  metric: "length"
+  join_method: "intersection"
+
+split:
+  test_size: 0.1
+  seed: 42
+  shuffle: true
+
+export: true
+push_to_hub: true
+```
+
+The CLI assumes by default that the `experiment` config is provided, which contains
+high-level settings for the experiment, e.g.:
+
+```yaml
+# config/wqe/experiment/basic.yaml
+
+wiki_id: "ha"
+experiment_id: "my_experiment"
+wandb_entity: "wikiquality" #optional
+local_path: "./experiments" #optional
+hub_path: "WikiQuality" #optional
+```
+
+Given the provided config files, it is possible to load, process, and partition
+a wiki dataset, train a tokenizer on it, and pass the components to `transformers`
+for further language model pre-training and/or fine-tuning:
+
+```commandline
+wqe --config-dir ./config/wqe +experiment=basic +dataset=basic +tokenizer=basic +pretrain=basic +finetune=basic
+```
+
+To avoid generating separate config files for slight variations of an experiment,
+it is likewise possible to pass overriding arguments directly to the CLI, e.g.:
+
+```commandline
+wqe --config-dir ./config/wqe \
++experiment=basic experiment.wiki_id="zu" \
++dataset=basic dataset.partition.metric="unique_trigrams" \
++tokenizer=basic tokenizer.vocab_size=10000 \
++pretrain=basic pretrain.checkpoint=True
++finetune=basic
+```
+
+All arguments are type-checked in `wqe.utils.config` and processed via 
+`wqe.experiment.experiment.ExperimentRunner`. For more details, see `./docs`.
+
+## License
+
+This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](LICENSE) file for details.

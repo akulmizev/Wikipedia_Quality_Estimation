@@ -1,211 +1,128 @@
 import logging
+import math
 
-from typing import Optional
+from typing import Dict, Optional, Union
 
-import evaluate
-import numpy as np
 import torch
-import wandb
 
-from tqdm import tqdm
-from transformers import CONFIG_MAPPING
-from transformers import AutoModelForMaskedLM
-from transformers import DataCollatorForLanguageModeling
-from transformers import get_scheduler
-from transformers import PreTrainedTokenizerFast
+from datasets import Dataset, DatasetDict
+from datasets.utils.logging import set_verbosity_error
+from tokenizers.processors import TemplateProcessing
 from torch.utils.data import DataLoader
-from torch.optim import AdamW
+from transformers import (
+    CONFIG_MAPPING,
+    AutoModelForMaskedLM,
+    AutoModelForCausalLM,
+    DataCollatorForLanguageModeling,
+    PreTrainedTokenizerFast
+)
 
 from .base import ModelFromConfig
+from ..tokenizer.tokenizer import FastTokenizerFromConfig
 from ..utils.config import TrainingParameters
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+set_verbosity_error()
+
 
 class MLM(ModelFromConfig):
-    def __init__(self,
-                 config,
-                 tokenizer,
-                 load_method,
-                 load_path,
-                 **kwargs
-                 ):
 
-        super().__init__(config, **kwargs)
-        self.tokenizer = tokenizer
-        self.collator = DataCollatorForLanguageModeling(
-            tokenizer=self.tokenizer,
-            mlm=True,
-            mlm_probability=self.mask_prob
-        )
+    """
+    Class for Masked Language Model (MLM) training and evaluation.
+    Works with BERT, RoBERTa, and DeBERTa models out of the box,
+    but can be extended to other models.
 
-        if load_method == "config":
-            model_config = CONFIG_MAPPING[self.model_type].from_json_file(load_path)
-            model_config.vocab_size = self.tokenizer.vocab_size
-            logger.info(f"Initializing model with config: {model_config}")
-            self.model = AutoModelForMaskedLM.from_config(model_config)
+    Parameters
+    ----------
+    load_path : str
+        Path to load the model from (used in `_init_model_and_tokenizer`).
+        If the path ends with ".json", the model will be initialized from a local config file.
+        TODO: Make this check more robust.
+    config : TrainingParameters
+        Configuration object for training parameters.
+        See `wqe.utils.config.TrainingParameters` for more details.
+    checkpoint_path : str, optional
+        Path to save model checkpoints during training (default is None).
 
-        elif load_method == "hub":
-            logger.info(f"Loading model from hub: {load_path}.")
-            self.model = AutoModelForMaskedLM.from_pretrained(f"{load_path}")
+    Methods
+    -------
+    _init_model_and_tokenizer(dataset=None, tokenizer=None)
+        Initializes the model and tokenizer.
+    _tokenize_and_collate(dataset)
+        Tokenizes and collates a dataset into a PyTorch DataLoader.
+    _eval_loop(loader)
+        Performs an evaluation loop on the given DataLoader and returns loss and perplexity scores.
+    """
 
-        else:
-            raise ValueError("`from_config` or `from_pretrained` must be in the configuration.")
+    def __init__(
+            self,
+            load_path: str,
+            config: TrainingParameters,
+            **kwargs
+    ):
 
-        self.model = self.model.to(self.device, dtype=self.torch_dtype)
-        logger.info(f"{self.model.config.model_type} for MLM loaded.")
-        logger.info(f"Number of parameters: {round(self.model.num_parameters() / 1e6)}M")
+        super().__init__(load_path, config, **kwargs)
 
-    def _tokenize_and_collate(self, dataset):
+    def _init_model_and_tokenizer(
+            self,
+            dataset: DatasetDict = None,
+            tokenizer: Optional[Union[PreTrainedTokenizerFast, FastTokenizerFromConfig]] = None
+    ):
 
-        batched_dataset = dataset.map(
-            lambda examples: self.tokenizer(
-                examples["text"],
-                max_length=self.max_length,
-                padding="max_length",
-                truncation=True,
-                return_overflowing_tokens=True),
-            batched=True,
-            remove_columns=dataset.column_names
-        )
+        """
+        Initializes the model and tokenizer for MLM.
+        If model was initialized with a local config file, the tokenizer must be provided.
 
-        batched_dataset = batched_dataset.remove_columns("overflow_to_sample_mapping")
+        Parameters
+        ----------
+        dataset : DatasetDict, optional
+            The dataset to use for initializing the model and tokenizer.
+            Generally not needed here, as no labels are required.
+        tokenizer : PreTrainedTokenizerFast or FastTokenizerFromConfig, optional
+            The tokenizer to use for the model.
+            If not provided, the tokenizer will be loaded from the hub.
+        """
 
-        loader = DataLoader(
-            batched_dataset,
-            collate_fn=self.collator,
-            batch_size=self.batch_size,
-            shuffle=True
-        )
+        if self.load_path.endswith(".json"):
+            assert tokenizer is not None, "Tokenizer must be provided when training from scratch."
 
-        return loader
-
-    def _eval_loop(self, loader):
-
-        running = 0.0
-        for batch in loader:
-            with torch.no_grad():
-                outputs = self.model(**batch)
-                loss = outputs.loss
-                running += loss.item()
-        eval_loss = running / len(loader)
-        perplexity = np.exp(eval_loss)
-
-        return eval_loss, perplexity
-
-    def train(self, dataset):
-
-        splits = dataset.keys()
-        if "train" not in splits or "test" not in splits:
-            raise ValueError("Both train and test splits must be present in the dataset_cfg.")
-        if len(splits) > 2:
-            logger.warning("More than two splits present. Ignoring all but train and test.")
-
-        logger.info("Tokenizing and batching datasets...")
-        loaders = {split: self._tokenize_and_collate(dataset[split]) for split in splits}
-        if "train" in loaders:
-            loaders["train"].shuffle = True
-
-        num_train_epochs = self.num_train_epochs
-        num_train_steps = num_train_epochs * len(loaders["train"])
-        optimizer = AdamW(
-            self.model.parameters(),
-            lr=float(self.lr),
-            weight_decay=0.05
-        )
-        scheduler = get_scheduler(
-            "linear",
-            optimizer=optimizer,
-            num_warmup_steps=500,
-            num_training_steps=num_train_steps
-        )
-
-        self.model, optimizer, loaders["train"], loaders["test"] = \
-            self.accelerator.prepare(
-                self.model,
-                optimizer,
-                loaders["train"],
-                loaders["test"]
-            )
-        self.accelerator.register_for_checkpointing(scheduler)
-        self.model.save_pretrained(self.export_path)
-
-        logger.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
-        progress_bar = tqdm(range(num_train_steps))
-        running_loss = torch.inf
-
-        self.model.gradient_checkpointing_enable()
-
-        for epoch in range(num_train_epochs):
-            self.model.train()
-            for i, batch in enumerate(loaders["train"]):
-                outputs = self.model(**batch)
-                loss = outputs.loss
-                if self.wandb:
-                    wandb.log({"train_loss": loss.item()})
-                    wandb.log({"train_ppl": torch.exp(loss).item()})
-                self.accelerator.backward(loss / 4)
-                if (i + 1) % 4 == 0:
-                    # loss.backward()
-                    optimizer.step()
-                    scheduler.step()
-                    optimizer.zero_grad()
-                progress_bar.update(1)
-
-                if i % self.eval_steps == 0:
-                    self.model.eval()
-                    eval_loss, perplexity = self._eval_loop(loaders["test"])
-                    if self.wandb:
-                        wandb.log({"eval_loss": eval_loss})
-                        wandb.log({"eval_ppl": perplexity})
-                    self.model.train()
-
-            self.model.eval()
-            eval_loss, perplexity = self._eval_loop(loaders["test"])
-            # if self.wandb:
-            #     wandb.log({"eval_loss": eval_loss})
-            #     wandb.log({"eval_ppl": perplexity})
-            # logger.info(f"Eval loss: {round(eval_loss, 2)}, PPL: {round(perplexity, 2)}")
-            if eval_loss < running_loss:
-                logger.info(f"Saving model checkpoint at epoch {epoch}.")
-                self.model.save_pretrained(self.export_path)
-                running_loss = eval_loss
-
-        self.accelerator.end_training()
-        eval_loss, perplexity = self._eval_loop(loaders["test"])
-        if self.wandb:
-            wandb.log({"eval_loss": eval_loss})
-            wandb.log({"eval_ppl": perplexity})
-
-        logger.info("Training complete.")
-
-    def test(self, dataset):
-
-        loader = self._tokenize_and_collate(dataset)
-        loader = self.accelerator.prepare(loader) 
-        loss, perplexity = self._eval_loop(loader)
-
-        if self.wandb:
-            wandb.summary["test_loss"] = round(loss, 2)
-            wandb.summary["test_ppl"] = round(perplexity, 2)
-
-
-class MLMTest:
-    def __init__(self,
-                 load_path: str,
-                 config: TrainingParameters,
-                 tokenizer: Optional[str] = None,
-                 **kwargs
-                 ):
-
-        super().__init__(config, **kwargs)
-        self.metrics = self._init_metrics()
-
-        if isinstance(tokenizer, PreTrainedTokenizerFast):
             self.tokenizer = tokenizer
+            self.tokenizer.processor = TemplateProcessing(
+                single="[CLS] $A [SEP]",
+                pair="[CLS] $A [SEP] $B:1 [SEP]:1",
+                special_tokens=[
+                    ("[CLS]", self.tokenizer.cls_token_id),
+                    ("[SEP]", self.tokenizer.sep_token_id)
+                ]
+            )
+
+            model_config = CONFIG_MAPPING[self.model_type].from_json_file(self.load_path)
+            model_config.vocab_size = self.tokenizer.vocab_size
+            for special_token in self.tokenizer.special_tokens_map.keys():
+                special_token_id = getattr(self.tokenizer, f"{special_token}_id")
+                setattr(
+                    model_config,
+                    f"{special_token}_token_id",
+                    special_token_id)
+
+            logger.info(f"Initializing model with config: \n{model_config}")
+
+            self._model = AutoModelForMaskedLM.from_config(model_config)
+
         else:
-            self.tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer)
+            if not tokenizer:
+                logger.warning("Tokenizer not provided. Loading tokenizer from hub.")
+                self.tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{self.load_path}")
+
+            logger.info(f"Loading model from hub: {self.load_path}.")
+            self._model = AutoModelForMaskedLM.from_pretrained(f"{self.load_path}")
+
+        self._model = self._model.to(self.device, dtype=self.torch_dtype)
+
+        logger.info(f"{self._model.config.model_type} for {self.task} loaded.")
+        logger.info(f"Number of parameters: {round(self._model.num_parameters() / 1e6)}M")
 
         self.collator = DataCollatorForLanguageModeling(
             tokenizer=self.tokenizer,
@@ -213,31 +130,30 @@ class MLMTest:
             mlm_probability=self.mask_prob
         )
 
-        if load_path.endswith(".json"):
-            model_config = CONFIG_MAPPING[self.model_type].from_json_file(load_path)
-            model_config.vocab_size = self.tokenizer.vocab_size
-            logger.info(f"Initializing model with config: {model_config}")
-            self.model = AutoModelForMaskedLM.from_config(model_config)
-        else:
-            logger.info(f"Loading model from hub: {load_path}.")
-            self.model = AutoModelForMaskedLM.from_pretrained(f"{load_path}")
+    def _tokenize_and_collate(
+            self,
+            dataset: Dataset
+    ) -> DataLoader:
 
-        self.model = self.model.to(self.device, dtype=self.torch_dtype)
-        logger.info(f"{self.model.config.model_type} for MLM loaded.")
-        logger.info(f"Number of parameters: {round(self.model.num_parameters() / 1e6)}M")
+        """
+        Tokenizes and collates a dataset into a PyTorch DataLoader.
 
-    @staticmethod
-    def _init_metrics():
+        Parameters
+        ----------
+        dataset : Dataset
+            The dataset to tokenize and collate.
 
-        return [evaluate.load("loss"), evaluate.load("perplexity")]
-
-    def _tokenize_and_collate(self, dataset):
+        Returns
+        -------
+        DataLoader
+            The PyTorch DataLoader for the tokenized and collated dataset.
+        """
 
         batched_dataset = dataset.map(
             lambda examples: self.tokenizer(
                 examples["text"],
+                padding=self.padding_strategy,
                 max_length=self.max_length,
-                padding="max_length",
                 truncation=True,
                 return_overflowing_tokens=True),
             batched=True,
@@ -255,16 +171,113 @@ class MLMTest:
 
         return loader
 
-    def _eval_loop(self, loader):
+    def _eval_loop(
+            self,
+            loader: DataLoader
+    ) -> Dict[str, float]:
 
-        loss = 0.0
+        """
+        Performs an evaluation loop on the given DataLoader and returns loss and perplexity scores.
+        Warning: perplexity should be taken with a grain of salt, as it is not well-defined for MLMs.
+
+        Parameters
+        ----------
+        loader : DataLoader
+            The PyTorch DataLoader to use for evaluation.
+
+        Returns
+        -------
+        Dict[str, float]
+            A dictionary containing the 'loss' and 'perplexity' scores.
+        """
+
+        running_loss = []
         for batch in loader:
             with torch.no_grad():
-                outputs = self.model(**batch)
-                loss = outputs.loss
-                loss += loss.item()
-        eval_loss = loss / len(loader)
-        perplexity = np.exp(eval_loss)
+                outputs = self._model(**batch)
+            loss = outputs.loss
+            running_loss.append(loss.item())
+        eval_loss = math.fsum(running_loss) / len(running_loss)
+        perplexity = math.exp(eval_loss)
 
         return {"loss": eval_loss, "perplexity": perplexity}
 
+
+class CLM(MLM):
+
+    """
+    Class for Causal Language Model (CLM) training and evaluation.
+    Inherits from MLM, as the only difference is the task type.
+
+    Parameters
+    ----------
+    load_path : str
+        Path to load the model from (used in `_init_model_and_tokenizer`).
+        If the path ends with ".json", the model will be initialized from a local config file.
+    config : TrainingParameters
+        Configuration object for training parameters.
+        See `wqe.utils.config.TrainingParameters` for more details.
+
+    Methods
+    -------
+    _init_model_and_tokenizer(dataset=None, tokenizer=None)
+        Initializes the model and tokenizer for Causal Language Modeling.
+    """
+
+    def __init__(
+            self,
+            load_path: str,
+            config: TrainingParameters,
+            **kwargs
+    ):
+
+        super().__init__(load_path, config, **kwargs)
+
+    def _init_model_and_tokenizer(
+            self,
+            dataset: DatasetDict = None,
+            tokenizer: Optional[Union[PreTrainedTokenizerFast, FastTokenizerFromConfig]] = None
+    ):
+
+        """
+        Initializes the model and tokenizer for CLM.
+
+        Parameters
+        ----------
+        dataset : DatasetDict, optional
+            The dataset to use for initializing the model and tokenizer.
+        tokenizer : PreTrainedTokenizerFast or FastTokenizerFromConfig, optional
+            The tokenizer to use for the model.
+        """
+
+        if self.load_path.endswith(".json"):
+            assert tokenizer is not None, "Tokenizer must be provided when training from scratch."
+
+            self.tokenizer = tokenizer
+            model_config = CONFIG_MAPPING[self.model_type].from_json_file(self.load_path)
+            model_config.vocab_size = self.tokenizer.vocab_size
+
+            for special_token in self.tokenizer.special_tokens_map.keys():
+                special_token_id = getattr(self.tokenizer, f"{special_token}_id")
+                setattr(
+                    model_config,
+                    f"{special_token}_token_id",
+                    special_token_id)
+
+            logger.info(f"Initializing model with config: \n{model_config}")
+
+            self._model = AutoModelForCausalLM.from_config(model_config)
+        else:
+            if not tokenizer:
+                logger.warning("Tokenizer not provided. Loading tokenizer from hub.")
+                self.tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{self.load_path}")
+
+            logger.info(f"Loading model from hub: {self.load_path}.")
+            self._model = AutoModelForCausalLM.from_pretrained(f"{self.load_path}")
+
+        self._model = self._model.to(self.device, dtype=self.torch_dtype)
+
+        logger.info(f"{self._model.config.model_type} for {self.task} loaded.")
+        logger.info(f"Number of parameters: {round(self._model.num_parameters() / 1e6)}M")
+
+        self.collator = DataCollatorForLanguageModeling(tokenizer=self.tokenizer, mlm=False)

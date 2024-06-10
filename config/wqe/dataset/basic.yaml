@@ -1,0 +1,19 @@
+# load_path: "WikiQuality/raw_wiki"
+
+pre_filter:
+  script_regex: false
+  lang_id: false
+  char_cutoff: 100
+
+partition:
+  method: "balanced_chars"
+  metric: "length"
+  join_method: "intersection"
+
+split:
+  test_size: 0.1
+  seed: 42
+  shuffle: true
+
+export: true
+push_to_hub: true

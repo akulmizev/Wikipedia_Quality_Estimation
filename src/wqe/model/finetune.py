@@ -1,146 +1,191 @@
 import logging
 
-# import numpy as np
-import torch
-import wandb
+from typing import Union
 
-from sklearn.metrics import classification_report, precision_recall_fscore_support
-from tqdm import tqdm
-from transformers import get_scheduler, PreTrainedTokenizerFast
+import evaluate
+import torch
+
+from datasets import DatasetDict
 from torch.utils.data import DataLoader
-from torch.optim import AdamW
+from transformers import (
+    AutoModelForTokenClassification,
+    AutoModelForSequenceClassification,
+    DataCollatorForTokenClassification,
+    DataCollatorWithPadding,
+    PreTrainedTokenizerFast
+)
 
 from .base import ModelFromConfig
-from ..utils.maps import TASK_TO_MODEL_AND_COLLATOR_MAPPING
+from ..tokenizer import FastTokenizerFromConfig
+from ..utils.config import TrainingParameters
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class GenericModelForFineTuning(ModelFromConfig):
+class Tagger(ModelFromConfig):
 
-    def __init__(self,
-                 config,
-                 label_set,
-                 load_path,
-                 task,
-                 **kwargs
-                 ):
+    """
+    Class for token-level classification tasks, such as
+    Named Entity Recognition (NER) and Part-of-Speech (POS) tagging.
+    Only NER and POS are supported for now.
 
-        super().__init__(config, **kwargs)
+    Parameters
+    ----------
+    load_path : str
+        Path to load the model from (either a local path or a Hugging Face Hub path).
+    config : TrainingParameters
+        Configuration object for training parameters.
+    **kwargs
+        Additional keyword arguments for the parent class.
 
-        self.label_set = label_set
-        self.label_to_id = {label: i for i, label in enumerate(self.label_set)}
-        self.id_to_label = {i: label for i, label in enumerate(self.label_set)}
-        self.task = task
+    Attributes
+    ----------
+    label_set : List[str]
+        List of labels for the task.
+        Assumes the `tags` feature in the dataset.
+    metrics : evaluate.EvaluationModule
+        Evaluation metrics for the task.
 
-        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(load_path)
-        self.collator = TASK_TO_MODEL_AND_COLLATOR_MAPPING[self.task]["collator"](tokenizer=self.tokenizer)
-        self.model = TASK_TO_MODEL_AND_COLLATOR_MAPPING[self.task]["model"].from_pretrained(
-            load_path,
+    Methods
+    -------
+    _init_model_and_tokenizer(dataset=None, tokenizer=None)
+        Initializes the model and tokenizer for the task.
+    _init_metrics()
+        Initializes the evaluation metrics for the task.
+    _align_labels(example)
+        Aligns the token-level labels with the tokenized input.
+    _tokenize_and_collate(dataset)
+        Tokenizes and collates a dataset into a PyTorch DataLoader.
+    _eval_loop(loader)
+        Performs an evaluation loop on the given DataLoader and returns the evaluation scores.
+    _eval_loop_ner(loader)
+        Performs an evaluation loop for the NER task.
+    _eval_loop_pos(loader)
+        Performs an evaluation loop for the POS tagging task.
+    """
+
+    def __init__(
+            self,
+            load_path: str,
+            config: TrainingParameters,
+            **kwargs
+    ):
+
+        super().__init__(load_path, config, **kwargs)
+
+        self._init_metrics()
+
+    def _init_model_and_tokenizer(
+            self,
+            dataset: DatasetDict = None,
+            tokenizer: Union[PreTrainedTokenizerFast, FastTokenizerFromConfig] = None
+    ):
+
+        """
+        Initialize the model and tokenizer for tagging.
+
+        Parameters
+        ----------
+        dataset : DatasetDict, optional
+            The dataset used for the task.
+            Assumes the `tags` feature in the dataset.
+        tokenizer : Union[PreTrainedTokenizerFast, FastTokenizerFromConfig], optional
+            The tokenizer to be used. Generally not needed, as the tokenizer will be loaded
+            from the same path as the model.
+        """
+
+        self.label_set = dataset["train"].features["tags"].feature.names
+
+        self._model = AutoModelForTokenClassification.from_pretrained(
+            self.load_path,
             num_labels=len(self.label_set),
-            id2label=self.id_to_label,
-            label2id=self.label_to_id
+            id2label={i: label for i, label in enumerate(self.label_set)},
+            label2id={label: i for i, label in enumerate(self.label_set)}
         )
-        self.model = self.model.to(self.device, dtype=self.torch_dtype)
+        self._model = self._model.to(self.device, dtype=self.torch_dtype)
 
-    def _tokenize_and_collate(self, dataset):
+        self.tokenizer = tokenizer if tokenizer else PreTrainedTokenizerFast.from_pretrained(self.load_path)
+        self.collator = DataCollatorForTokenClassification(tokenizer=self.tokenizer)
 
-        raise NotImplementedError("Subclasses must implement this method.")
+        logger.info(f"{self._model.config.model_type} for {self.task} loaded.")
+        logger.info(f"Number of parameters: {round(self._model.num_parameters() / 1e6)}M")
 
-    def _eval_loop(self, loader, split="validation"):
+    def _init_metrics(self):
 
-        raise NotImplementedError("Subclasses must implement this method.")
+        """
+        Initialize the evaluation metrics for the task.
+        """
 
-    def train(self, dataset):
-
-        splits = dataset.keys()
-        logger.info("Tokenizing and batching datasets...")
-        loaders = {split: self._tokenize_and_collate(dataset[split]) for split in splits}
-        if "train" in loaders:
-            loaders["train"].shuffle = True
-
-        num_train_epochs = self.num_train_epochs
-        num_train_steps = num_train_epochs * len(loaders["train"])
-        optimizer = AdamW(self.model.parameters(), lr=float(self.lr))
-        scheduler = get_scheduler(
-            "linear",
-            optimizer=optimizer,
-            num_warmup_steps=0,
-            num_training_steps=num_train_steps
-        )
-
-        self.model, optimizer = self.accelerator.prepare(self.model, optimizer)
-        for k, loader in loaders.items():
-            loaders[k] = self.accelerator.prepare(loader)
-
-        logger.info(f"Training for {num_train_epochs} epochs with {num_train_steps} steps.")
-        progress_bar = tqdm(range(num_train_steps))
-        for epoch in range(num_train_epochs):
-            self.model.train()
-            for i, batch in enumerate(loaders["train"]):
-                outputs = self.model(**batch)
-                loss = outputs.loss
-                if wandb:
-                    wandb.log({"loss": loss.item()})
-                loss.backward()
-                optimizer.step()
-                scheduler.step()
-                optimizer.zero_grad()
-                progress_bar.update(1)
-
-            if "validation" in loaders:
-                scores = self._eval_loop(loaders["validation"], split="validation")
-                wandb.log(scores)
-                if epoch + 1 == num_train_epochs:
-                    wandb.run.summary.update(scores)
-
-        if "test" in loaders:
-            scores = self._eval_loop(loaders["test"], split="test")
-            wandb.run.summary.update(scores)
-
-
-class Tagger(GenericModelForFineTuning):
-    def __init__(self, config, **kwargs):
-        super().__init__(config, task="tagger", **kwargs)
+        if self.task == "ner":
+            self.metrics = evaluate.load("seqeval")
+        elif self.task == "pos":
+            # Not adding f1 because, at time of writing, the zero_division argument
+            # is not supported in `evaluate` for f1, despite being implemented
+            # in the underlying `sklearn` function. It will be computed manually in
+            # the `_eval_loop_pos` method.
+            self.metrics = evaluate.combine(["precision", "recall"])
+        else:
+            raise ValueError(f"Task {self.task} not supported. Only 'ner' and 'pos' are supported for now.")
 
     def _align_labels(self, example):
+
+        """
+        Align the token-level labels with the tokenized input.
+        Have to ignore special tokens and common prefixes/suffixes.
+
+        Parameters
+        ----------
+        example : dict
+            A single example from the dataset.
+
+        Returns
+        -------
+        dict
+            The tokenized input with aligned labels.
+        """
+
+        TO_IGNORE = ["Ġ", "▁", "##", "Ċ"] + list(self.tokenizer.special_tokens_map.values())
+
         tokenized_input = self.tokenizer(
             example["tokens"],
-            is_split_into_words=True,
+            padding=self.padding_strategy,
+            max_length=self.max_length if self.padding_strategy == "max_length" else None,
+            is_split_into_words=True
         )
-
-        # seen = []
-        # labels = []
-        # for idx in tokenized_input.word_ids()[1:-1]:
-        #     seen.append(idx)
-        #     if Counter(seen)[idx] == 2:
-        #         labels.append(example["tags"][idx])
-        #     else:
-        #         labels.append(-100)
 
         seen = set()
         labels = []
-        word_ids = list(tokenized_input.word_ids())
-        for i in range(len(word_ids)):
-            idx = word_ids[i]
-            if i == 0 or len(word_ids) - i == 1:
+        for i, word_id in enumerate(tokenized_input.word_ids()):
+            token_id = tokenized_input["input_ids"][i]
+            tag_id = example["tags"][word_id] if word_id is not None else -100
+            if self.tokenizer.convert_ids_to_tokens(token_id) in TO_IGNORE:
                 labels.append(-100)
-            elif tokenized_input['input_ids'][i] == 7:  #so as to not assign a label to the metaspace char
-                labels.append(-100)
-            elif idx in seen:
+            elif word_id in seen:
                 labels.append(-100)
             else:
-                labels.append(example["tags"][idx])
-                seen.add(idx)
+                labels.append(tag_id)
+                seen.add(word_id)
 
-        # tokenized_input["labels"] = [-100] + labels + [-100]
-
-        tokenized_input['labels'] = labels
+        tokenized_input["labels"] = labels
 
         return tokenized_input
 
     def _tokenize_and_collate(self, dataset):
+
+        """
+        Tokenize and collate a dataset into a PyTorch DataLoader.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The dataset to be tokenized and collated.
+
+        Returns
+        -------
+        DataLoader
+            A PyTorch DataLoader containing the tokenized and collated dataset.
+        """
 
         batched_dataset = dataset.map(
             self._align_labels,
@@ -155,112 +200,279 @@ class Tagger(GenericModelForFineTuning):
 
         return loader
 
-    def _eval_loop(self, loader, split="validation"):
+    def _eval_loop(self, loader):
 
-        self.model.eval()
+        """
+        Perform an evaluation loop on the given DataLoader and return scores.
+        Have to differentiate between NER and POS tagging tasks since `seqeval` only supports NER.
 
-        results = {"preds": [], "labels": []}
+        Parameters
+        ----------
+        loader : DataLoader
+            A PyTorch DataLoader containing the data to be evaluated.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the evaluation scores (precision, recall, f1).
+        """
+
+        if self.task == "ner":
+            return self._eval_loop_ner(loader)
+        elif self.task == "pos":
+            return self._eval_loop_pos(loader)
+
+    def _eval_loop_ner(self, loader):
+
+        """
+        Perform an evaluation loop for NER.
+
+        Parameters
+        ----------
+        loader : DataLoader
+            A PyTorch DataLoader containing the data to be evaluated.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the evaluation scores (precision, recall, f1) for NER.
+        """
+
+        self._model.eval()
+
         for batch in loader:
+
             with torch.no_grad():
-                outputs = self.model(**batch)
-                predictions = outputs.logits.argmax(dim=-1)
-                labels = batch["labels"]
+                outputs = self._model(**batch)
 
-                # Necessary to pad predictions and labels for being gathered
-                predictions = self.accelerator.pad_across_processes(
-                    predictions, dim=1, pad_index=-100
+            preds = torch.argmax(outputs.logits, dim=-1)
+            idx_to_keep = batch["labels"] != -100
+
+            filtered_preds = [
+                list(map(
+                    self.label_set.__getitem__,
+                    preds[i][idx_to_keep[i]].detach().cpu().tolist())
                 )
-                labels = self.accelerator.pad_across_processes(
-                    labels, dim=1, pad_index=-100
+                for i in range(len(preds))
+            ]
+
+            filtered_labels = [
+                list(map(
+                    self.label_set.__getitem__,
+                    batch["labels"][i][idx_to_keep[i]].detach().cpu().tolist())
                 )
+                for i in range(len(preds))
+            ]
 
-                predictions = self.accelerator.gather(predictions).detach().cpu().clone().numpy()
-                labels = self.accelerator.gather(labels).detach().cpu().clone().numpy()
+            self.metrics.add_batch(predictions=filtered_preds, references=filtered_labels)
 
-                true_labels = [l for label in labels for l in label if l != -100]
-                true_preds = [
-                    p for prediction, label in zip(predictions, labels)
-                    for p, l in zip(prediction, label) if l != -100
-                ]
+        scores = self.metrics.compute(zero_division=0.0)
 
-                results["preds"].extend(true_preds)
-                results["labels"].extend(true_labels)
+        return {
+            "precision": scores["overall_precision"],
+            "recall": scores["overall_recall"],
+            "f1": scores["overall_f1"]
+        }
 
-        scores = precision_recall_fscore_support(
-            results["labels"],
-            results["preds"],
-            labels=[i for i in range(len(self.label_set))],
-            zero_division=0.0,
-            average="weighted"
+    def _eval_loop_pos(self, loader):
+
+        """
+        Perform an evaluation loop for POS.
+
+        Parameters
+        ----------
+        loader : DataLoader
+            A PyTorch DataLoader containing the data to be evaluated.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the evaluation scores (precision, recall, f1) for POS.
+        """
+
+        self._model.eval()
+
+        for batch in loader:
+
+            with torch.no_grad():
+                outputs = self._model(**batch)
+
+            preds = torch.argmax(outputs.logits, dim=-1)
+            idx_to_keep = batch["labels"] != -100
+
+            filtered_preds = preds[idx_to_keep].detach().cpu().tolist()
+            filtered_labels = batch["labels"][idx_to_keep].detach().cpu().tolist()
+
+            self.metrics.add_batch(predictions=filtered_preds, references=filtered_labels)
+
+        scores = self.metrics.compute(average="weighted", zero_division=0.0)
+
+        return {
+            "precision": scores["precision"],
+            "recall": scores["recall"],
+            # See note in `_init_metrics` method for why this is computed manually
+            "f1": scores["precision"] * scores["recall"] / (scores["precision"] + scores["recall"]) * 2
+        }
+
+
+class Classifier(ModelFromConfig):
+
+    """
+    Class for sequence classification tasks.
+
+    Parameters
+    ----------
+    load_path : str
+        Path to load the model from (either a local path or a Hugging Face Hub path).
+    config : TrainingParameters
+        Configuration object for training parameters.
+    **kwargs
+        Additional keyword arguments for the parent class.
+
+    Attributes
+    ----------
+    label_set : List[str]
+        List of labels for the task.
+        Assumes the `labels` feature in the dataset.
+    metrics : evaluate.EvaluationModule
+        Evaluation metrics for the task.
+
+    Methods
+    -------
+    _init_model_and_tokenizer(dataset=None, tokenizer=None)
+        Initializes the model and tokenizer for the task.
+    _init_metrics()
+        Initializes the evaluation metrics for the task.
+    _tokenize_and_collate(dataset)
+        Tokenizes and collates a dataset into a PyTorch DataLoader.
+    _eval_loop(loader)
+        Performs an evaluation loop on the given DataLoader and returns the evaluation scores.
+    """
+
+    def __init__(
+            self,
+            load_path: str,
+            config: TrainingParameters,
+            **kwargs
+    ):
+
+        super().__init__(load_path, config, **kwargs)
+
+        self._init_metrics()
+
+    def _init_model_and_tokenizer(
+            self,
+            dataset: DatasetDict = None,
+            tokenizer: Union[PreTrainedTokenizerFast, FastTokenizerFromConfig] = None
+    ):
+
+        """
+        Initialize the model and tokenizer for classification.
+
+        Parameters
+        ----------
+        dataset : DatasetDict, optional
+            The dataset used for the task.
+            Assumes the `labels` feature in the dataset.
+        tokenizer : Union[PreTrainedTokenizerFast, FastTokenizerFromConfig], optional
+            The tokenizer to be used. Generally not needed, as the tokenizer will be loaded
+            from the same path as the model.
+        """
+
+        self.label_set = dataset["train"].features["labels"].names
+
+        self._model = AutoModelForSequenceClassification.from_pretrained(
+            self.load_path,
+            num_labels=len(self.label_set),
+            id2label={i: label for i, label in enumerate(self.label_set)},
+            label2id={label: i for i, label in enumerate(self.label_set)}
         )
+        self._model = self._model.to(self.device, dtype=self.torch_dtype)
 
-        score_dict = {f"{split}_{k}": v for (k, v) in zip(["precision", "recall", "f1"], scores[:3])}
+        self.tokenizer = tokenizer if tokenizer else PreTrainedTokenizerFast.from_pretrained(self.load_path)
+        self.collator = DataCollatorWithPadding(tokenizer=self.tokenizer)
 
-        return score_dict
+        logger.info(f"{self._model.config.model_type} for {self.task} loaded.")
+        logger.info(f"Number of parameters: {round(self._model.num_parameters() / 1e6)}M")
 
+    def _init_metrics(self):
 
-class Classifier(GenericModelForFineTuning):
-    def __init__(self, config, **kwargs):
-        super().__init__(config, task="classifier", **kwargs)
+        """
+        Initialize the evaluation metrics for the task.
+        """
+
+        self.metrics = evaluate.combine(["precision", "recall"])
 
     def _tokenize_and_collate(self, dataset):
+
+        """
+        Tokenize and collate a dataset into a PyTorch DataLoader.
+        Assumes `text` and `labels` are features in the dataset.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The dataset to be tokenized and collated.
+
+        Returns
+        -------
+        DataLoader
+            A PyTorch DataLoader containing the tokenized and collated dataset.
+        """
+
         batched_dataset = dataset.map(
             lambda examples: self.tokenizer(
                 examples["text"],
-                max_length=self.max_length,
-                padding="max_length",
+                padding=self.padding_strategy,
+                max_length=self.max_length if self.padding_strategy == "max_length" else None,
                 truncation=True
             ),
             batched=True,
-            remove_columns=["text"]
+            remove_columns=[column for column in dataset.column_names if column != "labels"]
         )
+
+        batched_dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
 
         loader = DataLoader(
             batched_dataset,
-            collate_fn=self.collator,
             batch_size=self.batch_size,
-            shuffle=True
+            shuffle=True,
+            collate_fn=self.collator
         )
 
         return loader
 
-    def _eval_loop(self, loader, split="validation"):
-        self.model.eval()
+    def _eval_loop(self, loader):
 
-        results = {"preds": [], "labels": []}
+        """
+        Perform an evaluation loop on the DataLoader and return scores (precision, recall, f1).
+
+        Parameters
+        ----------
+        loader : DataLoader
+            A PyTorch DataLoader containing the data to be evaluated.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the evaluation scores (precision, recall, f1).
+        """
+
+        self._model.eval()
+
         for batch in loader:
             with torch.no_grad():
-                outputs = self.model(**batch)
-                predictions = outputs.logits.argmax(dim=-1)
-                labels = batch["labels"]
+                outputs = self._model(**batch)
 
-                # Necessary to pad predictions and labels for being gathered
-                predictions = self.accelerator.pad_across_processes(
-                    predictions, dim=1, pad_index=-100
-                )
-                labels = self.accelerator.pad_across_processes(
-                    labels, dim=1, pad_index=-100
-                )
+            preds = torch.argmax(outputs.logits, dim=-1)
+            labels = batch["labels"]
+            self.metrics.add_batch(predictions=preds, references=labels)
 
-                results["preds"].extend(self.accelerator.gather(predictions).detach().cpu().clone().numpy().tolist())
-                results["labels"].extend(self.accelerator.gather(labels).detach().cpu().clone().numpy().tolist())
+        scores = self.metrics.compute(average="weighted", zero_division=0.0)
 
-        # report = classification_report(
-        #     results["labels"],
-        #     results["preds"],
-        #     labels=[i for i in range(len(self.label_set))],
-        #     target_names=self.label_set,
-        #     zero_division=0.0
-        # )
-
-        scores = precision_recall_fscore_support(
-            results["labels"],
-            results["preds"],
-            labels=[i for i in range(len(self.label_set))],
-            zero_division=0.0,
-            average="weighted"
-        )
-
-        score_dict = {f"{split}_{k}": v for (k, v) in zip(["precision", "recall", "f1"], scores[:3])}
-
-        return score_dict
+        return {
+            "precision": scores["precision"],
+            "recall": scores["recall"],
+            # See note in `_init_metrics` method for why this is computed manually
+            "f1": scores["precision"] * scores["recall"] / (scores["precision"] + scores["recall"]) * 2
+        }
