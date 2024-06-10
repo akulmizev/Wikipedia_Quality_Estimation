@@ -23,7 +23,7 @@ pip install -e .
 
 ## Example Usage in Python
 
-### Load and process the Simple English Wikipedia:
+### Load and process the Hausa Wikipedia:
 
 ```python
 from wqe import WikiLoader
