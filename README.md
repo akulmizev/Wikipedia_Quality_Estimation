@@ -46,14 +46,14 @@ articles with the highest character and unique trigram counts.
 
 The output should look like this:
 ```
-[2024-06-11 09:29:38,056][wqe.data.loader][INFO] - Loaded 36492 articles with 74084110 characters (train). Wiki: ha
-[2024-06-11 09:29:38,056][wqe.data.loader][INFO] - Filtering documents for accepted scripts: ['Latn']
-[2024-06-11 09:29:43,694][wqe.data.loader][INFO] - Removing documents shorter than 100 characters.
-[2024-06-11 09:29:44,021][wqe.data.loader][INFO] - Removed 1499515 chars (0.0202%).
-[2024-06-11 09:29:44,021][wqe.data.loader][INFO] - Removed 3244 documents shorter than 100 characters.
-[2024-06-11 09:29:44,021][wqe.data.loader][INFO] - Partitioning dataset by length, unique_trigrams...
-[2024-06-11 09:29:53,928][wqe.data.loader][INFO] - Removed 37432666 chars (0.5157108887912097%).
-[2024-06-11 09:29:53,928][wqe.data.loader][INFO] - Removed 29425 docs (0.8850156400384985%).
+[2024-06-11 09:53:13,765][wqe.data.loader][INFO] - Loaded 36492 articles with 74084110 characters (train). Wiki: ha
+[2024-06-11 09:53:13,765][wqe.data.loader][INFO] - Filtering documents for accepted scripts: ['Latn']
+[2024-06-11 09:53:19,282][wqe.data.loader][INFO] - Removing documents shorter than 100 characters.
+[2024-06-11 09:53:19,608][wqe.data.loader][INFO] - Removed 1499515 chars (0.0202%).
+[2024-06-11 09:53:19,608][wqe.data.loader][INFO] - Removed 3244 documents shorter than 100 characters.
+[2024-06-11 09:53:19,608][wqe.data.loader][INFO] - Partitioning dataset by length, unique_trigrams...
+[2024-06-11 09:53:29,460][wqe.data.loader][INFO] - Removed 37432666 chars (0.5157%).
+[2024-06-11 09:53:29,460][wqe.data.loader][INFO] - Removed 29425 docs (0.8850%).
 ```
 
 Currently supported partition functions are:
