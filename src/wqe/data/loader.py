@@ -484,8 +484,8 @@ class WikiLoader:
         self.n_chars = len("".join(self.data["train"]["text"]))
         self.n_docs = len(self.data["train"])
 
-        logger.info(f"Removed {raw_chars - self.n_chars} chars ({1.0 - self.n_chars / raw_chars}%).")
-        logger.info(f"Removed {raw_docs - self.n_docs} docs ({1.0 - self.n_docs / raw_docs}%).")
+        logger.info(f"Removed {raw_chars - self.n_chars} chars ({1.0 - self.n_chars / raw_chars:.4f}%).")
+        logger.info(f"Removed {raw_docs - self.n_docs} docs ({1.0 - self.n_docs / raw_docs:.4f}%).")
 
         return self
 
