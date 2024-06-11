@@ -122,6 +122,6 @@ class ModelInitMixin:
             (f"Provided invalid task type: {self.task}."
              f"Must be one of 'mlm', 'clm', 'pos', 'ner', 'classification'.")
 
-        assert self.padding_strategy in ["max_length", "batch"], \
+        assert self.padding_strategy in ["max_length", "longest"], \
             (f"Provided invalid padding type: {self.padding_strategy}. "
-             f"Must be one of 'max_length', 'batch'.")
+             f"Must be one of 'max_length', 'longest'.")

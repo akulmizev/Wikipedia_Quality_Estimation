@@ -65,5 +65,7 @@ def validate_and_format_dataset(
             "Dataset must have a `label` column formatted as features."
         if "label" in dataset["train"].features:
             dataset = dataset.rename_column("label", "labels")
+        if "tweet" in dataset["train"].features:
+            dataset = dataset.rename_column("tweet", "text")
 
     return dataset
