@@ -43,7 +43,21 @@ on the huggingface `datasets` hub, apply a regex filter to remove
 unrecognized scripts (e.g. not `Latn` for English), and filter out articles with less 
 than 100 characters. It will then apply a partition function to select the
 articles with the highest character and unique trigram counts. 
-Currently supported partitions are:
+
+The output should look like this:
+```
+[2024-06-11 09:29:32,969][wqe.experiment.experiment][INFO] - Loaded experiment config for ha.
+[2024-06-11 09:29:38,056][wqe.data.loader][INFO] - Loaded 36492 articles with 74084110 characters (train). Wiki: ha
+[2024-06-11 09:29:38,056][wqe.data.loader][INFO] - Filtering documents for accepted scripts: ['Latn']
+[2024-06-11 09:29:43,694][wqe.data.loader][INFO] - Removing documents shorter than 100 characters.
+[2024-06-11 09:29:44,021][wqe.data.loader][INFO] - Removed 1499515 chars (0.0202%).
+[2024-06-11 09:29:44,021][wqe.data.loader][INFO] - Removed 3244 documents shorter than 100 characters.
+[2024-06-11 09:29:44,021][wqe.data.loader][INFO] - Partitioning dataset by length, unique_trigrams...
+[2024-06-11 09:29:53,928][wqe.data.loader][INFO] - Removed 37432666 chars (0.5157108887912097%).
+[2024-06-11 09:29:53,928][wqe.data.loader][INFO] - Removed 29425 docs (0.8850156400384985%).
+```
+
+Currently supported partition functions are:
 
 - `length`: article length in characters
 - `unique_trigrams`: number of unique trigrams in the article
