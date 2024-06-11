@@ -176,8 +176,11 @@ class WikiLoader:
 
         if load_path:
             try:
-                self.data = load_dataset(load_path, self.wiki.id)
-            except (DatasetNotFoundError, FileNotFoundError):
+                if os.path.exists(load_path):
+                    self.data = load_dataset(load_path)
+                else:
+                    self.data = load_dataset(load_path, self.wiki.id)
+            except (DatasetNotFoundError, FileNotFoundError, ValueError):
                 raise DatasetNotFoundError(f"Could not find dataset at {load_path}/{self.wiki.id}.")
         else:
             self.data = load_dataset(
