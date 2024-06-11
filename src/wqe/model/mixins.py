@@ -34,6 +34,10 @@ class ModelInitMixin:
         Padding strategy for input sequences ('max_length' or 'batch') (default is 'max_length').
     mask_prob : float, optional
         Probability for masking tokens during masked language modeling (default is 0.15).
+    grad_accumulation_steps : int, optional
+        Number of steps for gradient accumulation (default is 1).
+    mixed_precision : str, optional
+        Mixed precision training ('no', 'fp16', 'fp32', or 'bf16') (default is 'no').
     num_eval_steps : int, optional
         Number of steps between evaluation during training (default is None).
         If None, evaluation is performed at the end of each epoch.
@@ -51,7 +55,7 @@ class ModelInitMixin:
         Flag indicating whether to use Weights & Biases for logging.
     """
 
-    MAX_GPU_BATCH_SIZE = 128 #128 is good batch_size 1024, seqlen 128, and lr 1e-3
+    MAX_GPU_BATCH_SIZE = 128
 
     def __init__(
             self,
