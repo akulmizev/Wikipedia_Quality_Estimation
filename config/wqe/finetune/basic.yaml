@@ -1,9 +1,9 @@
 load_path: "./experiments/my_experiment/ha/model"
-dataset_path: "masakhane/masakhanews"
+dataset_path: "masakhane/masakhapos"
 
 training_parameters:
   model_type: "deberta"
-  task: "classification"
+  task: "pos"
   max_length: 512
   num_train_epochs: 10
   batch_size: 32

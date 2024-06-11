@@ -119,15 +119,14 @@ class MLM(ModelFromConfig):
             logger.info(f"Loading model from hub: {self.load_path}.")
             self._model = AutoModelForMaskedLM.from_pretrained(f"{self.load_path}")
 
-        self._model = self._model.to(self.device, dtype=self.torch_dtype)
-
         logger.info(f"{self._model.config.model_type} for {self.task} loaded.")
         logger.info(f"Number of parameters: {round(self._model.num_parameters() / 1e6)}M")
 
         self.collator = DataCollatorForLanguageModeling(
             tokenizer=self.tokenizer,
             mlm=True,
-            mlm_probability=self.mask_prob
+            mlm_probability=self.mask_prob,
+            pad_to_multiple_of=self.pad_to_multiple_of
         )
 
     def _tokenize_and_collate(
@@ -148,17 +147,18 @@ class MLM(ModelFromConfig):
         DataLoader
             The PyTorch DataLoader for the tokenized and collated dataset.
         """
-
-        batched_dataset = dataset.map(
-            lambda examples: self.tokenizer(
-                examples["text"],
-                padding=self.padding_strategy,
-                max_length=self.max_length,
-                truncation=True,
-                return_overflowing_tokens=True),
-            batched=True,
-            remove_columns=dataset.column_names
-        )
+        with self.accelerator.main_process_first():
+            batched_dataset = dataset.map(
+                lambda examples: self.tokenizer(
+                    examples["text"],
+                    padding=self.padding_strategy,
+                    # max_length=None,
+                    max_length=self.max_length,
+                    truncation=True,
+                    return_overflowing_tokens=True),
+                batched=True,
+                remove_columns=dataset.column_names
+            )
 
         batched_dataset = batched_dataset.remove_columns("overflow_to_sample_mapping")
 
@@ -166,7 +166,8 @@ class MLM(ModelFromConfig):
             batched_dataset,
             collate_fn=self.collator,
             batch_size=self.batch_size,
-            shuffle=True
+            shuffle=True,
+            pin_memory=True
         )
 
         return loader
@@ -275,9 +276,11 @@ class CLM(MLM):
             logger.info(f"Loading model from hub: {self.load_path}.")
             self._model = AutoModelForCausalLM.from_pretrained(f"{self.load_path}")
 
-        self._model = self._model.to(self.device, dtype=self.torch_dtype)
-
         logger.info(f"{self._model.config.model_type} for {self.task} loaded.")
         logger.info(f"Number of parameters: {round(self._model.num_parameters() / 1e6)}M")
 
-        self.collator = DataCollatorForLanguageModeling(tokenizer=self.tokenizer, mlm=False)
+        self.collator = DataCollatorForLanguageModeling(
+            tokenizer=self.tokenizer,
+            mlm=False,
+            pad_to_multiple_of=self.pad_to_multiple_of
+        )

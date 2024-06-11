@@ -3,12 +3,15 @@ load_path: "./config/model/tiny_deberta/config.json"
 training_parameters:
   model_type: "deberta"
   task: "mlm"
-  max_length: 512
+  max_length: 128
   mask_prob: 0.4
-  num_train_epochs: 1
-  batch_size: 8
+  num_train_epochs: 10
+  batch_size: 1024
   lr: 1e-03 #DO NOT CHANGE THIS
-  num_eval_steps: 500
+#  num_eval_steps: 500
+  padding_strategy: "longest"
+  grad_accumulation_steps: 1
+  mixed_precision: "bf16"
 
 test_path: "WikiQuality/raw_wiki"
 export: true

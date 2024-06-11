@@ -103,10 +103,12 @@ class Tagger(ModelFromConfig):
             id2label={i: label for i, label in enumerate(self.label_set)},
             label2id={label: i for i, label in enumerate(self.label_set)}
         )
-        self._model = self._model.to(self.device, dtype=self.torch_dtype)
 
         self.tokenizer = tokenizer if tokenizer else PreTrainedTokenizerFast.from_pretrained(self.load_path)
-        self.collator = DataCollatorForTokenClassification(tokenizer=self.tokenizer)
+        self.collator = DataCollatorForTokenClassification(
+            tokenizer=self.tokenizer,
+            pad_to_multiple_of=self.pad_to_multiple_of
+        )
 
         logger.info(f"{self._model.config.model_type} for {self.task} loaded.")
         logger.info(f"Number of parameters: {round(self._model.num_parameters() / 1e6)}M")
@@ -150,7 +152,8 @@ class Tagger(ModelFromConfig):
         tokenized_input = self.tokenizer(
             example["tokens"],
             padding=self.padding_strategy,
-            max_length=self.max_length if self.padding_strategy == "max_length" else None,
+            max_length=self.max_length,
+            truncation=True,
             is_split_into_words=True
         )
 
@@ -195,7 +198,8 @@ class Tagger(ModelFromConfig):
         loader = DataLoader(
             batched_dataset,
             collate_fn=self.collator,
-            batch_size=self.batch_size
+            batch_size=self.batch_size,
+            pin_memory=True
         )
 
         return loader
@@ -241,7 +245,6 @@ class Tagger(ModelFromConfig):
         self._model.eval()
 
         for batch in loader:
-
             with torch.no_grad():
                 outputs = self._model(**batch)
 
@@ -387,10 +390,12 @@ class Classifier(ModelFromConfig):
             id2label={i: label for i, label in enumerate(self.label_set)},
             label2id={label: i for i, label in enumerate(self.label_set)}
         )
-        self._model = self._model.to(self.device, dtype=self.torch_dtype)
 
         self.tokenizer = tokenizer if tokenizer else PreTrainedTokenizerFast.from_pretrained(self.load_path)
-        self.collator = DataCollatorWithPadding(tokenizer=self.tokenizer)
+        self.collator = DataCollatorWithPadding(
+            tokenizer=self.tokenizer,
+            pad_to_multiple_of=self.pad_to_multiple_of
+        )
 
         logger.info(f"{self._model.config.model_type} for {self.task} loaded.")
         logger.info(f"Number of parameters: {round(self._model.num_parameters() / 1e6)}M")
@@ -424,7 +429,7 @@ class Classifier(ModelFromConfig):
             lambda examples: self.tokenizer(
                 examples["text"],
                 padding=self.padding_strategy,
-                max_length=self.max_length if self.padding_strategy == "max_length" else None,
+                max_length=self.max_length,
                 truncation=True
             ),
             batched=True,
@@ -437,7 +442,8 @@ class Classifier(ModelFromConfig):
             batched_dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            collate_fn=self.collator
+            collate_fn=self.collator,
+            pin_memory=True
         )
 
         return loader

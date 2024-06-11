@@ -77,6 +77,8 @@ class TrainingParameters:
     batch_size: int = 8
     lr: float = 1e-3
     padding_strategy: str = "max_length"
+    grad_accumulation_steps: int = 1
+    mixed_precision: str = "no"
     mask_prob: Optional[float] = None
     num_eval_steps: Optional[int] = None
 

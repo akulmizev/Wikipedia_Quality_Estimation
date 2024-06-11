@@ -51,16 +51,20 @@ class ModelInitMixin:
         Flag indicating whether to use Weights & Biases for logging.
     """
 
+    MAX_GPU_BATCH_SIZE = 128 #128 is good batch_size 1024, seqlen 128, and lr 1e-3
+
     def __init__(
             self,
             model_type: str,
             task: str,
             num_train_epochs: int,
-            max_length: int = 512,
-            batch_size: int = 8,
-            lr: float = 1e-3,
-            padding_strategy: str = "max_length",
+            max_length: Optional[int] = 128,
+            batch_size: Optional[int] = 8,
+            lr: Optional[float] = 1e-3,
+            padding_strategy: Optional[str] = "longest",
             mask_prob: Optional[float] = 0.15,
+            grad_accumulation_steps: Optional[int] = 1,
+            mixed_precision: Optional[str] = "no",
             num_eval_steps: Optional[int] = None,
             checkpoint_path: Optional[Union[str, None]] = None,
     ):
@@ -72,15 +76,33 @@ class ModelInitMixin:
         self.lr = lr
         self.padding_strategy = padding_strategy
         self.mask_prob = mask_prob
+        self.grad_accumulation_steps = grad_accumulation_steps
+        self.mixed_precision = mixed_precision
         self.num_eval_steps = num_eval_steps
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.torch_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32
+        # self.torch_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32
         self.checkpoint_path = checkpoint_path
-        self.accelerator = Accelerator(project_dir=self.checkpoint_path) if self.checkpoint_path else Accelerator()
         self.label_set = None
         self.wandb = False
 
         self._check_params()
+
+        self.accelerator = Accelerator(
+            project_dir=self.checkpoint_path if self.checkpoint_path else None,
+            mixed_precision=self.mixed_precision,
+            device_placement=True
+        )
+
+        if self.batch_size > self.MAX_GPU_BATCH_SIZE:
+            self.grad_accumulation_steps = self.batch_size // self.MAX_GPU_BATCH_SIZE
+            self.batch_size = self.MAX_GPU_BATCH_SIZE
+
+        if self.accelerator.mixed_precision == "fp8":
+            self.pad_to_multiple_of = 16
+        elif self.accelerator.mixed_precision != "no":
+            self.pad_to_multiple_of = 8
+        else:
+            self.pad_to_multiple_of = None
 
     def init_wandb(
             self,

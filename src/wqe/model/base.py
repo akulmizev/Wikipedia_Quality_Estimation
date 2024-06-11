@@ -10,6 +10,7 @@ from datasets import Dataset, DatasetDict
 from transformers import get_scheduler, PreTrainedTokenizerFast
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
+from transformers import Adafactor
 from tqdm import tqdm
 
 from .mixins import ModelInitMixin
@@ -139,11 +140,24 @@ class ModelFromConfig(ModelInitMixin):
             weight_decay=0.05
         )
 
+        # self.optimizer = Adafactor(
+        #     self._model.parameters(),
+        #     lr=self.lr,
+        #     eps=(1e-30, 1e-3),
+        #     clip_threshold=1.0,
+        #     decay_rate=-0.8,
+        #     beta1=None,
+        #     weight_decay=0.0,
+        #     relative_step=False,
+        #     scale_parameter=False,
+        #     warmup_init=False,
+        # )
+
         self.scheduler = get_scheduler(
             "linear",
             optimizer=self.optimizer,
             num_warmup_steps=500,
-            num_training_steps=self.num_train_steps
+            num_training_steps=self.num_train_steps // self.grad_accumulation_steps
         )
 
         self._model, self.optimizer = self.accelerator.prepare(self._model, self.optimizer)
@@ -217,34 +231,39 @@ class ModelFromConfig(ModelInitMixin):
         progress_bar = tqdm(range(self.num_train_steps))
 
         logger.info(f"Training model for {self.num_train_epochs} epoch(s) ({self.num_train_steps} steps).")
+        logger.info(f"{self.batch_size} examples per batch, {self.grad_accumulation_steps} grad. accumulation steps.")
 
         for epoch in range(self.num_train_epochs):
             self._model.train()
-            for i, batch in enumerate(loaders["train"]):
-                outputs = self._model(**batch)
-                loss = outputs.loss
-                loss_str = f"Step {(i+1) + (epoch * len(loaders['train']))} | Loss: {loss.item():.4f}"
+            with self.accelerator.accumulate(self._model):
+                for step, batch in enumerate(loaders["train"], start=1):
+                    outputs = self._model(**batch)
+                    loss = outputs.loss
 
-                progress_bar.set_description(loss_str)
-                progress_bar.update(1)
-                if self.wandb:
-                    wandb.log({"train": {"loss": loss.item()}})
+                    loss_str = f"Step {step + (epoch * len(loaders['train']))} | Loss: {loss.item():.4f}"
+                    progress_bar.set_description(loss_str)
+                    progress_bar.update(1)
+                    if self.wandb:
+                        wandb.log({"train": {"loss": loss.item()}})
 
-                self.accelerator.backward(loss)
-                self.optimizer.step()
-                self.scheduler.step()
-                self.optimizer.zero_grad()
+                    loss = loss / self.grad_accumulation_steps
 
-                if (i+1) % self.num_eval_steps == 0:
-                    if eval_split in loaders:
-                        scores = self._eval_loop(loaders[eval_split])
-                        scores_str = " | ".join([f"val. {k}: {v:.4f}" for k, v in scores.items()])
-                        logger.info(f"Step {(i+1) + (epoch * len(loaders['train']))} | {scores_str}")
-                        if self.wandb:
-                            wandb.log({"val": scores})
-                        self._model.train()
-                    else:
-                        logger.warning(f"No {eval_split} split found. Skipping evaluation.")
+                    self.accelerator.backward(loss)
+                    if step % self.grad_accumulation_steps == 0:
+                        self.optimizer.step()
+                        self.scheduler.step()
+                        self.optimizer.zero_grad()
+
+                    if step % self.num_eval_steps == 0:
+                        if eval_split in loaders:
+                            scores = self._eval_loop(loaders[eval_split])
+                            scores_str = " | ".join([f"val. {k}: {v:.4f}" for k, v in scores.items()])
+                            logger.info(f"Step {step + (epoch * len(loaders['train']))} | {scores_str}")
+                            if self.wandb:
+                                wandb.log({"val": scores})
+                            self._model.train()
+                        else:
+                            logger.warning(f"No {eval_split} split found. Skipping evaluation.")
 
             if self.checkpoint_path:
                 if eval_split not in loaders:
