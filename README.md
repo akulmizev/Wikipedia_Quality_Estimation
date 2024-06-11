@@ -46,7 +46,6 @@ articles with the highest character and unique trigram counts.
 
 The output should look like this:
 ```
-[2024-06-11 09:29:32,969][wqe.experiment.experiment][INFO] - Loaded experiment config for ha.
 [2024-06-11 09:29:38,056][wqe.data.loader][INFO] - Loaded 36492 articles with 74084110 characters (train). Wiki: ha
 [2024-06-11 09:29:38,056][wqe.data.loader][INFO] - Filtering documents for accepted scripts: ['Latn']
 [2024-06-11 09:29:43,694][wqe.data.loader][INFO] - Removing documents shorter than 100 characters.
