@@ -1,7 +1,11 @@
 #wikis
 wikis/
 experiments/
-output/
+outputs/
+wandb/
+stats/
+plots/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

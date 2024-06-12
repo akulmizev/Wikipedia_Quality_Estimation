@@ -380,6 +380,8 @@ class WikiLoader:
 
         if script_regex:
             article["text"] = "".join(re.findall(self.regex, article['text']))
+            cleanup_pattern = r'\s+[^\w\s]+\s+|(?<=\S)\s+(?=\.$)'
+            article["text"] = re.sub(cleanup_pattern, lambda m: ' ' if m.group() else '', article["text"])
 
         if lang_id:
             article['text'] = "".join(

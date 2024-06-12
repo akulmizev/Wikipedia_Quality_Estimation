@@ -1,24 +1,22 @@
-load_path: "./experiments/test/ha/model"
+#load_path: "./experiments/test/ha/model"
 
-#tokenizer_config:
-#  model:
-#    type: "unigram"
-#  trainer:
-#    type: "unigram"
-#  normalizer:
-#    type: "nfkc"
-#  pre_tokenizer:
-#  - type: "whitespace"
-#  - type: "digits"
-#    individual_digits: false
-#  - type: "metaspace"
-#    prepend_scheme: "always"
-#    replacement: "▁"
-#  - type: "punctuation"
-#    behavior: "isolated"
-#  decoder:
-#    type: "metaspace"
-#  vocab_size: "auto"
+tokenizer_config:
+  model:
+    type: "unigram"
+  trainer:
+    type: "unigram"
+  normalizer:
+  - type: "nfkc"
+  - type: "replace"
+    pattern: " "
+    content: "▁"
+  pre_tokenizer:
+  - type: "digits"
+    individual_digits: false
+  - type: "metaspace"
+  decoder:
+    type: "metaspace"
+  vocab_size: "auto"
 
 export: true
 push_to_hub: false
