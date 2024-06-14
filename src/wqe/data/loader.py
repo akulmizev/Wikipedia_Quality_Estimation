@@ -205,23 +205,23 @@ class WikiLoader:
         return self
 
     @classmethod
-    def from_dataset_dict(
+    def from_dataset(
             cls,
-            wiki_id: str,
-            dataset_dict: DatasetDict
-    ) -> 'WikiLoader':
+            dataset: datasets.Dataset,
+            wiki_id: str
+    ):
 
         """
-        Initializes a WikiLoader instance from a datasets.DatasetDict.
+        Initializes a WikiLoader instance from a datasets.Dataset.
 
         Parameters
         ----------
+        dataset : datasets.Dataset
+            The dataset to load the dataset from.
         wiki_id : str
             The language id used by Wikipedia. For example, "as" for Assamese.
             Can be found in the `Wiki` column here:
             https://meta.wikimedia.org/wiki/List_of_Wikipedias.
-        dataset_dict : DatasetDict
-            The dataset dictionary to load the dataset from.
 
         Returns
         -------
@@ -229,8 +229,8 @@ class WikiLoader:
             The initialized WikiLoader instance.
         """
 
-        instance = cls(wiki_id)  # Create an instance by calling __init__
-        instance.data = dataset_dict
+        instance = cls(wiki_id)
+        instance.data = DatasetDict({"train": dataset})
         instance.regex = None
         instance.lang_id_model = None
 

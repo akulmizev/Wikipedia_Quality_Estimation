@@ -7,9 +7,6 @@ tokenizer_config:
     type: "unigram"
   normalizer:
   - type: "nfkc"
-  - type: "replace"
-    pattern: " "
-    content: "▁"
   pre_tokenizer:
   - type: "digits"
     individual_digits: false
