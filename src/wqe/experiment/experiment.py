@@ -180,6 +180,10 @@ class ExperimentRunner:
         save_path = f"{self.local_path}/model" if self.local_path else None
         checkpoint_path = save_path if cfg.checkpoint else None
 
+        # Specify small batch size for tiny Wikis
+        if dataset.nchars < 5e6:
+            cfg.training_parameters.batch_size = 8
+
         if task == "mlm":
             model = MLM(
                 cfg.load_path,
