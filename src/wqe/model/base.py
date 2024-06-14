@@ -281,7 +281,8 @@ class ModelFromConfig(ModelInitMixin):
     def test(
             self,
             dataset: DatasetDict,
-            split: str = "test"
+            split: str = "test",
+            output_file: Optional[str] = None
     ):
 
         """
@@ -293,6 +294,8 @@ class ModelFromConfig(ModelInitMixin):
             The dataset to use for evaluation.
         split : str, optional
             The split to use for evaluation (default is 'test').
+        output_file : str, optional
+            The path to save the model predictions to (default is None).
         """
 
         logger.info(f"Running evaluation on {split} split...")
@@ -302,6 +305,11 @@ class ModelFromConfig(ModelInitMixin):
         logger.info(" | ".join([f"{k}: {v:.4f}" for k, v in scores.items()]))
         if self.wandb:
             wandb.log({"test": scores})
+
+        if output_file:
+            logger.info(f"Saving predictions to {output_file}.")
+            with open(output_file, "w") as f:
+                f.write("\n".join([f"{k}\t{v}" for k, v in scores.items()]))
 
     def save(self, path: str):
 

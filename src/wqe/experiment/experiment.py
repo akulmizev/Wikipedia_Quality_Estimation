@@ -181,7 +181,8 @@ class ExperimentRunner:
         checkpoint_path = save_path if cfg.checkpoint else None
 
         # Specify small batch size for tiny Wikis
-        if dataset.nchars < 5e6:
+        if dataset.n_chars < 5e6:
+            logger.warning(f"Tiny dataset detected (total chars: {dataset.n_chars}). Reducing batch size to 8.")
             cfg.training_parameters.batch_size = 8
 
         if task == "mlm":
@@ -231,6 +232,7 @@ class ExperimentRunner:
         cfg = self.finetune
         task = cfg.training_parameters.task
         finetune_dataset = validate_and_format_dataset(cfg.dataset_path, self.wiki.id, task)
+        scores_file = f"{self.local_path}/{self.experiment.experiment_id}.scores.txt" if self.local_path else None
 
         if task in ["ner", "pos"]:
             model = Tagger(
@@ -256,7 +258,7 @@ class ExperimentRunner:
         model.train(finetune_dataset, eval_split=eval_split)
 
         if "test" in finetune_dataset.keys():
-            model.test(finetune_dataset, split="test")
+            model.test(finetune_dataset, split="test", output_file=scores_file)
 
     def run_experiment(self):
 
