@@ -8,12 +8,12 @@ training_parameters:
   num_train_epochs: 10
   batch_size: 1024
   lr: 1e-03 #DO NOT CHANGE THIS
-#  num_eval_steps: 500
+  num_eval_steps: 500
   padding_strategy: "longest"
   grad_accumulation_steps: 1
   mixed_precision: "bf16"
 
 test_path: "WikiQuality/raw_wiki"
 export: true
-push_to_hub: false
+push_to_hub: true
 checkpoint: false

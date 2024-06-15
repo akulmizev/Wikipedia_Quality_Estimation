@@ -268,7 +268,8 @@ class ExperimentRunner:
 
         if self.experiment.local_path:
             self.local_path = f"{self.experiment.local_path}/{self.experiment.experiment_id}/{self.wiki.id}"
-            os.makedirs(self.local_path, exist_ok=True)
+            if not os.path.exists(self.local_path):
+                os.makedirs(self.local_path)
 
         if self.experiment.hub_path:
             self.hub_path = f"{self.experiment.hub_path}/{self.experiment.experiment_id}"

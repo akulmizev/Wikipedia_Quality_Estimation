@@ -4,8 +4,9 @@ from wqe import WikiLoader, FastTokenizerFromConfig
 
 from wqe.utils.config import TokenizerConfig
 
-EXPERIMENT_DIR = sys.argv[1]
-HUB_PATH = sys.argv[2]
+WIKI_ID = sys.argv[1]
+EXPERIMENT_DIR = sys.argv[2]
+HUB_PATH = sys.argv[3]
 
 LANGS = ["ha", "yo", "ig", "sw", "pcm"]
 
@@ -99,6 +100,4 @@ def make_datasets(wiki_id: str) -> None:
 
 
 if __name__ == "__main__":
-
-    for lang in LANGS:
-        make_datasets(lang)
+    make_datasets(WIKI_ID)

@@ -1,5 +1,5 @@
 wiki_id: "ha"
 experiment_id: "my_experiment"
-#wandb_entity: "wikiquality"
+wandb_entity: "wikiquality"
 local_path: "./experiments"
 hub_path: "WikiQuality"
