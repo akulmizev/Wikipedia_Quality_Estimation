@@ -3,6 +3,8 @@ import os
 from dataclasses import asdict
 from typing import Any, Dict, Union
 
+import datasets
+
 from transformers import PreTrainedTokenizerFast
 
 from ..data.loader import WikiLoader, WikiID
@@ -14,6 +16,8 @@ from ..utils.validation import validate_and_format_dataset
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+datasets.builder.has_sufficient_disk_space = lambda needed_bytes, directory='.': True
 
 
 class ExperimentRunner:
@@ -105,7 +109,7 @@ class ExperimentRunner:
         if cfg.push_to_hub:
             assert self.hub_path is not None, \
                 "Please specify `hub_path` in experiment config for pushing the dataset to the hub."
-            dataset.push_to_hub(self.hub_path, self.wiki.id)
+            dataset.push_to_hub(self.hub_path, self.wiki.id, private=True)
 
         return dataset
 
@@ -151,7 +155,7 @@ class ExperimentRunner:
             if cfg.push_to_hub:
                 assert self.hub_path is not None, \
                     "Please specify `hub_path` in experiment for pushing the tokenizer to the hub."
-                tokenizer.push_to_hub(f"{self.hub_path}.{self.wiki.id}")
+                tokenizer.push_to_hub(f"{self.hub_path}.{self.wiki.id}", private=True)
 
         else:
             raise ValueError("Tokenizer configuration is required.")
@@ -202,7 +206,7 @@ class ExperimentRunner:
 
         if self.experiment.wandb_entity:
             model.init_wandb(
-                self.experiment.experiment_id,
+                f"{self.wiki.id}.{self.experiment.experiment_id}",
                 self.experiment.wandb_entity,
                 asdict(cfg.training_parameters)
             )
@@ -221,7 +225,7 @@ class ExperimentRunner:
         if cfg.push_to_hub:
             assert self.hub_path is not None, \
                 "Please specify `hub_path` in experiment config for pushing the model to the hub."
-            model.push_to_hub(f"{self.hub_path}.{task}.{self.wiki.id}")
+            model.push_to_hub(f"{self.hub_path}.{self.wiki.id}", private=True)
 
     def process_finetune(self) -> None:
 
@@ -232,7 +236,8 @@ class ExperimentRunner:
         cfg = self.finetune
         task = cfg.training_parameters.task
         finetune_dataset = validate_and_format_dataset(cfg.dataset_path, self.wiki.id, task)
-        scores_file = f"{self.local_path}/{self.experiment.experiment_id}.scores.txt" if self.local_path else None
+        dataset_id = cfg.dataset_path.split("/")[-1]
+        scores_file = f"{self.local_path}/{self.experiment.experiment_id}.{dataset_id}.scores.txt" if self.local_path else None
 
         if task in ["ner", "pos"]:
             model = Tagger(
@@ -249,7 +254,7 @@ class ExperimentRunner:
 
         if self.experiment.wandb_entity:
             model.init_wandb(
-                self.experiment.experiment_id,
+                f"{self.wiki.id}.{self.experiment.experiment_id}",
                 self.experiment.wandb_entity,
                 asdict(cfg.training_parameters)
             )

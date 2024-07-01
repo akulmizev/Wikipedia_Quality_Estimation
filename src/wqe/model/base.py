@@ -132,7 +132,14 @@ class ModelFromConfig(ModelInitMixin):
         loaders = {split: self._tokenize_and_collate(dataset[split]) for split in splits}
 
         self.num_train_steps = self.num_train_epochs * len(loaders["train"])
-        self.num_eval_steps = len(loaders["train"]) if self.num_eval_steps is None else self.num_eval_steps
+
+        if self.num_eval_steps > len(loaders["train"]):
+            logger.info("Number of eval steps more than total steps. Evaluating per epoch.")
+            self.num_eval_steps = len(loaders["train"]) 
+        elif self.num_eval_steps is None:
+            self.num_eval_steps = len(loaders["train"])
+        else:
+            self.num_eval_steps = self.num_eval_steps
 
         self.optimizer = AdamW(
             self._model.parameters(),
@@ -255,28 +262,31 @@ class ModelFromConfig(ModelInitMixin):
                         self.optimizer.zero_grad()
 
                     if step % self.num_eval_steps == 0:
-                        if eval_split in loaders:
+                        if eval_split not in loaders:
+                            logger.warning(f"No {eval_split} split found. Skipping evaluation.")
+                            if self.checkpoint_path:
+                                logger.info(f"Saving model checkpoint at epoch {epoch}.")
+                                self.accelerator.save_state(self.checkpoint_path)
+                        else:
                             scores = self._eval_loop(loaders[eval_split])
                             scores_str = " | ".join([f"val. {k}: {v:.4f}" for k, v in scores.items()])
                             logger.info(f"Step {step + (epoch * len(loaders['train']))} | {scores_str}")
+                            
+                            if self.checkpoint_path:
+                                if scores["loss"] < running_loss:
+                                    logger.info(f"Saving model checkpoint at epoch {epoch}.")
+                                    self.accelerator.save_state(self.checkpoint_path)
+                                    running_loss = scores["loss"]
+
                             if self.wandb:
                                 wandb.log({"val": scores})
                             self._model.train()
-                        else:
-                            logger.warning(f"No {eval_split} split found. Skipping evaluation.")
-
-            if self.checkpoint_path:
-                if eval_split not in loaders:
-                    logger.warning(f"No {eval_split} split found. Saving model checkpoint anyway.")
-                    self.accelerator.save_state(self.checkpoint_path)
-                else:
-                    loss = self._get_average_loss(loaders[eval_split])
-                    if loss < running_loss:
-                        logger.info(f"Saving model checkpoint at epoch {epoch}.")
-                        self.accelerator.save_state(self.checkpoint_path)
 
         progress_bar.close()
         logger.info("Training complete.")
+        if self.checkpoint_path:
+            logger.info(f"Loading best model from {self.checkpoint_path}.")
+            self._model = self.accelerator.load_state(self.checkpoint_path)
 
     def test(
             self,

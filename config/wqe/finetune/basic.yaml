@@ -5,7 +5,7 @@ training_parameters:
   model_type: "deberta"
   task: "pos"
   max_length: 512
-  num_train_epochs: 10
+  num_train_epochs: 30
   batch_size: 32
   lr: 1e-3
   padding_strategy: "max_length"

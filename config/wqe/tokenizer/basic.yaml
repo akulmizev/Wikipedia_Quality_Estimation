@@ -16,4 +16,4 @@ tokenizer_config:
   vocab_size: "auto"
 
 export: true
-push_to_hub: false
+push_to_hub: true
