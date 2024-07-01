@@ -133,13 +133,7 @@ class ModelFromConfig(ModelInitMixin):
 
         self.num_train_steps = self.num_train_epochs * len(loaders["train"])
 
-        if self.num_eval_steps > len(loaders["train"]):
-            logger.info("Number of eval steps more than total steps. Evaluating per epoch.")
-            self.num_eval_steps = len(loaders["train"]) 
-        elif self.num_eval_steps is None:
-            self.num_eval_steps = len(loaders["train"])
-        else:
-            self.num_eval_steps = self.num_eval_steps
+        self.num_eval_steps = len(loaders["train"]) if self.num_eval_steps is None else self.num_eval_steps
 
         self.optimizer = AdamW(
             self._model.parameters(),
@@ -261,7 +255,7 @@ class ModelFromConfig(ModelInitMixin):
                         self.scheduler.step()
                         self.optimizer.zero_grad()
 
-                    if step % self.num_eval_steps == 0:
+                    if (step + (epoch * len(loaders['train']))) % self.num_eval_steps == 0:
                         if eval_split not in loaders:
                             logger.warning(f"No {eval_split} split found. Skipping evaluation.")
                             if self.checkpoint_path:
