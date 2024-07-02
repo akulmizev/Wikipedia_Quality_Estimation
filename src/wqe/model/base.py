@@ -260,8 +260,7 @@ class ModelFromConfig(ModelInitMixin):
                             logger.warning(f"No {eval_split} split found. Skipping evaluation.")
                             if self.checkpoint_path:
                                 logger.info(f"Saving model checkpoint at epoch {epoch}.")
-                                self.accelerator.save_state(self.checkpoint_path)
-                                self._model.save_pretrained(self.checkpoint_path)
+                                self.accelerator.save_state(self.checkpoint_path, safe_serialization=False)
                         else:
                             scores = self._eval_loop(loaders[eval_split])
                             scores_str = " | ".join([f"val. {k}: {v:.4f}" for k, v in scores.items()])
@@ -270,20 +269,19 @@ class ModelFromConfig(ModelInitMixin):
                             if self.checkpoint_path:
                                 if scores["loss"] < running_loss:
                                     logger.info(f"Saving model checkpoint at epoch {epoch}.")
-                                    self.accelerator.save_state(self.checkpoint_path)
-                                    self._model.save_pretrained(self.checkpoint_path)
+                                    self.accelerator.save_state(self.checkpoint_path, safe_serialization=False)
                                     running_loss = scores["loss"]
 
                             if self.wandb:
                                 wandb.log({"val": scores})
+
                             self._model.train()
 
         progress_bar.close()
         logger.info("Training complete.")
         if self.checkpoint_path:
             logger.info(f"Loading best model from {self.checkpoint_path}.")
-            self._model = self._model.from_pretrained(self.checkpoint_path).cuda() if self.device == 'cuda' \
-                else self._model.from_pretrained(self.checkpoint_path)
+            self.accelerator.load_state(self.checkpoint_path)
 
     def test(
             self,
