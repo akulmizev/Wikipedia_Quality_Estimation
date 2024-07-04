@@ -147,18 +147,18 @@ class ExperimentRunner:
                 cfg.tokenizer_config
             )
 
-            if cfg.export:
+        else:
+            raise ValueError("Tokenizer configuration is required.")
+        
+        if cfg.export:
                 assert save_path is not None, \
                     "Please specify `local_path` in experiment config for saving the tokenizer."
                 tokenizer.save_pretrained(save_path)
 
-            if cfg.push_to_hub:
-                assert self.hub_path is not None, \
-                    "Please specify `hub_path` in experiment for pushing the tokenizer to the hub."
-                tokenizer.push_to_hub(f"{self.hub_path}.{self.wiki.id}", private=True)
-
-        else:
-            raise ValueError("Tokenizer configuration is required.")
+        if cfg.push_to_hub:
+            assert self.hub_path is not None, \
+                "Please specify `hub_path` in experiment for pushing the tokenizer to the hub."
+            tokenizer.push_to_hub(f"{self.hub_path}.{self.wiki.id}", private=True)
 
         return tokenizer
 
