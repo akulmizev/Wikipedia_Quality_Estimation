@@ -1,126 +1,90 @@
+import sys
+
 from wqe import WikiLoader
 
-# LANGS = [
-#     'sw', 'ha', 'yo', 'ig', 'am',
-#     'sn', 'zu', 'ary', 'so', 'rw',
-#     'tw', 'ln', 'lg', 'xh', 'wo',
-#     'om', 'tn', 'ny', 'pcm', 'ee',
-#     'bm', 'ts', 'rn', 'fon', 'ti'
-# ]
-
-# LANGS = [
-#     'sw', 'ha', 'yo', 'ig', 'am',
-#     'sn', 'zu', 'ary', 'so', 'rw',
-#     'tw', 'ln', 'lg', 'wo',
-#     'om', 'tn', 'ny', 'pcm', 'ee',
-#     'bm', 'ts', 'rn', 'fon', 'ti'
-# ]
-
-LANGS = ["xh"]
 URLS_TO_REMOVE = ["https://xh.wikipedia.org/wiki/Phi"]
 
 
-def get_stats(language):
-    stats_out = open(f"/home/akulmizev/Repos/Wikipedia_Quality_Estimation/stats/pre_filter_stats.{language}.txt", "w")
+def get_stats(language, stats_dir):
+
+    stats_out = open(f"{stats_dir}/pre_filter_stats.{language}.txt", "w")
     stats_out.write("lang_id\tprocess\tn_chars\tn_docs\tfrac_chars\tfrac_docs\n")
 
     dataset = WikiLoader(language)
     dataset.load_dataset()
     dataset.pre_filter(num_proc=32, urls_to_remove=URLS_TO_REMOVE)
 
-    current_chars = dataset.n_chars
-    current_docs = dataset.n_docs
-    full_chars = current_chars
-    full_docs = current_docs
-    total_chars = full_chars
-    total_docs = full_docs
-    stats_out.write(f"{language}\traw\t{current_chars}\t{current_docs}\t{1.0}\t{1.0}\n")
+    stats_dict = {
+        "current_chars": dataset.n_chars,
+        "current_docs": dataset.n_docs,
+        "full_chars": dataset.n_chars,
+        "full_docs": dataset.n_docs,
+        "total_chars": dataset.n_chars,
+        "total_docs": dataset.n_docs
+    }
+
+    stats_out.write(f"{language}\traw\t{stats_dict['current_chars']}\t{stats_dict['current_docs']}\t{1.0}\t{1.0}\n")
 
     dataset.pre_filter(deduplicate_exact_match=True, num_proc=32)
-    deleted_chars = total_chars - dataset.n_chars
-    deleted_docs = total_docs - dataset.n_docs
-    frac_chars_deleted = deleted_chars / full_chars
-    frac_docs_deleted = deleted_docs / full_docs
-    total_chars -= deleted_chars
-    total_docs -= deleted_docs
-    stats_out.write(
-        f"{language}\texact_match\t{deleted_chars}\t{deleted_docs}\t{frac_chars_deleted}\t{frac_docs_deleted}\n")
+    stats_dict = update_stats_dict(stats_dict, dataset.n_chars, dataset.n_docs)
+    write_line(stats_out, language, "exact_match", stats_dict)
 
     dataset.pre_filter(char_cutoff=15, num_proc=32)
-    deleted_chars = total_chars - dataset.n_chars
-    deleted_docs = total_docs - dataset.n_docs
-    frac_chars_deleted = deleted_chars / full_chars
-    frac_docs_deleted = deleted_docs / full_docs
-    total_chars -= deleted_chars
-    total_docs -= deleted_docs
-    stats_out.write(
-        f"{language}\tchar_cutoff_15\t{deleted_chars}\t{deleted_docs}\t{frac_chars_deleted}\t{frac_docs_deleted}\n")
+    stats_dict = update_stats_dict(stats_dict, dataset.n_chars, dataset.n_docs)
+    write_line(stats_out, language, "char_cutoff_15", stats_dict)
 
     dataset.pre_filter(script_regex=True, char_cutoff=15, num_proc=32)
-    deleted_chars = total_chars - dataset.n_chars
-    deleted_docs = total_docs - dataset.n_docs
-    frac_chars_deleted = deleted_chars / full_chars
-    frac_docs_deleted = deleted_docs / full_docs
-    total_chars -= deleted_chars
-    total_docs -= deleted_docs
-    stats_out.write(
-        f"{language}\tscript_regex\t{deleted_chars}\t{deleted_docs}\t{frac_chars_deleted}\t{frac_docs_deleted}\n")
+    stats_dict = update_stats_dict(stats_dict, dataset.n_chars, dataset.n_docs)
+    write_line(stats_out, language, "script_regex", stats_dict)
 
-    # dataset.pre_filter(lang_id=True, char_cutoff=15)
-    # current_chars = total_chars - dataset.n_chars
-    # current_docs = total_docs - dataset.n_docs
-    # frac_chars_deleted = current_chars / full_chars
-    # frac_docs_deleted = current_docs / full_docs
-    # total_chars = dataset.n_chars
-    # total_docs = dataset.n_docs
-    # stats_out.write(f"{lang}\tscript_regex\t{current_chars}\t{current_docs}\t{frac_chars_deleted}\t{frac_docs_deleted}\n")
+    dataset.pre_filter(lang_id=False, deduplicate_min_hash=True, jaccard_threshold=0.85, num_proc=32)
+    stats_dict = update_stats_dict(stats_dict, dataset.n_chars, dataset.n_docs)
+    write_line(stats_out, language, "jaccard_085", stats_dict)
 
-    dataset.pre_filter(
-        lang_id=False,
-        deduplicate_min_hash=True,
-        jaccard_threshold=0.85,
-        num_proc=32
-    )
-    deleted_chars = total_chars - dataset.n_chars
-    deleted_docs = total_docs - dataset.n_docs
-    frac_chars_deleted = deleted_chars / full_chars
-    frac_docs_deleted = deleted_docs / full_docs
-    total_chars -= deleted_chars
-    total_docs -= deleted_docs
-    stats_out.write(f"{language}\tjaccard_085\t{deleted_chars}\t{deleted_docs}\t{frac_chars_deleted}\t{frac_docs_deleted}\n")
+    out = [
+        language,
+        "remaining",
+        stats_dict["total_chars"],
+        stats_dict["total_docs"],
+        stats_dict["total_chars"] / stats_dict["full_chars"],
+        stats_dict["total_docs"] / stats_dict["full_docs"]
+    ]
 
-    # dataset.pre_filter(
-    #     deduplicate_min_hash=True,
-    #     jaccard_threshold=0.7,
-    #     num_proc=32,
-    # )
-    # deleted_chars = total_chars - dataset.n_chars
-    # deleted_docs = total_docs - dataset.n_docs
-    # frac_chars_deleted = deleted_chars / full_chars
-    # frac_docs_deleted = deleted_docs / full_docs
-    # total_chars -= deleted_chars
-    # total_docs -= deleted_docs
-    # stats_out.write(f"{language}\tjaccard_07\t{deleted_chars}\t{deleted_docs}\t{frac_chars_deleted}\t{frac_docs_deleted}\n")
-    #
-    # dataset.pre_filter(
-    #     deduplicate_min_hash=True,
-    #     jaccard_threshold=0.5,
-    #     num_proc=32
-    # )
-    # deleted_chars = total_chars - dataset.n_chars
-    # deleted_docs = total_docs - dataset.n_docs
-    # frac_chars_deleted = deleted_chars / full_chars
-    # frac_docs_deleted = deleted_docs / full_docs
-    # total_chars -= deleted_chars
-    # total_docs -= deleted_docs
-    # stats_out.write(f"{language}\tjaccard_05\t{deleted_chars}\t{deleted_docs}\t{frac_chars_deleted}\t{frac_docs_deleted}\n")
-
-    stats_out.write(
-        f"{language}\tremaining\t{total_chars}\t{total_docs}\t{total_chars / full_chars}\t{total_docs / full_docs}\n")
+    out_line = "\t".join(map(str, out)) + "\n"
+    stats_out.write(out_line)
     stats_out.close()
 
 
+def update_stats_dict(stats_dict, n_chars, n_docs):
+
+    stats_dict["deleted_chars"] = stats_dict["total_chars"] - n_chars
+    stats_dict["deleted_docs"] = stats_dict["total_docs"] - n_docs
+    stats_dict["frac_chars_deleted"] = stats_dict["deleted_chars"] / stats_dict["full_chars"]
+    stats_dict["frac_docs_deleted"] = stats_dict["deleted_docs"] / stats_dict["full_docs"]
+    stats_dict["total_chars"] -= stats_dict["deleted_chars"]
+    stats_dict["total_docs"] -= stats_dict["deleted_docs"]
+
+    return stats_dict
+
+
+def write_line(stats_out, lang, process, stats_dict):
+
+    out = [
+        lang,
+        process,
+        stats_dict["deleted_chars"],
+        stats_dict["deleted_docs"],
+        stats_dict["frac_chars_deleted"],
+        stats_dict["frac_docs_deleted"]
+    ]
+
+    out_line = "\t".join(map(str, out)) + "\n"
+
+    stats_out.write(out_line)
+
+
 if __name__ == "__main__":
-    for lang in LANGS:
-        get_stats(lang)
+    lang = sys.argv[1]
+    stats_dir = sys.argv[2]
+    get_stats(lang, stats_dir)
     

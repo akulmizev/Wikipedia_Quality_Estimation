@@ -17,8 +17,8 @@ CONFIG_DIR = "../scratch/tokenizer_configs"
 LANGS = [
     'ha', 'yo', 'ig', 'sn',
     'zu', 'rw', 'tw', 'lg',
-    'wo', 'tn', 'ny',
-    'pcm', 'ee', 'bm', 'fon', 'sw'
+    'wo', 'tn', 'ny', "sw"
+    'pcm', 'ee', 'bm', 'fon'
 ]
 
 
