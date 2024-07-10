@@ -31,7 +31,8 @@ dependencies = [
     "evaluate",
     "scikit-learn",
     "seqeval",
-    "wandb"
+    "wandb",
+    "datasketch"
 ]
 
 [project.scripts]
