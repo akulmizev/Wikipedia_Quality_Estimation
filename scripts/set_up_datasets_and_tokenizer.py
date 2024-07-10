@@ -1,7 +1,6 @@
 import sys
 
 from wqe import WikiLoader, FastTokenizerFromConfig
-
 from wqe.utils.config import TokenizerConfig
 
 WIKI_ID = sys.argv[1]

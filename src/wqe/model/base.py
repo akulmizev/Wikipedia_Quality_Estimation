@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 
 class ModelFromConfig(ModelInitMixin):
-
     """
     Base class for loading and training a model from a configuration.
 
@@ -61,7 +60,7 @@ class ModelFromConfig(ModelInitMixin):
         self._model = None
         self.tokenizer = None
         self.collator = None
-        
+
     @property
     def model(self):
         return self._model
@@ -132,7 +131,6 @@ class ModelFromConfig(ModelInitMixin):
         loaders = {split: self._tokenize_and_collate(dataset[split]) for split in splits}
 
         self.num_train_steps = self.num_train_epochs * len(loaders["train"])
-
         self.num_eval_steps = len(loaders["train"]) if self.num_eval_steps is None else self.num_eval_steps
 
         self.optimizer = AdamW(
@@ -140,19 +138,6 @@ class ModelFromConfig(ModelInitMixin):
             lr=float(self.lr),
             weight_decay=0.05
         )
-
-        # self.optimizer = Adafactor(
-        #     self._model.parameters(),
-        #     lr=self.lr,
-        #     eps=(1e-30, 1e-3),
-        #     clip_threshold=1.0,
-        #     decay_rate=-0.8,
-        #     beta1=None,
-        #     weight_decay=0.0,
-        #     relative_step=False,
-        #     scale_parameter=False,
-        #     warmup_init=False,
-        # )
 
         self.scheduler = get_scheduler(
             "linear",
@@ -265,7 +250,7 @@ class ModelFromConfig(ModelInitMixin):
                             scores = self._eval_loop(loaders[eval_split])
                             scores_str = " | ".join([f"val. {k}: {v:.4f}" for k, v in scores.items()])
                             logger.info(f"Step {step + (epoch * len(loaders['train']))} | {scores_str}")
-                            
+
                             if self.checkpoint_path:
                                 if scores["loss"] < running_loss:
                                     logger.info(f"Saving model checkpoint at epoch {epoch}.")
