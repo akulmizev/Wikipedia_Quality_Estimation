@@ -52,7 +52,7 @@ def get_stats(language, stats_dir):
 
     out_line = "\t".join(map(str, out)) + "\n"
     stats_out.write(out_line)
-    stats_out.close()
+    stats_out.close() 
 
 
 def update_stats_dict(stats_dict, n_chars, n_docs):

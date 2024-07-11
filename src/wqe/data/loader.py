@@ -293,6 +293,7 @@ class WikiLoader:
             tokenizer: str = None,
             char_cutoff: int = 0,
             urls_to_remove: List[str] = None,
+            warn_percent: float = 0.0,
             num_proc: int = 1
     ) -> 'WikiLoader':
 
@@ -332,7 +333,12 @@ class WikiLoader:
         ```
         from wqe import WikiLoader
         loader = WikiLoader("ha")
-        loader.pre_filter(script_regex=True, lang_id=True, deduplicate_exact_match=True, deduplicate_min_hash=True)
+        loader.pre_filter(
+            script_regex=True,
+            lang_id=True,
+            deduplicate_exact_match=True,
+            deduplicate_min_hash=True
+        )
         ```
 
         ...or successively:
@@ -374,6 +380,8 @@ class WikiLoader:
         urls_to_remove : list
             The list of URLs to remove from the dataset.
             Useful for buggy articles such as https://xh.wikipedia.org/wiki/Phi.
+        warn_percent : float
+            Warn when the percentage of removed characters exceeds this value.
         num_proc : int
             The number of processes to use for filtering.
             Default is 4.
@@ -413,7 +421,8 @@ class WikiLoader:
                 "deduplicate_exact_match": deduplicate_exact_match,
                 "deduplicate_min_hash": deduplicate_min_hash,
                 "tokenizer": tokenizer,
-                "urls_to_remove": urls_to_remove
+                "urls_to_remove": urls_to_remove,
+                "warn_percent": warn_percent
             },
             num_proc=num_proc
         )
@@ -465,7 +474,8 @@ class WikiLoader:
             deduplicate_exact_match: bool = False,
             deduplicate_min_hash: bool = False,
             tokenizer: PreTrainedTokenizerFast = None,
-            urls_to_remove: List[str] = None
+            urls_to_remove: List[str] = None,
+            warn_percent: float = 0.0
     ) -> Dict[str, Any]:
 
         """
@@ -494,12 +504,16 @@ class WikiLoader:
             The tokenizer to use for computing jaccard similarity for min_hash.
         urls_to_remove : list
             The list of URLs to remove from the article.
+        warn_percent : float
+            Warn when the percentage of removed characters exceeds this value.
 
         Returns
         -------
         dict
             The pre-filtered article.
         """
+
+        article_length = len(article["text"])
 
         if urls_to_remove:
             if article["url"] in urls_to_remove:
@@ -535,6 +549,11 @@ class WikiLoader:
                 minhash.update(word.encode('utf-8'))
 
             article["minhash"] = minhash.digest()
+
+        if warn_percent > 0.0:
+            removed_chars = article_length - len(article["text"])
+            if removed_chars / article_length > warn_percent:
+                logger.warning(f"Removed {removed_chars} characters from article: {article['url']}")
 
         return article
 
