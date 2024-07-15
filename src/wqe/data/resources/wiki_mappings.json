@@ -1,0 +1,2289 @@
+{
+    "ceb": {
+        "alpha3": "ceb",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Cebuano"
+    },
+    "de": {
+        "alpha3": "deu",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "German"
+    },
+    "sv": {
+        "alpha3": "swe",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Swedish"
+    },
+    "fr": {
+        "alpha3": "fra",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "French"
+    },
+    "nl": {
+        "alpha3": "nld",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Dutch"
+    },
+    "ru": {
+        "alpha3": "rus",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Russian"
+    },
+    "es": {
+        "alpha3": "spa",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Spanish"
+    },
+    "it": {
+        "alpha3": "ita",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Italian"
+    },
+    "arz": {
+        "alpha3": "arz",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Egyptian Arabic"
+    },
+    "pl": {
+        "alpha3": "pol",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Polish"
+    },
+    "ja": {
+        "alpha3": "jpn",
+        "scripts": [
+            "Jpan"
+        ],
+        "language": "Japanese"
+    },
+    "zh": {
+        "alpha3": "zho",
+        "scripts": [
+            "Hans",
+            "Hant"
+        ],
+        "language": "Chinese"
+    },
+    "uk": {
+        "alpha3": "ukr",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Ukrainian"
+    },
+    "vi": {
+        "alpha3": "vie",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Vietnamese"
+    },
+    "war": {
+        "alpha3": "war",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Waray"
+    },
+    "ar": {
+        "alpha3": "ara",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Arabic"
+    },
+    "pt": {
+        "alpha3": "por",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Portuguese"
+    },
+    "fa": {
+        "alpha3": "fas",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Persian"
+    },
+    "ca": {
+        "alpha3": "cat",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Catalan"
+    },
+    "sr": {
+        "alpha3": "srp",
+        "scripts": [
+            "Cyrl",
+            "Latn"
+        ],
+        "language": "Serbian"
+    },
+    "id": {
+        "alpha3": "ind",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Indonesian"
+    },
+    "ko": {
+        "alpha3": "kor",
+        "scripts": [
+            "Hang"
+        ],
+        "language": "Korean"
+    },
+    "no": {
+        "alpha3": "nor",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Norwegian"
+    },
+    "ce": {
+        "alpha3": "che",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Chechen"
+    },
+    "fi": {
+        "alpha3": "fin",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Finnish"
+    },
+    "tr": {
+        "alpha3": "tur",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Turkish"
+    },
+    "cs": {
+        "alpha3": "ces",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Czech"
+    },
+    "hu": {
+        "alpha3": "hun",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Hungarian"
+    },
+    "tt": {
+        "alpha3": "tat",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Tatar"
+    },
+    "sh": {
+        "alpha3": "srp",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Serbo-Croatian"
+    },
+    "ro": {
+        "alpha3": "ron",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Romanian"
+    },
+    "zh-min-nan": {
+        "alpha3": "nan",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Min Nan Chinese"
+    },
+    "eu": {
+        "alpha3": "eus",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Basque"
+    },
+    "ms": {
+        "alpha3": "msa",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Malay"
+    },
+    "eo": {
+        "alpha3": "epo",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Esperanto"
+    },
+    "he": {
+        "alpha3": "heb",
+        "scripts": [
+            "Hebr"
+        ],
+        "language": "Hebrew"
+    },
+    "hy": {
+        "alpha3": "hye",
+        "scripts": [
+            "Armn"
+        ],
+        "language": "Armenian"
+    },
+    "da": {
+        "alpha3": "dan",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Danish"
+    },
+    "bg": {
+        "alpha3": "bul",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Bulgarian"
+    },
+    "cy": {
+        "alpha3": "cym",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Welsh"
+    },
+    "uz": {
+        "alpha3": "uzb",
+        "scripts": [
+            "Latn",
+            "Cyrl"
+        ],
+        "language": "Uzbek"
+    },
+    "sk": {
+        "alpha3": "slk",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Slovak"
+    },
+    "simple": {
+        "alpha3": "eng",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Simple English"
+    },
+    "azb": {
+        "alpha3": "azb",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "South Azerbaijani"
+    },
+    "et": {
+        "alpha3": "est",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Estonian"
+    },
+    "be": {
+        "alpha3": "bel",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Belarusian"
+    },
+    "kk": {
+        "alpha3": "kaz",
+        "scripts": [
+            "Cyrl",
+            "Latn",
+            "Arab"
+        ],
+        "language": "Kazakh"
+    },
+    "el": {
+        "alpha3": "ell",
+        "scripts": [
+            "Grek"
+        ],
+        "language": "Greek"
+    },
+    "min": {
+        "alpha3": "min",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Minangkabau"
+    },
+    "hr": {
+        "alpha3": "hrv",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Croatian"
+    },
+    "lt": {
+        "alpha3": "lit",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Lithuanian"
+    },
+    "gl": {
+        "alpha3": "glg",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Galician"
+    },
+    "ur": {
+        "alpha3": "urd",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Urdu"
+    },
+    "az": {
+        "alpha3": "aze",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Azerbaijani"
+    },
+    "sl": {
+        "alpha3": "slv",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Slovenian"
+    },
+    "lld": {
+        "alpha3": "lld",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Ladin"
+    },
+    "ka": {
+        "alpha3": "kat",
+        "scripts": [
+            "Geor"
+        ],
+        "language": "Georgian"
+    },
+    "nn": {
+        "alpha3": "nno",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Norwegian Nynorsk"
+    },
+    "ta": {
+        "alpha3": "tam",
+        "scripts": [
+            "Taml"
+        ],
+        "language": "Tamil"
+    },
+    "th": {
+        "alpha3": "tha",
+        "scripts": [
+            "Thai"
+        ],
+        "language": "Thai"
+    },
+    "hi": {
+        "alpha3": "hin",
+        "scripts": [
+            "Deva"
+        ],
+        "language": "Hindi"
+    },
+    "bn": {
+        "alpha3": "ben",
+        "scripts": [
+            "Beng"
+        ],
+        "language": "Bangla"
+    },
+    "mk": {
+        "alpha3": "mkd",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Macedonian"
+    },
+    "la": {
+        "alpha3": "lat",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Latin"
+    },
+    "zh-yue": {
+        "alpha3": "yue",
+        "scripts": [
+            "Hant"
+        ],
+        "language": "Cantonese"
+    },
+    "ast": {
+        "alpha3": "ast",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Asturian"
+    },
+    "lv": {
+        "alpha3": "lav",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Latvian"
+    },
+    "af": {
+        "alpha3": "afr",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Afrikaans"
+    },
+    "tg": {
+        "alpha3": "tgk",
+        "scripts": [
+            "Cyrl",
+            "Latn"
+        ],
+        "language": "Tajik"
+    },
+    "my": {
+        "alpha3": "mya",
+        "scripts": [
+            "Mymr"
+        ],
+        "language": "Burmese"
+    },
+    "mg": {
+        "alpha3": "mlg",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Malagasy"
+    },
+    "sq": {
+        "alpha3": "sqi",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Albanian"
+    },
+    "mr": {
+        "alpha3": "mar",
+        "scripts": [
+            "Deva"
+        ],
+        "language": "Marathi"
+    },
+    "bs": {
+        "alpha3": "bos",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Bosnian"
+    },
+    "oc": {
+        "alpha3": "oci",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Occitan"
+    },
+    "te": {
+        "alpha3": "tel",
+        "scripts": [
+            "Telu"
+        ],
+        "language": "Telugu"
+    },
+    "br": {
+        "alpha3": "bre",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Breton"
+    },
+    "ml": {
+        "alpha3": "mal",
+        "scripts": [
+            "Mlym"
+        ],
+        "language": "Malayalam"
+    },
+    "be-tarask": {
+        "alpha3": "bel",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Belarusian (Tara\u0161kievica orthography)"
+    },
+    "nds": {
+        "alpha3": "nds",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Low German"
+    },
+    "sw": {
+        "alpha3": "swa",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Swahili"
+    },
+    "ky": {
+        "alpha3": "kir",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Kyrgyz"
+    },
+    "lmo": {
+        "alpha3": "lmo",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Lombard"
+    },
+    "jv": {
+        "alpha3": "jav",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Javanese"
+    },
+    "new": {
+        "alpha3": "new",
+        "scripts": [
+            "Deva"
+        ],
+        "language": "Newari"
+    },
+    "pnb": {
+        "alpha3": "pnb",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Western Punjabi"
+    },
+    "ku": {
+        "alpha3": "kmr",
+        "scripts": [
+            "Latn",
+            "Arab"
+        ],
+        "language": "Kurmanji"
+    },
+    "vec": {
+        "alpha3": "vec",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Venetian"
+    },
+    "ht": {
+        "alpha3": "hat",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Haitian Creole"
+    },
+    "pms": {
+        "alpha3": "pms",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Piedmontese"
+    },
+    "ba": {
+        "alpha3": "bak",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Bashkir"
+    },
+    "lb": {
+        "alpha3": "ltz",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Luxembourgish"
+    },
+    "su": {
+        "alpha3": "sun",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Sundanese"
+    },
+    "ga": {
+        "alpha3": "gle",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Irish"
+    },
+    "is": {
+        "alpha3": "isl",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Icelandic"
+    },
+    "szl": {
+        "alpha3": "szl",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Silesian"
+    },
+    "fy": {
+        "alpha3": "fry",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Western Frisian"
+    },
+    "ckb": {
+        "alpha3": "ckb",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Central Kurdish"
+    },
+    "cv": {
+        "alpha3": "chv",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Chuvash"
+    },
+    "pa": {
+        "alpha3": "pan",
+        "scripts": [
+            "Guru"
+        ],
+        "language": "Punjabi"
+    },
+    "tl": {
+        "alpha3": "fil",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Tagalog"
+    },
+    "an": {
+        "alpha3": "arg",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Aragonese"
+    },
+    "wuu": {
+        "alpha3": "wuu",
+        "scripts": [
+            "Hans",
+            "Hant"
+        ],
+        "language": "Wu Chinese"
+    },
+    "io": {
+        "alpha3": "ido",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Ido"
+    },
+    "diq": {
+        "alpha3": "diq",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Zazaki"
+    },
+    "vo": {
+        "alpha3": "vol",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Volap\u00fck"
+    },
+    "sco": {
+        "alpha3": "sco",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Scots"
+    },
+    "ha": {
+        "alpha3": "hau",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Hausa"
+    },
+    "yo": {
+        "alpha3": "yor",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Yoruba"
+    },
+    "ne": {
+        "alpha3": "nep",
+        "scripts": [
+            "Deva"
+        ],
+        "language": "Nepali"
+    },
+    "kn": {
+        "alpha3": "kan",
+        "scripts": [
+            "Knda"
+        ],
+        "language": "Kannada"
+    },
+    "ia": {
+        "alpha3": "ina",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Interlingua"
+    },
+    "gu": {
+        "alpha3": "guj",
+        "scripts": [
+            "Gujr"
+        ],
+        "language": "Gujarati"
+    },
+    "als": {
+        "alpha3": "als",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Alemannic"
+    },
+    "avk": {
+        "alpha3": "avk",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Kotava"
+    },
+    "crh": {
+        "alpha3": "crh",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Crimean Tatar"
+    },
+    "bar": {
+        "alpha3": "bar",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Bavarian"
+    },
+    "scn": {
+        "alpha3": "scn",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Sicilian"
+    },
+    "bpy": {
+        "alpha3": "bpy",
+        "scripts": [
+            "Beng"
+        ],
+        "language": "Bishnupriya"
+    },
+    "qu": {
+        "alpha3": "que",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Quechua"
+    },
+    "mn": {
+        "alpha3": "mon",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Mongolian"
+    },
+    "ig": {
+        "alpha3": "ibo",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Igbo"
+    },
+    "nv": {
+        "alpha3": "nav",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Navajo"
+    },
+    "ban": {
+        "alpha3": "ban",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Balinese"
+    },
+    "xmf": {
+        "alpha3": "xmf",
+        "scripts": [
+            "Geor"
+        ],
+        "language": "Mingrelian"
+    },
+    "si": {
+        "alpha3": "sin",
+        "scripts": [
+            "Sinh"
+        ],
+        "language": "Sinhala"
+    },
+    "frr": {
+        "alpha3": "frr",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Northern Frisian"
+    },
+    "mzn": {
+        "alpha3": "mzn",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Mazanderani"
+    },
+    "tum": {
+        "alpha3": "tum",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Tumbuka"
+    },
+    "ps": {
+        "alpha3": "pus",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Pashto"
+    },
+    "os": {
+        "alpha3": "oss",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Ossetic"
+    },
+    "or": {
+        "alpha3": "ori",
+        "scripts": [
+            "Orya"
+        ],
+        "language": "Odia"
+    },
+    "bat-smg": {
+        "alpha3": "sgs",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Samogitian"
+    },
+    "sah": {
+        "alpha3": "sah",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Yakut"
+    },
+    "cdo": {
+        "alpha3": "cdo",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Min Dong Chinese"
+    },
+    "bcl": {
+        "alpha3": "bcl",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Central Bikol"
+    },
+    "gd": {
+        "alpha3": "gla",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Scottish Gaelic"
+    },
+    "bug": {
+        "alpha3": "bug",
+        "scripts": [
+            "Bugi"
+        ],
+        "language": "Buginese"
+    },
+    "sd": {
+        "alpha3": "snd",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Sindhi"
+    },
+    "yi": {
+        "alpha3": "yid",
+        "scripts": [
+            "Hebr"
+        ],
+        "language": "Yiddish"
+    },
+    "ilo": {
+        "alpha3": "ilo",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Iloko"
+    },
+    "am": {
+        "alpha3": "amh",
+        "scripts": [
+            "Ethi"
+        ],
+        "language": "Amharic"
+    },
+    "li": {
+        "alpha3": "lim",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Limburgish"
+    },
+    "nap": {
+        "alpha3": "nap",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Neapolitan"
+    },
+    "gor": {
+        "alpha3": "gor",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Gorontalo"
+    },
+    "fo": {
+        "alpha3": "fao",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Faroese"
+    },
+    "mai": {
+        "alpha3": "mai",
+        "scripts": [
+            "Deva"
+        ],
+        "language": "Maithili"
+    },
+    "hsb": {
+        "alpha3": "hsb",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Upper Sorbian"
+    },
+    "map-bms": {
+        "alpha3": "jav",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Basa Banyumasan"
+    },
+    "shn": {
+        "alpha3": "shn",
+        "scripts": [
+            "Mymr"
+        ],
+        "language": "Shan"
+    },
+    "eml": {
+        "alpha3": "eml",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Emiliano-Romagnolo"
+    },
+    "ace": {
+        "alpha3": "ace",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Achinese"
+    },
+    "zh-classical": {
+        "alpha3": "zho",
+        "scripts": [
+            "Hant"
+        ],
+        "language": "Classical Chinese"
+    },
+    "as": {
+        "alpha3": "asm",
+        "scripts": [
+            "Beng"
+        ],
+        "language": "Assamese"
+    },
+    "sa": {
+        "alpha3": "san",
+        "scripts": [
+            "Deva"
+        ],
+        "language": "Sanskrit"
+    },
+    "wa": {
+        "alpha3": "wln",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Walloon"
+    },
+    "ie": {
+        "alpha3": "ile",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Interlingue"
+    },
+    "hyw": {
+        "alpha3": "hyw",
+        "scripts": [
+            "Armn"
+        ],
+        "language": "Western Armenian"
+    },
+    "sn": {
+        "alpha3": "sna",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Shona"
+    },
+    "mhr": {
+        "alpha3": "mhr",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Eastern Mari"
+    },
+    "lij": {
+        "alpha3": "lij",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Ligurian"
+    },
+    "zu": {
+        "alpha3": "zul",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Zulu"
+    },
+    "hif": {
+        "alpha3": "hif",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Fiji Hindi"
+    },
+    "bjn": {
+        "alpha3": "bjn",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Banjar"
+    },
+    "mrj": {
+        "alpha3": "mrj",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Western Mari"
+    },
+    "km": {
+        "alpha3": "khm",
+        "scripts": [
+            "Khmr"
+        ],
+        "language": "Khmer"
+    },
+    "mni": {
+        "alpha3": "mni",
+        "scripts": [
+            "Mtei"
+        ],
+        "language": "Manipuri"
+    },
+    "hak": {
+        "alpha3": "hak",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Hakka Chinese"
+    },
+    "sat": {
+        "alpha3": "sat",
+        "scripts": [
+            "Olck"
+        ],
+        "language": "Santali"
+    },
+    "ary": {
+        "alpha3": "ary",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Moroccan Arabic"
+    },
+    "roa-tara": {
+        "alpha3": "roa-tara",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Tarantino"
+    },
+    "pam": {
+        "alpha3": "pam",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Pampanga"
+    },
+    "rue": {
+        "alpha3": "rue",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Rusyn"
+    },
+    "bh": {
+        "alpha3": "bho",
+        "scripts": [
+            "Deva"
+        ],
+        "language": "Bhojpuri"
+    },
+    "nso": {
+        "alpha3": "nso",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Northern Sotho"
+    },
+    "dag": {
+        "alpha3": "dag",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Dagbani"
+    },
+    "co": {
+        "alpha3": "cos",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Corsican"
+    },
+    "so": {
+        "alpha3": "som",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Somali"
+    },
+    "vls": {
+        "alpha3": "vls",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "West Flemish"
+    },
+    "mi": {
+        "alpha3": "mri",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "M\u0101ori"
+    },
+    "nds-nl": {
+        "alpha3": "nds",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Low Saxon"
+    },
+    "myv": {
+        "alpha3": "myv",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Erzya"
+    },
+    "se": {
+        "alpha3": "sme",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Northern Sami"
+    },
+    "sc": {
+        "alpha3": "srd",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Sardinian"
+    },
+    "bo": {
+        "alpha3": "bod",
+        "scripts": [
+            "Tibt"
+        ],
+        "language": "Tibetan"
+    },
+    "vep": {
+        "alpha3": "vep",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Veps"
+    },
+    "kw": {
+        "alpha3": "cor",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Cornish"
+    },
+    "glk": {
+        "alpha3": "glk",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Gilaki"
+    },
+    "tk": {
+        "alpha3": "tuk",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Turkmen"
+    },
+    "kab": {
+        "alpha3": "kab",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Kabyle"
+    },
+    "gan": {
+        "alpha3": "gan",
+        "scripts": [
+            "Hans",
+            "Hant"
+        ],
+        "language": "Gan Chinese"
+    },
+    "rw": {
+        "alpha3": "kin",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Kinyarwanda"
+    },
+    "fiu-vro": {
+        "alpha3": "vro",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "V\u00f5ro"
+    },
+    "gv": {
+        "alpha3": "glv",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Manx"
+    },
+    "zea": {
+        "alpha3": "zea",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Zeelandic"
+    },
+    "ab": {
+        "alpha3": "abk",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Abkhazian"
+    },
+    "ug": {
+        "alpha3": "uig",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Uyghur"
+    },
+    "nah": {
+        "alpha3": "nah",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "N\u0101huatl"
+    },
+    "mt": {
+        "alpha3": "mlt",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Maltese"
+    },
+    "skr": {
+        "alpha3": "skr",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Saraiki"
+    },
+    "frp": {
+        "alpha3": "frp",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Arpitan"
+    },
+    "tly": {
+        "alpha3": "tly",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Talysh"
+    },
+    "udm": {
+        "alpha3": "udm",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Udmurt"
+    },
+    "pcd": {
+        "alpha3": "pcd",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Picard"
+    },
+    "gn": {
+        "alpha3": "grn",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Guarani"
+    },
+    "kv": {
+        "alpha3": "kom",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Komi"
+    },
+    "csb": {
+        "alpha3": "csb",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Kashubian"
+    },
+    "smn": {
+        "alpha3": "smn",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Inari Sami"
+    },
+    "ay": {
+        "alpha3": "aym",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Aymara"
+    },
+    "nrm": {
+        "alpha3": "nrm",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Norman"
+    },
+    "ks": {
+        "alpha3": "kas",
+        "scripts": [
+            "Arab"
+        ],
+        "language": "Kashmiri"
+    },
+    "lez": {
+        "alpha3": "lez",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Lezghian"
+    },
+    "olo": {
+        "alpha3": "olo",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Livvi-Karelian"
+    },
+    "mwl": {
+        "alpha3": "mwl",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Mirandese"
+    },
+    "lfn": {
+        "alpha3": "lfn",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Lingua Franca Nova"
+    },
+    "mdf": {
+        "alpha3": "mdf",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Moksha"
+    },
+    "kaa": {
+        "alpha3": "kaa",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Kara-Kalpak"
+    },
+    "stq": {
+        "alpha3": "stq",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Saterland Frisian"
+    },
+    "ang": {
+        "alpha3": "ang",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Old English"
+    },
+    "lo": {
+        "alpha3": "lao",
+        "scripts": [
+            "Laoo"
+        ],
+        "language": "Lao"
+    },
+    "fur": {
+        "alpha3": "fur",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Friulian"
+    },
+    "rm": {
+        "alpha3": "roh",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Romansh"
+    },
+    "ext": {
+        "alpha3": "ext",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Extremaduran"
+    },
+    "tw": {
+        "alpha3": "twi",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Twi"
+    },
+    "lad": {
+        "alpha3": "lad",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Ladino"
+    },
+    "gom": {
+        "alpha3": "gom",
+        "scripts": [
+            "Deva",
+            "Latn",
+            "Knda"
+        ],
+        "language": "Goan Konkani"
+    },
+    "pap": {
+        "alpha3": "pap",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Papiamento"
+    },
+    "tyv": {
+        "alpha3": "tyv",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Tuvinian"
+    },
+    "koi": {
+        "alpha3": "koi",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Komi-Permyak"
+    },
+    "ln": {
+        "alpha3": "lin",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Lingala"
+    },
+    "av": {
+        "alpha3": "ava",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Avaric"
+    },
+    "dsb": {
+        "alpha3": "dsb",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Lower Sorbian"
+    },
+    "dty": {
+        "alpha3": "dty",
+        "scripts": [
+            "Deva"
+        ],
+        "language": "Doteli"
+    },
+    "cbk-zam": {
+        "alpha3": "cbk",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Chavacano"
+    },
+    "dv": {
+        "alpha3": "div",
+        "scripts": [
+            "Thaa"
+        ],
+        "language": "Divehi"
+    },
+    "ksh": {
+        "alpha3": "ksh",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Colognian"
+    },
+    "lg": {
+        "alpha3": "lug",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Ganda"
+    },
+    "za": {
+        "alpha3": "zha",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Zhuang"
+    },
+    "gag": {
+        "alpha3": "gag",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Gagauz"
+    },
+    "bxr": {
+        "alpha3": "bxr",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Russia Buriat"
+    },
+    "pfl": {
+        "alpha3": "pfl",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Palatine German"
+    },
+    "szy": {
+        "alpha3": "szy",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Sakizaya"
+    },
+    "blk": {
+        "alpha3": "blk",
+        "scripts": [
+            "Mymr"
+        ],
+        "language": "Pa'O"
+    },
+    "tay": {
+        "alpha3": "tay",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Tayal"
+    },
+    "pag": {
+        "alpha3": "pag",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Pangasinan"
+    },
+    "pi": {
+        "alpha3": "pli",
+        "scripts": [
+            "Deva"
+        ],
+        "language": "Pali"
+    },
+    "haw": {
+        "alpha3": "haw",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Hawaiian"
+    },
+    "awa": {
+        "alpha3": "awa",
+        "scripts": [
+            "Deva"
+        ],
+        "language": "Awadhi"
+    },
+    "inh": {
+        "alpha3": "inh",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Ingush"
+    },
+    "krc": {
+        "alpha3": "krc",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Karachay-Balkar"
+    },
+    "pdc": {
+        "alpha3": "pdc",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Pennsylvania German"
+    },
+    "to": {
+        "alpha3": "ton",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Tongan"
+    },
+    "atj": {
+        "alpha3": "atj",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Atikamekw"
+    },
+    "tcy": {
+        "alpha3": "tcy",
+        "scripts": [
+            "Knda"
+        ],
+        "language": "Tulu"
+    },
+    "arc": {
+        "alpha3": "arc",
+        "scripts": [
+            "Syrc"
+        ],
+        "language": "Aramaic"
+    },
+    "mnw": {
+        "alpha3": "mnw",
+        "scripts": [
+            "Mymr"
+        ],
+        "language": "Mon"
+    },
+    "shi": {
+        "alpha3": "shi",
+        "scripts": [
+            "Latn",
+            "Tfng"
+        ],
+        "language": "Tachelhit"
+    },
+    "xal": {
+        "alpha3": "xal",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Kalmyk"
+    },
+    "ff": {
+        "alpha3": "ful",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Fula"
+    },
+    "jam": {
+        "alpha3": "jam",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Jamaican Creole English"
+    },
+    "kbp": {
+        "alpha3": "kbp",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Kabiye"
+    },
+    "xh": {
+        "alpha3": "xho",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Xhosa"
+    },
+    "wo": {
+        "alpha3": "wol",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Wolof"
+    },
+    "nia": {
+        "alpha3": "nia",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Nias"
+    },
+    "anp": {
+        "alpha3": "anp",
+        "scripts": [
+            "Deva"
+        ],
+        "language": "Angika"
+    },
+    "om": {
+        "alpha3": "orm",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Oromo"
+    },
+    "kbd": {
+        "alpha3": "kbd",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Kabardian"
+    },
+    "nov": {
+        "alpha3": "nov",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Novial"
+    },
+    "ki": {
+        "alpha3": "kik",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Kikuyu"
+    },
+    "nqo": {
+        "alpha3": "nqo",
+        "scripts": [
+            "Nkoo"
+        ],
+        "language": "N\u2019Ko"
+    },
+    "bi": {
+        "alpha3": "bis",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Bislama"
+    },
+    "tpi": {
+        "alpha3": "tpi",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Tok Pisin"
+    },
+    "tet": {
+        "alpha3": "tet",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Tetum"
+    },
+    "roa-rup": {
+        "alpha3": "rup",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Aromanian"
+    },
+    "jbo": {
+        "alpha3": "jbo",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Lojban"
+    },
+    "zgh": {
+        "alpha3": "zgh",
+        "scripts": [
+            "Tfng"
+        ],
+        "language": "Standard Moroccan Tamazight"
+    },
+    "tn": {
+        "alpha3": "tsn",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Tswana"
+    },
+    "fj": {
+        "alpha3": "fij",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Fijian"
+    },
+    "kg": {
+        "alpha3": "kon",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Kongo"
+    },
+    "lbe": {
+        "alpha3": "lbe",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Lak"
+    },
+    "guw": {
+        "alpha3": "guw",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Gun"
+    },
+    "ty": {
+        "alpha3": "tah",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Tahitian"
+    },
+    "cu": {
+        "alpha3": "chu",
+        "scripts": [
+            "Cyrs"
+        ],
+        "language": "Church Slavic"
+    },
+    "rmy": {
+        "alpha3": "rmy",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Vlax Romani"
+    },
+    "trv": {
+        "alpha3": "trv",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Taroko"
+    },
+    "mad": {
+        "alpha3": "mad",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Madurese"
+    },
+    "ami": {
+        "alpha3": "ami",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Amis"
+    },
+    "srn": {
+        "alpha3": "srn",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Sranan Tongo"
+    },
+    "alt": {
+        "alpha3": "alt",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Southern Altai"
+    },
+    "sm": {
+        "alpha3": "smo",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Samoan"
+    },
+    "ltg": {
+        "alpha3": "ltg",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Latgalian"
+    },
+    "gcr": {
+        "alpha3": "gcr",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Guianan Creole"
+    },
+    "chr": {
+        "alpha3": "chr",
+        "scripts": [
+            "Cher"
+        ],
+        "language": "Cherokee"
+    },
+    "ny": {
+        "alpha3": "nya",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Nyanja"
+    },
+    "pcm": {
+        "alpha3": "pcm",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Nigerian Pidgin"
+    },
+    "dga": {
+        "alpha3": "dga",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Dagaare"
+    },
+    "st": {
+        "alpha3": "sot",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Southern Sotho"
+    },
+    "gpe": {
+        "alpha3": "gpe",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Ghanaian Pidgin"
+    },
+    "pih": {
+        "alpha3": "pih",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Norfuk / Pitkern"
+    },
+    "kcg": {
+        "alpha3": "kcg",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Tyap"
+    },
+    "got": {
+        "alpha3": "got",
+        "scripts": [
+            "Goth"
+        ],
+        "language": "Gothic"
+    },
+    "ss": {
+        "alpha3": "ssw",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Swati"
+    },
+    "gur": {
+        "alpha3": "gur",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Frafra"
+    },
+    "ee": {
+        "alpha3": "ewe",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Ewe"
+    },
+    "bm": {
+        "alpha3": "bam",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Bambara"
+    },
+    "ts": {
+        "alpha3": "tso",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Tsonga"
+    },
+    "ve": {
+        "alpha3": "ven",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Venda"
+    },
+    "bbc": {
+        "alpha3": "bbc",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Batak Toba"
+    },
+    "chy": {
+        "alpha3": "chy",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Cheyenne"
+    },
+    "rn": {
+        "alpha3": "run",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Rundi"
+    },
+    "ik": {
+        "alpha3": "ipk",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Inupiaq"
+    },
+    "fon": {
+        "alpha3": "fon",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Fon"
+    },
+    "ch": {
+        "alpha3": "cha",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Chamorro"
+    },
+    "ady": {
+        "alpha3": "ady",
+        "scripts": [
+            "Cyrl"
+        ],
+        "language": "Adyghe"
+    },
+    "guc": {
+        "alpha3": "guc",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Wayuu"
+    },
+    "fat": {
+        "alpha3": "fat",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Fanti"
+    },
+    "pnt": {
+        "alpha3": "pnt",
+        "scripts": [
+            "Grek"
+        ],
+        "language": "Pontic"
+    },
+    "iu": {
+        "alpha3": "iku",
+        "scripts": [
+            "Cans"
+        ],
+        "language": "Inuktitut"
+    },
+    "pwn": {
+        "alpha3": "pwn",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Paiwan"
+    },
+    "sg": {
+        "alpha3": "sag",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Sango"
+    },
+    "din": {
+        "alpha3": "din",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Dinka"
+    },
+    "ti": {
+        "alpha3": "tir",
+        "scripts": [
+            "Ethi"
+        ],
+        "language": "Tigrinya"
+    },
+    "kl": {
+        "alpha3": "kal",
+        "scripts": [
+            "Latn"
+        ],
+        "language": "Kalaallisut"
+    },
+    "dz": {
+        "alpha3": "dzo",
+        "scripts": [
+            "Tibt"
+        ],
+        "language": "Dzongkha"
+    },
+    "cr": {
+        "alpha3": "cre",
+        "scripts": [
+            "Cans"
+        ],
+        "language": "Cree"
+    }
+}

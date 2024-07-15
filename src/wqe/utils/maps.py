@@ -50,7 +50,8 @@ TOKENIZER_PARAM_MAP = {
         "nfkd": normalizers.NFKD,
         "nmt": normalizers.Nmt,
         "prepend": normalizers.Prepend,
-        "replace": normalizers.Replace
+        "replace": normalizers.Replace,
+        "strip": normalizers.Strip
     },
     "pre_tokenizer": {
         "byte_level": pre_tokenizers.ByteLevel,
@@ -60,7 +61,8 @@ TOKENIZER_PARAM_MAP = {
         "unicode_scripts": pre_tokenizers.UnicodeScripts,
         "punctuation": pre_tokenizers.Punctuation,
         "digits": pre_tokenizers.Digits,
-        "bert": pre_tokenizers.BertPreTokenizer
+        "bert": pre_tokenizers.BertPreTokenizer,
+        "split": pre_tokenizers.Split
     },
     "decoder": {
         "metaspace": decoders.Metaspace,
