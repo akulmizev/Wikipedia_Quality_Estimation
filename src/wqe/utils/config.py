@@ -7,6 +7,12 @@ class PreFilter:
     script_regex: Optional[bool] = None
     lang_id: Optional[bool] = None
     char_cutoff: Optional[int] = None
+    deduplicate_exact_match: Optional[bool] = None
+    deduplicate_min_hash: Optional[bool] = None
+    jaccard_threshold: Optional[float] = None
+    tokenizer: Optional[str] = None
+    urls_to_remove: Optional[List[str]] = None
+    num_proc: Optional[int] = None
 
 
 @dataclass
