@@ -4,15 +4,15 @@ from typing import Any, Dict, List, Union, Optional
 
 @dataclass
 class PreFilter:
-    script_regex: Optional[bool] = None
-    lang_id: Optional[bool] = None
-    char_cutoff: Optional[int] = None
-    deduplicate_exact_match: Optional[bool] = None
-    deduplicate_min_hash: Optional[bool] = None
-    jaccard_threshold: Optional[float] = None
+    script_regex: Optional[bool] = False
+    lang_id: Optional[bool] = False
+    char_cutoff: Optional[int] = 0
+    deduplicate_exact_match: Optional[bool] = False
+    deduplicate_min_hash: Optional[bool] = False
+    jaccard_threshold: Optional[float] = 0.85
     tokenizer: Optional[str] = None
     urls_to_remove: Optional[List[str]] = None
-    num_proc: Optional[int] = None
+    num_proc: Optional[int] = 1
 
 
 @dataclass
