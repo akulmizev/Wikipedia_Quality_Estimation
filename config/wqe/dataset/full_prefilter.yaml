@@ -1,0 +1,17 @@
+# load_path: "WikiQuality/raw_wiki"
+
+pre_filter:
+  script_regex: true
+  char_cutoff: 15
+  deduplicate_exact_match: true
+  deduplicate_min_hash: true
+  jaccard_threshold: 0.85
+  num_proc: 16
+
+split:
+  test_size: 0.1
+  seed: 42
+  shuffle: true
+
+export: false
+push_to_hub: false

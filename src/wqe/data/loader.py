@@ -15,6 +15,7 @@ from datasets.exceptions import DatasetNotFoundError
 from datasketch import MinHash, MinHashLSH
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import insecure_hashlib
+from numpy.random import choice
 from transformers import PreTrainedTokenizerFast
 
 from . import resources
@@ -138,6 +139,31 @@ class WikiLoader:
                f"Characters: {self.n_chars}\n" \
                f"Scripts: {', '.join(self.wiki.scripts)}"
 
+    def get_doc(
+            self,
+            idx: int = None
+    ):
+
+        """
+        Returns the first document in the dataset. Useful for testing.
+
+        Parameters
+        ----------
+        idx : int
+            The index of the document to return. If not specified, a random document is returned.
+
+        Returns
+        -------
+        str
+            The text of the document.
+        """
+
+        assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
+
+        idx = choice(range(len(self.data["train"]["text"]))) if idx is None else idx
+
+        return self.data["train"]["text"][idx]
+
     @staticmethod
     def show_available_wikis():
 
@@ -153,6 +179,43 @@ class WikiLoader:
         print("-" * 88)
         for wiki_id, wiki in sorted(wiki_mappings.items(), key=lambda x: x[1]['language']):
             print(f"{wiki_id:<15}{wiki['language']:<40}{wiki['alpha3']:<10}{', '.join(wiki['scripts']):<30}")
+
+    @classmethod
+    def from_dataset(
+            cls,
+            dataset: datasets.Dataset,
+            wiki_id: str
+    ):
+
+        """
+        Initializes a WikiLoader instance from a datasets.Dataset.
+
+        Parameters
+        ----------
+        dataset : datasets.Dataset
+            The dataset to load the dataset from.
+        wiki_id : str
+            The language id used by Wikipedia. For example, "as" for Assamese.
+            Can be found in the `Wiki` column here:
+            https://meta.wikimedia.org/wiki/List_of_Wikipedias.
+
+        Returns
+        -------
+        WikiLoader
+            The initialized WikiLoader instance.
+        """
+
+        instance = cls(wiki_id)
+        instance.data = DatasetDict({"train": dataset})
+        instance.regex = None
+        instance.lang_id_model = None
+
+        instance.n_chars = len("".join(instance.data["train"]["text"]))
+        instance.n_docs = len(instance.data["train"])
+
+        logger.info(f"Loaded {instance.n_docs} articles with {instance.n_chars} characters (train).")
+
+        return instance
 
     def load_dataset(
             self,
@@ -211,43 +274,6 @@ class WikiLoader:
 
         return self
 
-    @classmethod
-    def from_dataset(
-            cls,
-            dataset: datasets.Dataset,
-            wiki_id: str
-    ):
-
-        """
-        Initializes a WikiLoader instance from a datasets.Dataset.
-
-        Parameters
-        ----------
-        dataset : datasets.Dataset
-            The dataset to load the dataset from.
-        wiki_id : str
-            The language id used by Wikipedia. For example, "as" for Assamese.
-            Can be found in the `Wiki` column here:
-            https://meta.wikimedia.org/wiki/List_of_Wikipedias.
-
-        Returns
-        -------
-        WikiLoader
-            The initialized WikiLoader instance.
-        """
-
-        instance = cls(wiki_id)
-        instance.data = DatasetDict({"train": dataset})
-        instance.regex = None
-        instance.lang_id_model = None
-
-        instance.n_chars = len("".join(instance.data["train"]["text"]))
-        instance.n_docs = len(instance.data["train"])
-
-        logger.info(f"Loaded {instance.n_docs} articles with {instance.n_chars} characters (train).")
-
-        return instance
-
     def generate_splits(
             self,
             test_size: float = 0.1,
@@ -267,6 +293,8 @@ class WikiLoader:
         seed : int, optional
             The random seed to use for shuffling. Default is 42.
         """
+
+        assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
 
         logger.info("Generating dataset splits...")
 
@@ -314,7 +342,7 @@ class WikiLoader:
         - `deduplicate_min_hash`: Removes duplicate articles by computing
         the Jaccard similarity between article unigrams using MinHash-LSH,
         and filtering based on the specified threshold. Can be used in conjunction
-        with a trained tokenizer, if provided. Otherwise, will lowercase
+        with a trained tokenization, if provided. Otherwise, will lowercase
         and split on whitespace.
 
         - `char_cutoff`: Removes lines from the dataset that are below a certain
@@ -372,7 +400,7 @@ class WikiLoader:
             The Jaccard similarity threshold for deduplication.
             Default is 0.85.
         tokenizer : str
-            Path to tokenizer to use in computing jaccard similarity between documents.
+            Path to tokenization to use in computing jaccard similarity between documents.
             Optional for min_hash deduplication.
         char_cutoff : int
             The minimum number of characters required for a line to be kept.
@@ -386,6 +414,8 @@ class WikiLoader:
             The number of processes to use for filtering.
             Default is 4.
         """
+
+        assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
 
         raw_chars = self.n_chars
         raw_docs = self.n_docs
@@ -455,6 +485,10 @@ class WikiLoader:
             num_proc=num_proc
         )
 
+        self.data["train"] = self.data["train"].remove_columns(
+            {"hash", "minhash"} & set(self.data["train"].column_names)
+        )
+
         self.n_chars = len("".join(self.data["train"]["text"]))
         self.n_docs = len(self.data["train"])
 
@@ -501,7 +535,7 @@ class WikiLoader:
         deduplicate_min_hash : bool
             Whether to deduplicate the article via MinHash-LSH.
         tokenizer : PreTrainedTokenizerFast
-            The tokenizer to use for computing jaccard similarity for min_hash.
+            The tokenization to use for computing jaccard similarity for min_hash.
         urls_to_remove : list
             The list of URLs to remove from the article.
         warn_percent : float
@@ -632,8 +666,10 @@ class WikiLoader:
             Set operations are performed on the dataset indices returned by each metric.
             Choice between 'intersection' and 'union'.
         tokenizer : str
-            The tokenizer to use for partitioning the dataset. Required for certain metrics.
+            The tokenization to use for partitioning the dataset. Required for certain metrics.
         """
+
+        assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
 
         raw_chars = self.n_chars
         raw_docs = self.n_docs

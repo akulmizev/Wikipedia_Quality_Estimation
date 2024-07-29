@@ -10,11 +10,10 @@ from datasets import Dataset, DatasetDict
 from transformers import get_scheduler, PreTrainedTokenizerFast
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
-from transformers import Adafactor
 from tqdm import tqdm
 
 from .mixins import ModelInitMixin
-from ..tokenizer.tokenizer import FastTokenizerFromConfig
+from ..tokenization.base import HfTokenizerFromConfig
 from ..utils.config import TrainingParameters
 
 logging.basicConfig(level=logging.INFO)
@@ -43,8 +42,8 @@ class ModelFromConfig(ModelInitMixin):
         Path to load the model from.
     _model : torch.nn.Module
         The model instance. Defined in subclasses.
-    tokenizer : PreTrainedTokenizerFast or FastTokenizerFromConfig
-        The tokenizer for the model. Defined in subclasses.
+    tokenizer : PreTrainedTokenizerFast or HfTokenizerFromConfig
+        The tokenization for the model. Defined in subclasses.
     collator : callable
         The collator function for the data loader. Defined in subclasses.
     """
@@ -71,11 +70,11 @@ class ModelFromConfig(ModelInitMixin):
     def _init_model_and_tokenizer(
             self,
             dataset: DatasetDict = None,
-            tokenizer: Optional[Union[PreTrainedTokenizerFast, FastTokenizerFromConfig]] = None
+            tokenizer: Optional[Union[PreTrainedTokenizerFast, HfTokenizerFromConfig]] = None
     ):
 
         """
-        Initializes the model and tokenizer. Also initializes the collator function, if applicable.
+        Initializes the model and tokenization. Also initializes the collator function, if applicable.
         This is heavily task-dependent and must be implemented in subclasses.
         """
 
@@ -187,7 +186,7 @@ class ModelFromConfig(ModelInitMixin):
     def train(
             self,
             dataset: DatasetDict,
-            tokenizer: Optional[Union[PreTrainedTokenizerFast, FastTokenizerFromConfig]] = None,
+            tokenizer: Optional[Union[PreTrainedTokenizerFast, HfTokenizerFromConfig]] = None,
             eval_split: str = "validation"
     ):
 
@@ -203,10 +202,10 @@ class ModelFromConfig(ModelInitMixin):
         dataset : DatasetDict
             The dataset to use for training and evaluation.
             Can be a wqe.data.loader.WikiLoader instance.
-        tokenizer : PreTrainedTokenizerFast or FastTokenizerFromConfig, optional
-            The tokenizer to use for the model.
+        tokenizer : PreTrainedTokenizerFast or HfTokenizerFromConfig, optional
+            The tokenization to use for the model.
             Should only be provided if training from scratch with a config.
-            If not provided, tries to load the tokenizer via the model string, e.g. "bert-base-uncased".
+            If not provided, tries to load the tokenization via the model string, e.g. "bert-base-uncased".
         eval_split : str, optional
             The split to use for evaluation during training (default is 'validation').
         """

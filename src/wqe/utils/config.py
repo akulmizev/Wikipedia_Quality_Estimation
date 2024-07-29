@@ -40,21 +40,20 @@ class TokenizerComponent:
 @dataclass
 class TokenizerConfig:
     model: Dict[str, Any]
-    trainer: Dict[str, Any]
-    normalizer: Union[Dict[str, Any], List[Dict[str, Any]]]
-    pre_tokenizer: Union[Dict[str, Any], List[Dict[str, Any]]]
-    decoder: Dict[str, Any]
     vocab_size: Union[int, str] = "auto"
     batch_size: int = 1000
+    normalizer: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
+    pre_tokenizer: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None
+    decoder: Optional[Dict[str, Any]] = None
+    trainer: Optional[Dict[str, Any]] = None
+    use_sp_backend: Optional[bool] = False
+    sp_kwargs: Optional[Dict[str, Any]] = None
     special_tokens: Dict[str, str] = field(
         default_factory=lambda: {
-            "pad_token": "[PAD]",
-            "mask_token": "[MASK]",
-            "cls_token": "[CLS]",
-            "sep_token": "[SEP]",
-            "bos_token": "[BOS]",
-            "eos_token": "[EOS]",
-            "unk_token": "[UNK]",
+            "bos_token": "<s>",
+            "eos_token": "</s>",
+            "unk_token": "<unk>",
+            "mask_token": "<mask>"
         }
     )
 
@@ -71,7 +70,8 @@ class TokenizerConfig:
     def __post_init__(self):
         for attr in ["model", "trainer", "normalizer", "pre_tokenizer", "decoder"]:
             value = getattr(self, attr)
-            setattr(self, attr, self.convert_to_tokenizer_component(value))
+            if value:
+                setattr(self, attr, self.convert_to_tokenizer_component(value))
 
 
 @dataclass
@@ -121,6 +121,7 @@ class Tokenizer:
     export: bool = False
     push_to_hub: bool = False
     load_path: Optional[str] = None
+    merge_with: Optional[str] = None
     tokenizer_config: Optional[Dict[str, Union[str, int, bool, Dict[str, str]]]] = None
 
     def __post_init__(self):

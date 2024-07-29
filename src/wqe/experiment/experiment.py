@@ -5,10 +5,12 @@ from typing import Any, Dict, Union
 
 import datasets
 
-from transformers import PreTrainedTokenizerFast
+from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 from ..data.loader import WikiLoader, WikiID
-from ..tokenizer.tokenizer import FastTokenizerFromConfig
+from ..tokenization.base import HfTokenizerFromConfig
+from ..tokenization.spm import HfSentencePieceTokenizer
+from ..tokenization.utils import merge_tokenizers
 from ..model.pretrain import MLM, CLM
 from ..model.finetune import Tagger, Classifier
 from ..utils.config import MainConfig
@@ -22,7 +24,7 @@ datasets.builder.has_sufficient_disk_space = lambda needed_bytes, directory='.':
 
 class ExperimentRunner:
     """
-    Class for running experiments involving dataset processing, tokenization, pre-training, and fine-tuning.
+    Class for running experiments involving dataset processing, tokenization, pretraining, and fine-tuning.
 
     Parameters
     ----------
@@ -38,7 +40,7 @@ class ExperimentRunner:
     tokenizer : Any
         Tokenizer config.
     pretrain : Any
-        Pre-training config.
+        Pretraining config.
     finetune : Any
         Fine-tuning config.
     wiki : WikiID
@@ -73,7 +75,7 @@ class ExperimentRunner:
 
         if not any([self.dataset, self.tokenizer, self.pretrain, self.finetune]):
             logger.error("No valid configurations found. Please specify at least one of the following: "
-                         "`dataset`, `tokenizer`, `pretrain`, `finetune`.")
+                         "`dataset`, `tokenization`, `pretrain`, `finetune`.")
 
     def process_dataset(self) -> WikiLoader:
 
@@ -116,48 +118,56 @@ class ExperimentRunner:
     def process_tokenizer(
             self,
             dataset: Union[WikiLoader, None] = None
-    ) -> Union[FastTokenizerFromConfig, PreTrainedTokenizerFast]:
+    ) -> Union[HfTokenizerFromConfig, PreTrainedTokenizerFast]:
 
         """
-        Load or train the tokenizer according to the config.
+        Load or train the tokenization according to the config.
 
         Parameters
         ----------
         dataset : Union[WikiLoader, None], optional
-            An instance of `WikiLoader` containing the dataset, if required for training the tokenizer.
+            An instance of `WikiLoader` containing the dataset, if required for training the tokenization.
 
         Returns
         -------
-        FastTokenizerFromConfig
-            An instance of `FastTokenizerFromConfig` representing the tokenizer.
+        HfTokenizerFromConfig
+            An instance of `FastTokenizerFromConfig` representing the tokenization.
         """
 
         cfg = self.tokenizer
         save_path = f"{self.local_path}/model" if self.local_path else None
 
         if cfg.load_path:
-            logger.info(f"Loading tokenizer from {cfg.load_path}")
-            tokenizer = FastTokenizerFromConfig.from_pretrained(cfg.load_path)
+            logger.info(f"Loading tokenization from {cfg.load_path}")
+            tokenizer = HfTokenizerFromConfig.from_pretrained(cfg.load_path)
 
         elif cfg.tokenizer_config:
             assert dataset is not None, \
-                "Dataset is required for training tokenizer. Please provide a dataset config."
-            tokenizer = FastTokenizerFromConfig.train_from_config(
+                "Dataset is required for training tokenization. Please provide a dataset config."
+
+            tok_class = HfSentencePieceTokenizer if cfg.tokenizer_config.use_sp_backend else HfTokenizerFromConfig
+            tokenizer = tok_class.train_from_config(
                 dataset["train"]["text"],
-                cfg.tokenizer_config
+                cfg.tokenizer_config,
+                vocab_file=f"{save_path}/tokenizer.model" if save_path else None
             )
 
         else:
             raise ValueError("Tokenizer configuration is required.")
+
+        if cfg.merge_with:
+            logger.info(f"Merging tokenization with {cfg.merge_with}.")
+            base_tokenizer = AutoTokenizer.from_pretrained(cfg.merge_with)
+            tokenizer = merge_tokenizers(base_tokenizer, tokenizer)
         
         if cfg.export:
-                assert save_path is not None, \
-                    "Please specify `local_path` in experiment config for saving the tokenizer."
-                tokenizer.save_pretrained(save_path)
+            assert save_path is not None, \
+                "Please specify `local_path` in experiment config for saving the tokenization."
+            tokenizer.save_pretrained(save_path)
 
         if cfg.push_to_hub:
             assert self.hub_path is not None, \
-                "Please specify `hub_path` in experiment for pushing the tokenizer to the hub."
+                "Please specify `hub_path` in experiment for pushing the tokenization to the hub."
             tokenizer.push_to_hub(f"{self.hub_path}.{self.wiki.id}", private=True)
 
         return tokenizer
@@ -165,7 +175,7 @@ class ExperimentRunner:
     def process_pretrain(
             self,
             dataset: Union[WikiLoader, None] = None,
-            tokenizer: Union[FastTokenizerFromConfig, FastTokenizerFromConfig, None] = None
+            tokenizer: Union[HfTokenizerFromConfig, HfTokenizerFromConfig, None] = None
     ) -> None:
 
         """
@@ -175,8 +185,8 @@ class ExperimentRunner:
         ----------
         dataset : Union[WikiLoader, None], optional
             An instance of `WikiLoader` containing the dataset for pre-training.
-        tokenizer : Union[FastTokenizerFromConfig, None], optional
-            An instance of `FastTokenizerFromConfig` representing the tokenizer for pre-training.
+        tokenizer : Union[HfTokenizerFromConfig, None], optional
+            An instance of `HfTokenizerFromConfig` representing the tokenization for pre-training.
         """
 
         cfg = self.pretrain
@@ -237,7 +247,8 @@ class ExperimentRunner:
         task = cfg.training_parameters.task
         finetune_dataset = validate_and_format_dataset(cfg.dataset_path, self.wiki.id, task)
         dataset_id = cfg.dataset_path.split("/")[-1]
-        scores_file = f"{self.local_path}/{self.experiment.experiment_id}.{dataset_id}.scores.txt" if self.local_path else None
+        scores_file = f"{self.local_path}/{self.experiment.experiment_id}.{dataset_id}.scores.txt" \
+            if self.local_path else None
 
         if task in ["ner", "pos"]:
             model = Tagger(

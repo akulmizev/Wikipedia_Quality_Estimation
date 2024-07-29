@@ -16,7 +16,7 @@ from transformers import (
 )
 
 from .base import ModelFromConfig
-from ..tokenizer import FastTokenizerFromConfig
+from ..tokenization import HfTokenizerFromConfig
 from ..utils.config import TrainingParameters
 
 logging.basicConfig(level=logging.INFO)
@@ -49,8 +49,8 @@ class Tagger(ModelFromConfig):
 
     Methods
     -------
-    _init_model_and_tokenizer(dataset=None, tokenizer=None)
-        Initializes the model and tokenizer for the task.
+    _init_model_and_tokenizer(dataset=None, tokenization=None)
+        Initializes the model and tokenization for the task.
     _init_metrics()
         Initializes the evaluation metrics for the task.
     _align_labels(example)
@@ -79,19 +79,19 @@ class Tagger(ModelFromConfig):
     def _init_model_and_tokenizer(
             self,
             dataset: DatasetDict = None,
-            tokenizer: Union[PreTrainedTokenizerFast, FastTokenizerFromConfig] = None
+            tokenizer: Union[PreTrainedTokenizerFast, HfTokenizerFromConfig] = None
     ):
 
         """
-        Initialize the model and tokenizer for tagging.
+        Initialize the model and tokenization for tagging.
 
         Parameters
         ----------
         dataset : DatasetDict, optional
             The dataset used for the task.
             Assumes the `tags` feature in the dataset.
-        tokenizer : Union[PreTrainedTokenizerFast, FastTokenizerFromConfig], optional
-            The tokenizer to be used. Generally not needed, as the tokenizer will be loaded
+        tokenizer : Union[PreTrainedTokenizerFast, HfTokenizerFromConfig], optional
+            The tokenization to be used. Generally not needed, as the tokenization will be loaded
             from the same path as the model.
         """
 
@@ -342,8 +342,8 @@ class Classifier(ModelFromConfig):
 
     Methods
     -------
-    _init_model_and_tokenizer(dataset=None, tokenizer=None)
-        Initializes the model and tokenizer for the task.
+    _init_model_and_tokenizer(dataset=None, tokenization=None)
+        Initializes the model and tokenization for the task.
     _init_metrics()
         Initializes the evaluation metrics for the task.
     _tokenize_and_collate(dataset)
@@ -366,19 +366,19 @@ class Classifier(ModelFromConfig):
     def _init_model_and_tokenizer(
             self,
             dataset: DatasetDict = None,
-            tokenizer: Union[PreTrainedTokenizerFast, FastTokenizerFromConfig] = None
+            tokenizer: Union[PreTrainedTokenizerFast, HfTokenizerFromConfig] = None
     ):
 
         """
-        Initialize the model and tokenizer for classification.
+        Initialize the model and tokenization for classification.
 
         Parameters
         ----------
         dataset : DatasetDict, optional
             The dataset used for the task.
             Assumes the `labels` feature in the dataset.
-        tokenizer : Union[PreTrainedTokenizerFast, FastTokenizerFromConfig], optional
-            The tokenizer to be used. Generally not needed, as the tokenizer will be loaded
+        tokenizer : Union[PreTrainedTokenizerFast, HfTokenizerFromConfig], optional
+            The tokenization to be used. Generally not needed, as the tokenization will be loaded
             from the same path as the model.
         """
 

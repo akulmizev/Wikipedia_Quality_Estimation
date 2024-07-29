@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 
-from wqe import WikiLoader, FastTokenizerFromConfig, validate_and_format_dataset
+from wqe import WikiLoader, HfTokenizerFromConfig, validate_and_format_dataset
 
 from wqe.utils.config import Tokenizer
 
@@ -44,11 +44,11 @@ def load_dataset(lang: str) -> Dict[str, List[str]]:
 
 def calculate_tokenization_stats(dataset: Dict[str, List[str]], tokenizer) -> Dict[str, float]:
     """
-    Calculate tokenization statistics for the given dataset and tokenizer.
+    Calculate tokenization statistics for the given dataset and tokenization.
 
     Args:
         dataset (Dict[str, List[str]]): A dictionary containing the Wikipedia dataset and the NER dataset.
-        tokenizer: The tokenizer object.
+        tokenizer: The tokenization object.
 
     Returns:
         Dict[str, float]: A dictionary containing tokenization statistics.
@@ -85,7 +85,7 @@ def main():
                 raw_config = yaml.safe_load(f)
             config = Tokenizer(**raw_config)
             tokenizer_config = config.tokenizer_config
-            tokenizer = FastTokenizerFromConfig.train_from_config(dataset["wiki"], tokenizer_config)
+            tokenizer = HfTokenizerFromConfig.train_from_config(dataset["wiki"], tokenizer_config)
             stats.append({
                 "lang": lang,
                 "config": config_name,
