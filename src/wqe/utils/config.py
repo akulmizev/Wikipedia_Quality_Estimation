@@ -53,7 +53,7 @@ class TokenizerConfig:
             "bos_token": "<s>",
             "eos_token": "</s>",
             "unk_token": "<unk>",
-            "mask_token": "<mask>"
+            "pad_token": "<pad>"
         }
     )
 

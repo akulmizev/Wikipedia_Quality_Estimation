@@ -89,7 +89,7 @@ class MLM(ModelFromConfig):
             assert tokenizer is not None, "Tokenizer must be provided when training from scratch."
 
             self.tokenizer = tokenizer
-            self.tokenizer.processor = TemplateProcessing(
+            self.tokenizer.backend_tokenizer.post_processor = TemplateProcessing(
                 single="[CLS] $A [SEP]",
                 pair="[CLS] $A [SEP] $B:1 [SEP]:1",
                 special_tokens=[

@@ -226,13 +226,8 @@ class HfSentencePieceTokenizerBase(PreTrainedTokenizer, BaseTokenizerMixin):
             if config.vocab_size == "auto" else config.vocab_size
 
         normalization_rule_name = config.normalizer.type if config.normalizer else "nmt_nfkc"
-        special_tokens_map = deepcopy(config.special_tokens)
+        sp_special_tokens = cls.convert_special_token_mapping(config.special_tokens)
         sp_kwargs = config.sp_kwargs if config.sp_kwargs else {}
-        bos_piece = special_tokens_map.pop("bos_token") if "bos_token" in special_tokens_map else -1
-        eos_piece = special_tokens_map.pop("eos_token") if "eos_token" in special_tokens_map else -1
-        pad_piece = special_tokens_map.pop("pad_token") if "pad_token" in special_tokens_map else -1
-        unk_piece = special_tokens_map.pop("unk_token") if "unk_token" in special_tokens_map else -1
-        remaining_special_tokens = ",".join(special_tokens_map.values()) if len(special_tokens_map) > 0 else None
 
         model = io.BytesIO()
         SentencePieceTrainer.train(
@@ -241,11 +236,7 @@ class HfSentencePieceTokenizerBase(PreTrainedTokenizer, BaseTokenizerMixin):
             model_type=config.model.type,
             normalization_rule_name=normalization_rule_name,
             vocab_size=vocab_size,
-            bos_piece=bos_piece,
-            eos_piece=eos_piece,
-            pad_piece=pad_piece,
-            unk_piece=unk_piece,
-            user_defined_symbols=remaining_special_tokens,
+            **sp_special_tokens,
             **sp_kwargs
         )
 
@@ -265,6 +256,38 @@ class HfSentencePieceTokenizerBase(PreTrainedTokenizer, BaseTokenizerMixin):
         writer.close()
 
         return cls(vocab_file=temp_file_path, **config.special_tokens, **special_token_ids, **kwargs)
+
+    @staticmethod
+    def convert_special_token_mapping(
+            special_tokens_map: Dict[str, str]
+    ) -> Dict[str, int]:
+
+        if not all(token in special_tokens_map for token in ["pad_token", "unk_token"]):
+            raise ValueError("Special tokens 'pad_token' and 'unk_token' must be provided.")
+
+        map_copy = deepcopy(special_tokens_map)
+        sp_map = {
+            "pad_id": 0, "unk_id": 1,
+            "bos_id": -1, "eos_id": -1
+        }
+
+        token_mapping = {
+            "pad_token": "pad_piece",
+            "unk_token": "unk_piece",
+            "bos_token": "bos_piece",
+            "eos_token": "eos_piece"
+        }
+
+        for old_key, new_key in token_mapping.items():
+            if old_key in special_tokens_map:
+                sp_map[new_key] = map_copy.pop(old_key)
+                if old_key in ["bos_token", "eos_token"]:
+                    sp_map[new_key.replace("piece", "id")] = 2 if old_key == "bos_token" else 3
+
+        if map_copy:
+            sp_map["user_defined_symbols"] = ",".join(map_copy.values())
+
+        return sp_map
 
     @property
     def vocab_size(self):

@@ -14,6 +14,14 @@ tokenizer_config:
   decoder:
     type: "metaspace"
   vocab_size: "auto"
+  special_tokens:
+    pad_token: "[PAD]"
+    unk_token: "[UNK]"
+    bos_token: "[BOS]"
+    eos_token: "[EOS]"
+    cls_token: "[CLS]"
+    sep_token: "[SEP]"
+    mask_token: "[MASK]"
 
 export: true
 push_to_hub: true
