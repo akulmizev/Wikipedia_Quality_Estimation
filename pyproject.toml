@@ -26,6 +26,7 @@ dependencies = [
     "tokenizers",
     "transformers",
     "accelerate",
+    "peft",
     "fasttext",
     "nltk",
     "evaluate",

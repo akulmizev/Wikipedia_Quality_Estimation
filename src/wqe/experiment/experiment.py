@@ -194,6 +194,11 @@ class ExperimentRunner:
         save_path = f"{self.local_path}/model" if self.local_path else None
         checkpoint_path = save_path if cfg.checkpoint else None
 
+        if cfg.training_arguments.peft_config:
+            logger.info('Using PEFT, not regular pre-training!')
+            if task == "clm":
+                raise ValueError("Using PEFT is currently only supported for CLM-style pre-training.")
+
         # Specify small batch size for tiny Wikis
         if dataset.n_chars < 5e6:
             logger.warning(f"Tiny dataset detected (total chars: {dataset.n_chars}). Reducing batch size to 8.")
