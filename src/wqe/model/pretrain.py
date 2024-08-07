@@ -7,6 +7,7 @@ import torch
 
 from datasets import Dataset, DatasetDict
 from datasets.utils.logging import set_verbosity_error
+from peft import LoraConfig, get_peft_model
 from tokenizers.processors import TemplateProcessing
 from torch.utils.data import DataLoader
 from transformers import (
@@ -107,9 +108,26 @@ class MLM(ModelFromConfig):
                     f"{special_token}_token_id",
                     special_token_id)
 
-            logger.info(f"Initializing model with config: \n{model_config}")
+            if self.peft_config:
+                lora_config = LoraConfig(
+                    task_type=self.peft_config.task_type,
+                    target_modules=self.peft_config.target_modules,
+                    inference_mode=False,
+                    r=self.peft_config.lora_rank, 
+                    lora_alpha=self.peft_config.lora_alpha,
+                    lora_dropout=self.peft_config.lora_dropout,
+                    modules_to_save=self.peft_config.modules_to_save
+                )
+                model = AutoModelForMaskedLM.from_config(model_config)
+                model = get_peft_model(model, lora_config)
+                
+                logger.info(f"Initializing PEFT with config: \n{lora_config}")
+            else:
+                model = AutoModelForMaskedLM.from_config(model_config)
 
-            self._model = AutoModelForMaskedLM.from_config(model_config)
+            self._model = model
+
+            logger.info(f"Initializing model with config: \n{model_config}")
 
         else:
             if not tokenizer:

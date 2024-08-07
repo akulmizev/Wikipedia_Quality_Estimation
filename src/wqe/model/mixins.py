@@ -6,6 +6,8 @@ import wandb
 
 from accelerate import Accelerator
 
+from ..utils.config import PeftConfig
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,9 @@ class ModelInitMixin:
         If None, evaluation is performed at the end of each epoch.
     checkpoint_path : Union[str, None], optional
         Path to save model checkpoints during training (default is None).
+    peft_config : PeftConfig, optional
+        Configuration to use adapters in training instead of full model weights (default is None).
+    
 
     Attributes
     ----------
@@ -71,6 +76,7 @@ class ModelInitMixin:
             mixed_precision: Optional[str] = "no",
             num_eval_steps: Optional[int] = None,
             checkpoint_path: Optional[Union[str, None]] = None,
+            peft_config: Optional[PeftConfig] = None
     ):
         self.model_type = model_type
         self.task = task
@@ -88,6 +94,7 @@ class ModelInitMixin:
         self.checkpoint_path = checkpoint_path
         self.label_set = None
         self.wandb = False
+        self.peft_config = peft_config
 
         self._check_params()
 
