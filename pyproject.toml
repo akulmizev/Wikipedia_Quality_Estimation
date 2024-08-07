@@ -27,6 +27,7 @@ dependencies = [
     "transformers",
     "accelerate",
     "peft",
+    "bitsandbytes",
     "fasttext",
     "nltk",
     "evaluate",

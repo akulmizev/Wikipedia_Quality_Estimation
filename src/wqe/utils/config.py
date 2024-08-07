@@ -1,8 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Union, Optional
 
-from peft import TaskType
-
 
 @dataclass
 class PreFilter:
@@ -81,14 +79,16 @@ class PeftConfig:
     # Defaults taken from MaLA-500:
     # https://arxiv.org/abs/2401.13303
     # https://github.com/MaLA-LM/mala-500/blob/faab723a9facab0a1eed1d55be60bbfd6876808e/continued_pretraining/continued_clm.py#L424
-    task_type = TaskType.CAUSAL_LM  # TODO: add MLM
+    task_type = "CAUSAL_LM"  # TODO: add MLM
     target_modules: Optional[List[str]] = field(default_factory=lambda: ["q_proj", "v_proj"])
-    lora_rank: Optional[int] = 8
+    r: Optional[int] = 8
     lora_dropout: Optional[float] = 0.1
     lora_alpha: Optional[float] = 32.0
+    bias: Optional[Union[str, float]] = "none"
+    inference_mode: Optional[bool] = False
     # TODO: The next two are not working yet, do we need them?
-    modules_to_save: Optional[List[str]] = None
-    peft_path: Optional[str] = None
+    # modules_to_save: Optional[List[str]] = None
+    # peft_path: Optional[str] = None
 
 
 @dataclass
@@ -104,6 +104,7 @@ class TrainingParameters:
     mixed_precision: str = "no"
     mask_prob: Optional[float] = None
     num_eval_steps: Optional[int] = None
+    quantize_4bit: Optional[bool] = False
     peft_config: Optional[Dict[str, Optional[Union[str, int, float, List[str]]]]] = None
 
     def __post_init__(self):

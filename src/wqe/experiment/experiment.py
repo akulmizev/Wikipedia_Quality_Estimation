@@ -194,9 +194,9 @@ class ExperimentRunner:
         save_path = f"{self.local_path}/model" if self.local_path else None
         checkpoint_path = save_path if cfg.checkpoint else None
 
-        if cfg.training_arguments.peft_config:
+        if cfg.training_parameters.peft_config:
             logger.info('Using PEFT, not regular pre-training!')
-            if task == "clm":
+            if task == "mlm":
                 raise ValueError("Using PEFT is currently only supported for CLM-style pre-training.")
 
         # Specify small batch size for tiny Wikis

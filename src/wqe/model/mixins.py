@@ -5,6 +5,8 @@ import torch
 import wandb
 
 from accelerate import Accelerator
+from peft import LoraConfig
+from transformers import BitsAndBytesConfig
 
 from ..utils.config import PeftConfig
 
@@ -45,7 +47,7 @@ class ModelInitMixin:
         If None, evaluation is performed at the end of each epoch.
     checkpoint_path : Union[str, None], optional
         Path to save model checkpoints during training (default is None).
-    peft_config : PeftConfig, optional
+    peft_config : Union[dict, PeftConfig], optional
         Configuration to use adapters in training instead of full model weights (default is None).
     
 
@@ -76,7 +78,8 @@ class ModelInitMixin:
             mixed_precision: Optional[str] = "no",
             num_eval_steps: Optional[int] = None,
             checkpoint_path: Optional[Union[str, None]] = None,
-            peft_config: Optional[PeftConfig] = None
+            quantize_4bit: Optional[bool] = False,
+            peft_config: Optional[Union[dict, PeftConfig]] = None
     ):
         self.model_type = model_type
         self.task = task
@@ -94,7 +97,6 @@ class ModelInitMixin:
         self.checkpoint_path = checkpoint_path
         self.label_set = None
         self.wandb = False
-        self.peft_config = peft_config
 
         self._check_params()
 
@@ -114,6 +116,23 @@ class ModelInitMixin:
             self.pad_to_multiple_of = 8
         else:
             self.pad_to_multiple_of = None
+
+        if quantize_4bit:
+            self.quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_quant_type="nf4"
+            )
+        else:
+            self.quantization_config = None
+
+        if peft_config:
+            if not peft_config.get("task_type") == "CAUSAL_LM":
+                logger.warning("PEFT is only supported for causal language modeling tasks.")
+            self.peft_config = LoraConfig(**peft_config)
+        else:
+            self.peft_config = None
 
     def init_wandb(
             self,

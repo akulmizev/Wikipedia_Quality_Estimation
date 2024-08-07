@@ -7,7 +7,7 @@ import torch
 
 from datasets import Dataset, DatasetDict
 from datasets.utils.logging import set_verbosity_error
-from peft import LoraConfig, get_peft_model
+from peft import get_peft_model, prepare_model_for_kbit_training
 from tokenizers.processors import TemplateProcessing
 from torch.utils.data import DataLoader
 from transformers import (
@@ -109,34 +109,33 @@ class MLM(ModelFromConfig):
                     special_token_id
                 )
 
-            if self.peft_config:
-                lora_config = LoraConfig(
-                    task_type=self.peft_config.task_type,
-                    target_modules=self.peft_config.target_modules,
-                    inference_mode=False,
-                    r=self.peft_config.lora_rank, 
-                    lora_alpha=self.peft_config.lora_alpha,
-                    lora_dropout=self.peft_config.lora_dropout,
-                    modules_to_save=self.peft_config.modules_to_save
-                )
-                model = AutoModelForMaskedLM.from_config(model_config)
-                model = get_peft_model(model, lora_config)
-                
-                logger.info(f"Initializing PEFT with config: \n{lora_config}")
-            else:
-                model = AutoModelForMaskedLM.from_config(model_config)
-
-            self._model = model
-
+            self._model = AutoModelForMaskedLM.from_config(model_config)
             logger.info(f"Initializing model with config: \n{model_config}")
 
         else:
             if not tokenizer:
                 logger.warning("Tokenizer not provided. Loading tokenization from hub.")
                 self.tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{self.load_path}")
+            else:
+                self.tokenizer = tokenizer
 
             logger.info(f"Loading model from hub: {self.load_path}.")
-            self._model = AutoModelForMaskedLM.from_pretrained(f"{self.load_path}")
+            model = AutoModelForMaskedLM.from_pretrained(
+                f"{self.load_path}",
+                quantization_config=self.quantization_config
+            )
+
+            if len(self.tokenizer) > model.get_input_embeddings().num_embeddings:
+                model.resize_token_embeddings(len(self.tokenizer))
+
+            if self.quantization_config:
+                model = prepare_model_for_kbit_training(model)
+                logger.info(f"Doing 4-bit quantization with config: \n{self.quantization_config}")
+
+            if self.peft_config:
+                raise NotImplementedError("PEFT not implemented for MLM yet.")
+
+            self._model = model
 
         logger.info(f"{self._model.config.model_type} for {self.task} loaded.")
         logger.info(f"Number of parameters: {round(self._model.num_parameters() / 1e6)}M")
@@ -287,16 +286,37 @@ class CLM(MLM):
             logger.info(f"Initializing model with config: \n{model_config}")
 
             self._model = AutoModelForCausalLM.from_config(model_config)
+
         else:
             if not tokenizer:
                 logger.warning("Tokenizer not provided. Loading tokenization from hub.")
                 self.tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{self.load_path}")
+            else:
+                self.tokenizer = tokenizer
 
             logger.info(f"Loading model from hub: {self.load_path}.")
-            self._model = AutoModelForCausalLM.from_pretrained(f"{self.load_path}")
+            model = AutoModelForCausalLM.from_pretrained(
+                f"{self.load_path}",
+                quantization_config=self.quantization_config
+            )
+
+            if len(self.tokenizer) > model.get_input_embeddings().num_embeddings:
+                model.resize_token_embeddings(len(self.tokenizer))
+
+            if self.quantization_config:
+                model = prepare_model_for_kbit_training(model)
+                logger.info(f"Doing 4-bit quantization with config: \n{self.quantization_config}")
+
+            if self.peft_config:
+                model = get_peft_model(model, self.peft_config)
+                logger.info(f"Initializing PEFT with config: \n{self.peft_config}")
+
+            self._model = model
 
         logger.info(f"{self._model.config.model_type} for {self.task} loaded.")
         logger.info(f"Number of parameters: {round(self._model.num_parameters() / 1e6)}M")
+        if self.peft_config:
+            logger.info(f"Number of trainable parameters: {round(self._model.get_nb_trainable_parameters()[0] / 1e6)}M")
 
         self.collator = DataCollatorForLanguageModeling(
             tokenizer=self.tokenizer,

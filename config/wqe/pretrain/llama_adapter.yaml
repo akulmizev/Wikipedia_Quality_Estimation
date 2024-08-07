@@ -1,0 +1,24 @@
+load_path: "meta-llama/Llama-2-7b-hf"
+
+training_parameters:
+  model_type: "llama"
+  task: "clm"
+  max_length: 512
+  num_train_epochs: 5
+  batch_size: 16
+  lr: 1e-02 #DO NOT CHANGE THIS
+  padding_strategy: "longest"
+  grad_accumulation_steps: 1
+  mixed_precision: "bf16"
+  quantize_4bit: true
+  peft_config:
+    r: 8
+    lora_alpha: 32
+    lora_dropout: 0.01
+    target_modules: "all-linear"
+    bias: "none"
+
+test_path: "WikiQuality/raw_wiki"
+export: false
+push_to_hub: false
+checkpoint: false

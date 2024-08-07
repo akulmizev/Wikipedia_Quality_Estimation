@@ -236,6 +236,7 @@ class HfSentencePieceTokenizerBase(PreTrainedTokenizer, BaseTokenizerMixin):
             model_type=config.model.type,
             normalization_rule_name=normalization_rule_name,
             vocab_size=vocab_size,
+            minloglevel=3,
             **sp_special_tokens,
             **sp_kwargs
         )
