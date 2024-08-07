@@ -2,13 +2,13 @@
 
 ```python
 from datasets import load_dataset
-from wqe import FastTokenizerFromConfig, TrainingParameters, Classifier
+from wqe import HfTokenizerFromConfig, TrainingParameters, Classifier
 
 # Load dataset
 masakhanews = load_dataset("masakhanews", "hau")
 
-# Load tokenizer
-tokenizer = FastTokenizerFromConfig.from_pretrained("./models/unigram_tokenizer")
+# Load tokenization
+tokenizer = HfTokenizerFromConfig.from_pretrained("./models/unigram_tokenizer")
 
 # Specify training parameters
 params = TrainingParameters(

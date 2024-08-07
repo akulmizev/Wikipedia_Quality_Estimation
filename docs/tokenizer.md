@@ -1,29 +1,29 @@
 ### Train a tokenizer on wiki data:
 
 ```python
-from wqe import WikiLoader, TokenizerConfig, FastTokenizerFromConfig
+from wqe import WikiLoader, TokenizerConfig, HfTokenizerFromConfig
 
 # Load Wikipedia data
 wiki = WikiLoader("ha").load_dataset()
 
-# Create a tokenizer configuration
+# Create a tokenization configuration
 tokenizer_config = TokenizerConfig(
-  model={"type": "unigram"},
-  trainer={"type": "unigram"},
-  normalizer={"type": "nkfc"},
-  pre_tokenizer=[
-      {"type": "whitespace"},
-      {"type": "digits"},
-      {"type": "metaspace", "prepend_scheme": "always", "replacement": "▁"}        
-  ],
-  decoder={"type": "metaspace"},
-  vocab_size=10000
+    model={"type": "unigram"},
+    trainer={"type": "unigram"},
+    normalizer={"type": "nkfc"},
+    pre_tokenizer=[
+        {"type": "whitespace"},
+        {"type": "digits"},
+        {"type": "metaspace", "prepend_scheme": "always", "replacement": "▁"}
+    ],
+    decoder={"type": "metaspace"},
+    vocab_size=10000
 )
 
-# Train tokenizer
-tokenizer = FastTokenizerFromConfig.train_from_config(wiki, tokenizer_config)
+# Train tokenization
+tokenizer = HfTokenizerFromConfig.train_from_config(wiki, tokenizer_config)
 
-# Save tokenizer
+# Save tokenization
 tokenizer.save_pretrained("./models/unigram_tokenizer")
 ```
 This will train a (fast) UnigramLM tokenizer with full compatibility with

@@ -2,9 +2,9 @@
 
 ```python
 from wqe import (
-    WikiLoader, 
-    FastTokenizerFromConfig, 
-    TrainingParameters, 
+    WikiLoader,
+    HfTokenizerFromConfig,
+    TrainingParameters,
     MLM
 )
 
@@ -12,7 +12,7 @@ from wqe import (
 wiki = WikiLoader("ha").load_dataset()
 
 # Load Tokenizer
-tokenizer = FastTokenizerFromConfig.from_pretrained("./models/unigram_tokenizer")
+tokenizer = HfTokenizerFromConfig.from_pretrained("./models/unigram_tokenizer")
 
 # Specify training parameters
 params = TrainingParameters(

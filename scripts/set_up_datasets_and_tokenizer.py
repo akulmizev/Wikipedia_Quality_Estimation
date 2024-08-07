@@ -1,6 +1,6 @@
 import sys
 
-from wqe import WikiLoader, FastTokenizerFromConfig
+from wqe import WikiLoader, HfTokenizerFromConfig
 from wqe.utils.config import TokenizerConfig
 
 WIKI_ID = sys.argv[1]
@@ -62,7 +62,7 @@ def make_datasets(wiki_id: str) -> None:
         decoder={"type": "metaspace"},
         vocab_size="auto"
     )
-    tokenizer = FastTokenizerFromConfig.train_from_config(pre_filtered["train"]["text"], tokenizer_config)
+    tokenizer = HfTokenizerFromConfig.train_from_config(pre_filtered["train"]["text"], tokenizer_config)
     tokenizer.save_pretrained(f"{EXPERIMENT_DIR}/pre_filtered/{wiki_id}/model")
     tokenizer.push_to_hub(f"{HUB_PATH}/pre_filtered.{wiki_id}")
 

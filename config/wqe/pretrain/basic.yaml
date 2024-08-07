@@ -8,7 +8,6 @@ training_parameters:
   num_train_epochs: 100
   batch_size: 1024
   lr: 1e-03 #DO NOT CHANGE THIS
-  num_eval_steps: None
   padding_strategy: "longest"
   grad_accumulation_steps: 1
   mixed_precision: "bf16"

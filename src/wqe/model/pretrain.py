@@ -19,7 +19,7 @@ from transformers import (
 )
 
 from .base import ModelFromConfig
-from ..tokenizer.tokenizer import FastTokenizerFromConfig
+from ..tokenization.base import HfTokenizerFromConfig
 from ..utils.config import TrainingParameters
 
 logging.basicConfig(level=logging.INFO)
@@ -49,8 +49,8 @@ class MLM(ModelFromConfig):
 
     Methods
     -------
-    _init_model_and_tokenizer(dataset=None, tokenizer=None)
-        Initializes the model and tokenizer.
+    _init_model_and_tokenizer(dataset=None, tokenization=None)
+        Initializes the model and tokenization.
     _tokenize_and_collate(dataset)
         Tokenizes and collates a dataset into a PyTorch DataLoader.
     _eval_loop(loader)
@@ -69,28 +69,28 @@ class MLM(ModelFromConfig):
     def _init_model_and_tokenizer(
             self,
             dataset: DatasetDict = None,
-            tokenizer: Optional[Union[PreTrainedTokenizerFast, FastTokenizerFromConfig]] = None
+            tokenizer: Optional[Union[PreTrainedTokenizerFast, HfTokenizerFromConfig]] = None
     ):
 
         """
-        Initializes the model and tokenizer for MLM.
-        If model was initialized with a local config file, the tokenizer must be provided.
+        Initializes the model and tokenization for MLM.
+        If model was initialized with a local config file, the tokenization must be provided.
 
         Parameters
         ----------
         dataset : DatasetDict, optional
-            The dataset to use for initializing the model and tokenizer.
+            The dataset to use for initializing the model and tokenization.
             Generally not needed here, as no labels are required.
-        tokenizer : PreTrainedTokenizerFast or FastTokenizerFromConfig, optional
-            The tokenizer to use for the model.
-            If not provided, the tokenizer will be loaded from the hub.
+        tokenizer : PreTrainedTokenizerFast or HfTokenizerFromConfig, optional
+            The tokenization to use for the model.
+            If not provided, the tokenization will be loaded from the hub.
         """
 
         if self.load_path.endswith(".json"):
             assert tokenizer is not None, "Tokenizer must be provided when training from scratch."
 
             self.tokenizer = tokenizer
-            self.tokenizer.processor = TemplateProcessing(
+            self.tokenizer.backend_tokenizer.post_processor = TemplateProcessing(
                 single="[CLS] $A [SEP]",
                 pair="[CLS] $A [SEP] $B:1 [SEP]:1",
                 special_tokens=[
@@ -106,7 +106,8 @@ class MLM(ModelFromConfig):
                 setattr(
                     model_config,
                     f"{special_token}_token_id",
-                    special_token_id)
+                    special_token_id
+                )
 
             if self.peft_config:
                 lora_config = LoraConfig(
@@ -131,7 +132,7 @@ class MLM(ModelFromConfig):
 
         else:
             if not tokenizer:
-                logger.warning("Tokenizer not provided. Loading tokenizer from hub.")
+                logger.warning("Tokenizer not provided. Loading tokenization from hub.")
                 self.tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{self.load_path}")
 
             logger.info(f"Loading model from hub: {self.load_path}.")
@@ -239,8 +240,8 @@ class CLM(MLM):
 
     Methods
     -------
-    _init_model_and_tokenizer(dataset=None, tokenizer=None)
-        Initializes the model and tokenizer for Causal Language Modeling.
+    _init_model_and_tokenizer(dataset=None, tokenization=None)
+        Initializes the model and tokenization for Causal Language Modeling.
     """
 
     def __init__(
@@ -255,18 +256,18 @@ class CLM(MLM):
     def _init_model_and_tokenizer(
             self,
             dataset: DatasetDict = None,
-            tokenizer: Optional[Union[PreTrainedTokenizerFast, FastTokenizerFromConfig]] = None
+            tokenizer: Optional[Union[PreTrainedTokenizerFast, HfTokenizerFromConfig]] = None
     ):
 
         """
-        Initializes the model and tokenizer for CLM.
+        Initializes the model and tokenization for CLM.
 
         Parameters
         ----------
         dataset : DatasetDict, optional
-            The dataset to use for initializing the model and tokenizer.
-        tokenizer : PreTrainedTokenizerFast or FastTokenizerFromConfig, optional
-            The tokenizer to use for the model.
+            The dataset to use for initializing the model and tokenization.
+        tokenizer : PreTrainedTokenizerFast or HfTokenizerFromConfig, optional
+            The tokenization to use for the model.
         """
 
         if self.load_path.endswith(".json"):
@@ -288,7 +289,7 @@ class CLM(MLM):
             self._model = AutoModelForCausalLM.from_config(model_config)
         else:
             if not tokenizer:
-                logger.warning("Tokenizer not provided. Loading tokenizer from hub.")
+                logger.warning("Tokenizer not provided. Loading tokenization from hub.")
                 self.tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{self.load_path}")
 
             logger.info(f"Loading model from hub: {self.load_path}.")

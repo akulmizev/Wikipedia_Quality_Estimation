@@ -26,8 +26,8 @@ class Partition:
     quality : bool, optional
         Whether to return the higher-quality partition or the lower-quality partition.
         Default is True for higher-quality.
-    tokenizer : FastTokenizerFromConfig, optional
-        A tokenizer to use for tokenizing the dataset. Required for certain metrics.
+    tokenizer : HfTokenizerFromConfig, optional
+        A tokenization to use for tokenizing the dataset. Required for certain metrics.
     **kwargs
         Additional keyword arguments.
 
@@ -137,12 +137,12 @@ class UniqueSubwords(Partition):
 
     """
     Partition a dataset based on the number of unique subwords in its articles.
-    Pre-trained tokenizer must be provided.
+    Pre-trained tokenization must be provided.
 
     Parameters
     ----------
     tokenizer : str
-        A model string used for loading a pre-trained tokenizer, e.g. "bert-base-multilingual-cased".
+        A model string used for loading a pre-trained tokenization, e.g. "bert-base-multilingual-cased".
     **kwargs
         Additional keyword arguments passed to the Partition base class.
 
@@ -154,7 +154,7 @@ class UniqueSubwords(Partition):
 
     def __init__(self, tokenizer: str, **kwargs):
         if not tokenizer:
-            raise ValueError("Pass a tokenizer for this metric.")
+            raise ValueError("Pass a tokenization for this metric.")
         super().__init__(**kwargs)
         self.higher_is_better = True
 
@@ -167,12 +167,12 @@ class UniqueSubwordTrigrams(Partition):
 
     """
     Partition a dataset based on the number of unique subwords trigrams in its articles.
-    Pre-trained tokenizer must be provided.
+    Pre-trained tokenization must be provided.
 
     Parameters
     ----------
     tokenizer : str
-        A model string used for loading a pre-trained tokenizer, e.g. "bert-base-multilingual-cased".
+        A model string used for loading a pre-trained tokenization, e.g. "bert-base-multilingual-cased".
     **kwargs
         Additional keyword arguments passed to the Partition base class.
 
@@ -184,7 +184,7 @@ class UniqueSubwordTrigrams(Partition):
 
     def __init__(self, tokenizer: str, **kwargs):
         if not tokenizer:
-            raise ValueError("Pass a tokenizer for this metric.")
+            raise ValueError("Pass a tokenization for this metric.")
         super().__init__(**kwargs)
         self.higher_is_better = True
 
