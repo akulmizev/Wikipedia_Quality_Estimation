@@ -86,8 +86,9 @@ class PeftConfig:
     lora_rank: Optional[int] = 8
     lora_dropout: Optional[float] = 0.1
     lora_alpha: Optional[float] = 32.0
-    modules_to_save: Optional[List[str]] = None # TODO: Not working yet
-    peft_path: Optional[str] = None # TODO: Not working yet
+    # TODO: The next two are not working yet, do we need them?
+    modules_to_save: Optional[List[str]] = None
+    peft_path: Optional[str] = None
 
 
 @dataclass
