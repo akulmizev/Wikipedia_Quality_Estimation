@@ -144,6 +144,7 @@ class Partition:
             dataset = dataset.filter(
                 self.apply_thresholds,
                 fn_kwargs={"thresholds": self.thresholds},
+                num_proc=mp.cpu_count()
             )
 
         if self.join_method:
