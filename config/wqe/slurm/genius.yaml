@@ -1,5 +1,5 @@
 slurm_partition: gpu_v100
-slurm_time: 00:30:00
+slurm_time: "00:30:00"
 slurm_additional_parameters: 
   clusters: genius
   account:
