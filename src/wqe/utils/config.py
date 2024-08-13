@@ -205,6 +205,13 @@ class Finetune:
 
 
 @dataclass
+class LMEvaluation:
+    load_path: str
+    tasks: List[str]
+    log_samples: bool = False
+
+
+@dataclass
 class MainConfig:
     experiment: Dict[str, Any]
     dataset: Optional[Dict[str, Any]] = None
@@ -212,6 +219,7 @@ class MainConfig:
     pretrain: Optional[Dict[str, Any]] = None
     finetune: Optional[Dict[str, Any]] = None
     slurm: Optional[Dict[str, Any]] = None
+    lm_eval: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
         self.experiment = Experiment(**self.experiment)
@@ -225,3 +233,5 @@ class MainConfig:
             self.finetune = Finetune(**self.finetune)
         if self.slurm:
             self.slurm = Slurm(**self.slurm)
+        if self.lm_eval:
+            self.lm_eval = LMEvaluation(**self.lm_eval)

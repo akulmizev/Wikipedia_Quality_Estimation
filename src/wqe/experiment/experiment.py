@@ -1,9 +1,11 @@
 import logging
 import os
+import json
 from dataclasses import asdict
 from typing import Any, Dict, Union
 
 import datasets
+import lm_eval
 
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
@@ -14,7 +16,7 @@ from ..tokenization.utils import merge_tokenizers
 from ..model.pretrain import MLM, CLM
 from ..model.finetune import Tagger, Classifier
 from ..utils.config import MainConfig
-from ..utils.validation import validate_and_format_dataset
+from ..utils.validation import np_encoder, validate_and_format_dataset
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -281,6 +283,31 @@ class ExperimentRunner:
         if "test" in finetune_dataset.keys():
             model.test(finetune_dataset, split="test", output_file=scores_file)
 
+    def process_lm_eval(self) -> None:
+        cfg = self.lm_eval
+        scores_file = f"{self.local_path}/{self.experiment.experiment_id}.lm_eval.scores.json" \
+            if self.local_path else None
+        
+        results = lm_eval.simple_evaluate(
+            model="hf",
+            model_args=f"pretrained={cfg.load_path}", # NOTE: we can add hf model arguments here if needed
+            tasks=cfg.tasks,
+            log_samples=cfg.log_samples,
+        )
+
+        if self.experiment.wandb_entity:
+            wandb_logger = lm_eval.loggers.WandbLogger(
+                project=f"{self.wiki.id}.{self.experiment.experiment_id}",
+                entity=self.experiment.wandb_entity,
+                job_type="eval"
+            )
+            wandb_logger.post_init(results)
+            wandb_logger.log_eval_result()
+            wandb_logger.log_eval_samples(results["samples"])
+        
+        with open(scores_file, 'w') as f:
+            json.dump(results, f, ensure_ascii=False, indent=2, default=np_encoder)
+
     def run_experiment(self):
 
         """
@@ -303,3 +330,6 @@ class ExperimentRunner:
 
         if self.finetune:
             self.process_finetune()
+        
+        if self.lm_eval:
+            self.process_lm_eval()
