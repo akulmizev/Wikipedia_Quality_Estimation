@@ -209,6 +209,7 @@ class LMEvaluation:
     load_path: str
     tasks: List[str]
     log_samples: bool = False
+    num_fewshot: int = 0
 
 
 @dataclass

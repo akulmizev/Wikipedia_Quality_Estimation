@@ -293,6 +293,7 @@ class ExperimentRunner:
             model_args=f"pretrained={cfg.load_path}", # NOTE: we can add hf model arguments here if needed
             tasks=cfg.tasks,
             log_samples=cfg.log_samples,
+            num_fewshot=cfg.num_fewshot,
         )
 
         if self.experiment.wandb_entity:
