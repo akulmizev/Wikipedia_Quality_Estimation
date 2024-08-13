@@ -12,7 +12,6 @@ class PreFilter:
     jaccard_threshold: Optional[float] = 0.85
     tokenizer: Optional[str] = None
     urls_to_remove: Optional[List[str]] = None
-    num_proc: Optional[int] = 1
 
 
 @dataclass

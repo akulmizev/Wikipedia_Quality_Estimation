@@ -15,25 +15,18 @@ from transformers import (
     DataCollatorWithPadding
 )
 
-from ..data.partition import (
-    Length,
-    UniqueSubwords,
-    UniqueSubwordTrigrams,
-    UniqueTrigrams,
-    UniqueWords,
-    UniqueCharacters,
-    UniqueCharacterTrigrams,
-    AlphaChars
-)
+from ..data.metrics import *
 
 PARTITION_MAP = {
-    "length": Length,
-    "unique_subwords": UniqueSubwords,
-    "unique_subword_trigrams": UniqueSubwordTrigrams,
-    "unique_trigrams": UniqueTrigrams,
+    "length_chars": LengthCharacters,
+    "length_words": LengthWords,
+    "length_subwords": LengthSubwords,
+    "unique_chars": UniqueCharacters,
     "unique_words": UniqueWords,
-    "unique_characters": UniqueCharacters,
+    "unique_subwords": UniqueSubwords,
     "unique_character_trigrams": UniqueCharacterTrigrams,
+    "unique_trigrams": UniqueTrigrams,
+    "unique_subword_trigrams": UniqueSubwordTrigrams,
     "alpha_chars": AlphaChars
 }
 

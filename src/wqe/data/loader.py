@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Union
 
 import datasets
 import fasttext
+import multiprocessing as mp
 
 from datasets import load_dataset, DatasetDict
 from datasets.exceptions import DatasetNotFoundError
@@ -19,12 +20,14 @@ from numpy.random import choice
 from transformers import PreTrainedTokenizerFast
 
 from . import resources
-from ..utils.maps import PARTITION_MAP
+from .partition import Partition
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 datasets.disable_caching()
+
+PREFIXES = ["'{\"type\":\"FeatureCollection\""]
 
 
 @dataclass
@@ -90,8 +93,10 @@ class WikiLoader:
         The WikiID instance for the specified language.
     data : datasets.DatasetDict
         The dataset loaded from `wikipedia/wikimedia` via `datasets.load_dataset`.
-    regex : str
-        The regex for filtering the dataset for accepted scripts.
+    regex_pattern : re.Pattern
+        The regex pattern for filtering the dataset for accepted scripts.
+    cleanup_pattern : re.Pattern
+        The regex pattern for cleaning up the dataset after filtering.
     lang_id_model : fasttext.FastText._FastText
         The GlotLID model for predicting the language of a line.
     n_chars : int
@@ -118,7 +123,8 @@ class WikiLoader:
 
         self.wiki = WikiID(wiki_id)
         self.data = None
-        self.regex = None
+        self.regex_pattern = None
+        self.cleanup_pattern = None
         self.lang_id_model = None
         self.n_chars = 0
         self.n_docs = 0
@@ -321,8 +327,7 @@ class WikiLoader:
             tokenizer: str = None,
             char_cutoff: int = 0,
             urls_to_remove: List[str] = None,
-            warn_percent: float = 0.0,
-            num_proc: int = 1
+            warn_percent: float = 0.0
     ) -> 'WikiLoader':
 
         """
@@ -410,9 +415,6 @@ class WikiLoader:
             Useful for buggy articles such as https://xh.wikipedia.org/wiki/Phi.
         warn_percent : float
             Warn when the percentage of removed characters exceeds this value.
-        num_proc : int
-            The number of processes to use for filtering.
-            Default is 4.
         """
 
         assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
@@ -420,14 +422,13 @@ class WikiLoader:
         raw_chars = self.n_chars
         raw_docs = self.n_docs
 
+        num_proc = mp.cpu_count()
+
         if script_regex:
             self._make_regex()
             logger.info(f"Filtering documents for accepted scripts: {self.wiki.scripts}")
 
         if lang_id:
-            if num_proc > 1:
-                logger.warning("Language ID is not supported for multiprocessing. Setting num_proc=1.")
-                num_proc = 1
             logger.info(f"Filtering documents for language: {self.wiki.alpha3}")
             logger.info(f"Loading GlotLID model.")
             self.lang_id_model = fasttext.load_model(
@@ -443,8 +444,8 @@ class WikiLoader:
         self.data = self.data.map(
             function=self._pre_filter_article,
             fn_kwargs={
-                "script_regex": script_regex,
-                "regex_pattern": self.regex,
+                "regex_pattern": self.regex_pattern,
+                "cleanup_pattern": self.cleanup_pattern,
                 "lang_id": lang_id,
                 "model": self.lang_id_model,
                 "alpha3": self.wiki.alpha3,
@@ -454,7 +455,7 @@ class WikiLoader:
                 "urls_to_remove": urls_to_remove,
                 "warn_percent": warn_percent
             },
-            num_proc=num_proc
+            num_proc=num_proc if not lang_id else 1
         )
 
         if deduplicate_exact_match:
@@ -500,8 +501,8 @@ class WikiLoader:
     @staticmethod
     def _pre_filter_article(
             article: Dict[str, Any],
-            script_regex: bool = True,
             regex_pattern: str = None,
+            cleanup_pattern: str = None,
             lang_id: bool = True,
             model: fasttext.FastText = None,
             alpha3: str = None,
@@ -522,8 +523,10 @@ class WikiLoader:
         ----------
         article : dict
             The article to pre-filter.
-        script_regex : bool
-            Whether to filter the article for accepted scripts.
+        regex_pattern : str
+            The regex pattern for filtering the article.
+        cleanup_pattern : str
+            The regex pattern for cleaning up the article after regex.
         lang_id : bool
             Whether to filter the article for the specified language.
         model : fasttext.FastText
@@ -547,23 +550,32 @@ class WikiLoader:
             The pre-filtered article.
         """
 
-        article_length = len(article["text"])
-
         if urls_to_remove:
             if article["url"] in urls_to_remove:
                 article["text"] = ""
+                return article
 
-        if script_regex:
-            assert regex_pattern is not None, "Regex pattern must be specified for script filtering."
-            article["text"] = "".join(re.findall(regex_pattern, article['text']))
-            cleanup_pattern = r'\s+[^\w\s]+\s+|(?<=\S)\s+(?=\.$)'
-            article["text"] = re.sub(cleanup_pattern, lambda m: ' ' if m.group() else '', article["text"])
+        article_length = len(article["text"])
+        lines = article["text"].splitlines()
+        filtered_lines = []
 
-        if lang_id:
-            assert model is not None, "Language ID model must be specified for language filtering."
-            article["text"] = "".join(
-                [line for line in article["text"].splitlines() if model.predict(line)[0][0].split("_")[-2] == alpha3]
-            )
+        for line in lines:
+            if all(pref not in line for pref in PREFIXES):
+                continue
+            if regex_pattern:
+                line = "".join(re.findall(regex_pattern, line))
+                if cleanup_pattern:
+                    line = re.sub(cleanup_pattern, lambda m: ' ' if m.group() else '', line)
+            if not line.strip():
+                continue
+            if lang_id:
+                assert model is not None, "Language ID model must be specified for language filtering."
+                if model.predict(line)[0][0].split("_")[-2] != alpha3:
+                    continue
+
+            filtered_lines.append(line.strip())
+
+        article["text"] = "\n".join(lines)
 
         if deduplicate_exact_match:
             article["hash"] =\
@@ -627,14 +639,16 @@ class WikiLoader:
 
         scripts = "".join([f"\\p{{{script}}}" for script in self.wiki.scripts])
         script_regex = fr"[\p{{P}}\p{{S}}\d{scripts}]*[\d{scripts}]+[\p{{P}}\p{{S}}\d{scripts}]*\s"
-        self.regex = script_regex
+        self.regex_pattern = re.compile(script_regex)
+        self.cleanup_pattern = re.compile(r"\s+[^\w\s]+\s+|(?<=\S)\s+(?=\.$)|\([^)]*\)|\[[^]]*\]|\{[^}]*\}")
 
     def apply_partition(
             self,
-            metric: Union[List[str], str],
+            metrics: Union[List[str], str],
             method: str = "balanced_chars",
             quality: bool = True,
-            join_method: str = "intersection",
+            join_method: str = None,
+            thresholds: Dict[str, int] = None,
             tokenizer: Union[str, None] = None
     ):
 
@@ -656,7 +670,7 @@ class WikiLoader:
             - 'mean_cutoff': split based on the mean value of the metric
             - 'median_cutoff': split based on the median value of the metric
             - 'balanced_docs': allocates equal number of documents to each partition
-        metric : list of str or str
+        metrics : list of str or str
             The metric(s) to use for partitioning the dataset.
         quality : bool
             Whether to return the higher-quality partition or the lower-quality partition.
@@ -665,46 +679,24 @@ class WikiLoader:
             If a list of metrics is specified, specifies how to join them.
             Set operations are performed on the dataset indices returned by each metric.
             Choice between 'intersection' and 'union'.
+        thresholds : dict
+            The thresholds for filtering by each metric, e.g. `length: 100`.
+            If not specified, no threshold is applied.
         tokenizer : str
             The tokenization to use for partitioning the dataset. Required for certain metrics.
         """
 
         assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
 
+        partition_params = locals()
+        partition_params.pop("self")
+
         raw_chars = self.n_chars
         raw_docs = self.n_docs
 
-        if isinstance(metric, str):
-            logger.info(f"Partitioning dataset by {metric}...")
-            partition = PARTITION_MAP[metric](
-                method=method,
-                quality=quality,
-                tokenizer=tokenizer
-            )
-
-            partition_indices = partition(self.data["train"])
-            self.data["train"] = self.data["train"].select(partition_indices)
-
-        else:
-            logger.info(f"Partitioning dataset by {', '.join(metric)}...")
-
-            partition_indices = []
-            for met in metric:
-                partition = PARTITION_MAP[met](
-                    method=method,
-                    quality=quality,
-                    tokenizer=tokenizer
-                )
-                partition_indices.append(partition(self.data["train"]))
-
-            if join_method == "intersection":
-                partition_indices = list(set.intersection(*map(set, partition_indices)))
-            elif join_method == "union":
-                partition_indices = list(set.union(*map(set, partition_indices)))
-            else:
-                raise ValueError("Invalid join method. Please specify either 'intersection' or 'union'.")
-
-            self.data["train"] = self.data["train"].select(partition_indices)
+        partition = Partition(**partition_params)
+        logger.info(f"Partitioning dataset by {', '.join(partition.metrics)}...")
+        self.data["train"] = partition(self.data["train"])
 
         self.n_chars = len("".join(self.data["train"]["text"]))
         self.n_docs = len(self.data["train"])
