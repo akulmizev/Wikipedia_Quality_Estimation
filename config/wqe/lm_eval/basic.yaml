@@ -1,0 +1,12 @@
+load_path: "meta-llama/Llama-2-7b-hf"
+
+log_samples: true
+num_fewshot: 0
+# Available tasks: https://github.com/EleutherAI/lm-evaluation-harness/tree/main/lm_eval/tasks
+# Custom tasks are also possible. Note that the afrimmlu tasks need a three letter language code,
+# whereas the wikis use a two letter code.
+tasks:
+  - "afrimmlu_direct_hau"
+  - "afrimmlu_direct_wol"
+  - "afrimmlu_direct_swa"
+  - "afrimmlu_direct_ibo"
