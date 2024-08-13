@@ -288,7 +288,7 @@ class ExperimentRunner:
         """
 
         if self.experiment.local_path:
-            self.local_path = f"{self.experiment.local_path}/{self.experiment.experiment_id}/{self.wiki.id}"
+            self.local_path = self.experiment.experiment_folder
             if not os.path.exists(self.local_path):
                 os.makedirs(self.local_path)
 

@@ -1,5 +1,7 @@
+import dataclasses
 import logging
 
+import submitit
 import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig, OmegaConf
@@ -25,9 +27,24 @@ def run_experiment(config_dict: DictConfig) -> None:
         exit(1)
 
     config = MainConfig(**config_dict)
-
     runner = ExperimentRunner(config)
-    runner.run_experiment()
+
+    # NOTE: there is a submitit plugin for hydra, but it seems to be more suited for parameter sweeps.
+    # I think the current approach is the most useful for our use case. We can easily add a loop over
+    # the configs and submit an array of jobs.
+
+    # NOTE: The AutoExecutor detects whether slurm is available. If not, it runs locally.
+    # I want to test this a bit more to make sure it works properly with the paths and such.
+    if config.slurm:
+        slurm_executor = submitit.AutoExecutor(folder=f'{config.experiment.experiment_folder}/slurm')
+        slurm_executor.update_parameters(
+            **{**dataclasses.asdict(config.slurm), "slurm_job_name": config.experiment.experiment_id}
+        )
+        job = slurm_executor.submit(runner.run_experiment)
+        logger.info(f'Submitted job `{job.job_id}` to Slurm with config {config.slurm}.')
+    else:
+        logger.info('Starting experiment locally.')
+        runner.run_experiment()
 
 
 if __name__ == "__main__":
