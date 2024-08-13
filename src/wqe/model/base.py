@@ -264,8 +264,14 @@ class ModelFromConfig(ModelInitMixin):
         progress_bar.close()
         logger.info("Training complete.")
         if self.checkpoint_path:
-            logger.info(f"Loading best model from {self.checkpoint_path}.")
-            self.accelerator.load_state(self.checkpoint_path)
+            # TODO: getting a:
+            # "RuntimeError: Error(s) in loading state_dict for PeftModel:Unexpected key(s) in state_dict"
+            # error when trying to load a peft model here. Have not found a solution yet.
+            if hasattr(self._model, 'peft_config') and (self._model.peft_config is not None):
+                logger.warning("Trying to load a peft model, this doesn't work yet.")
+            else:
+                logger.info(f"Loading best model from {self.checkpoint_path}.")
+                self.accelerator.load_state(self.checkpoint_path)
 
     def test(
             self,
