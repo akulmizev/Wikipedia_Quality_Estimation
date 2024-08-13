@@ -1,3 +1,4 @@
+import unicodedata
 import re
 
 from typing import Iterator, List
@@ -18,3 +19,12 @@ def tokenize(
 
     return re.findall(r'\w+|[^\w\s]', text, re.UNICODE)
 
+
+def get_all_punctuation():
+    punctuation = []
+    for codepoint in range(0x110000):  # Unicode range
+        char = chr(codepoint)
+        category = unicodedata.category(char)
+        if category.startswith('P'):
+            punctuation.append(char)
+    return ''.join(punctuation)

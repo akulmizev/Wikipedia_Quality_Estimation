@@ -17,17 +17,29 @@ from transformers import (
 
 from ..data.metrics import *
 
+
 PARTITION_MAP = {
     "length_chars": LengthCharacters,
     "length_words": LengthWords,
     "length_subwords": LengthSubwords,
-    "unique_chars": UniqueCharacters,
     "unique_words": UniqueWords,
-    "unique_subwords": UniqueSubwords,
-    "unique_character_trigrams": UniqueCharacterTrigrams,
     "unique_trigrams": UniqueTrigrams,
+    "unique_chars": UniqueCharacters,
+    "unique_char_trigrams": UniqueCharacterTrigrams,
+    "unique_subwords": UniqueSubwords,
     "unique_subword_trigrams": UniqueSubwordTrigrams,
-    "alpha_chars": AlphaChars
+    "alpha_chars": AlphaChars,
+    "frac_all_caps_words": FracAllCapsWords,
+    "frac_lines_end_ellipsis": FracLinesEndEllipsis,
+    "frac_no_alpha_words": FracNoAlphaWords,
+    "doc_mean_word_length": MeanWordLength,
+    "frac_unique_words": FracUniqueWords,
+    "frac_unique_chars": FracUniqueChars,
+    "unigram_entropy": UnigramEntropy,
+    "trigram_entropy": TrigramEntropy,
+    "lines_end_with_punctuation": LinesEndWithPunctuation,
+    "num_lines": NumLines,
+    "num_words_per_line": NumWordsPerLine
 }
 
 TOKENIZER_PARAM_MAP = {
