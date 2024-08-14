@@ -3,6 +3,7 @@ import os
 import json
 from dataclasses import asdict
 from typing import Any, Dict, Union
+from glob import glob
 
 import datasets
 import lm_eval
@@ -16,7 +17,7 @@ from ..tokenization.utils import merge_tokenizers
 from ..model.pretrain import MLM, CLM
 from ..model.finetune import Tagger, Classifier
 from ..utils.config import MainConfig
-from ..utils.validation import np_encoder, validate_and_format_dataset
+from ..utils.validation import validate_and_format_dataset, validate_and_format_splits, np_encoder
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -139,23 +140,28 @@ class ExperimentRunner:
         cfg = self.tokenizer
         save_path = f"{self.local_path}/model" if self.local_path else None
 
-        if cfg.load_path:
-            logger.info(f"Loading tokenization from {cfg.load_path}")
-            tokenizer = HfTokenizerFromConfig.from_pretrained(cfg.load_path)
-
-        elif cfg.tokenizer_config:
-            assert dataset is not None, \
-                "Dataset is required for training tokenization. Please provide a dataset config."
-
-            tok_class = HfSentencePieceTokenizer if cfg.tokenizer_config.use_sp_backend else HfTokenizerFromConfig
-            tokenizer = tok_class.train_from_config(
-                dataset["train"]["text"],
-                cfg.tokenizer_config,
-                vocab_file=f"{save_path}/tokenizer.model" if save_path else None
-            )
+        if self.finetune:
+            logger.info(f"Loading tokenizer from {self.finetune.load_path}")
+            tokenizer = HfTokenizerFromConfig.from_pretrained(self.finetune.load_path)
 
         else:
-            raise ValueError("Tokenizer configuration is required.")
+            if cfg.load_path:
+                logger.info(f"Loading tokenization from {cfg.load_path}")
+                tokenizer = HfTokenizerFromConfig.from_pretrained(cfg.load_path)
+
+            elif cfg.tokenizer_config:
+                assert dataset is not None, \
+                    "Dataset is required for training tokenization. Please provide a dataset config."
+
+                tok_class = HfSentencePieceTokenizer if cfg.tokenizer_config.use_sp_backend else HfTokenizerFromConfig
+                tokenizer = tok_class.train_from_config(
+                    dataset["train"]["text"],
+                    cfg.tokenizer_config,
+                    vocab_file=f"{save_path}/tokenizer.model" if save_path else None
+                )
+
+            else:
+                raise ValueError("Tokenizer configuration is required.")
 
         if cfg.merge_with:
             logger.info(f"Merging tokenization with {cfg.merge_with}.")
@@ -195,6 +201,11 @@ class ExperimentRunner:
         task = cfg.training_parameters.task
         save_path = f"{self.local_path}/model" if self.local_path else None
         checkpoint_path = save_path if cfg.checkpoint else None
+        if cfg.checkpoint:
+            files = glob(checkpoint_path + '/*.pkl') + glob(checkpoint_path + '/*.bin') + glob(checkpoint_path + '/*.safetensors')
+            if len(files) > 0:
+                for file in files:
+                    os.remove(file)
 
         if cfg.training_parameters.peft_config:
             logger.info('Using PEFT, not regular pre-training!')
@@ -252,20 +263,26 @@ class ExperimentRunner:
 
         cfg = self.finetune
         task = cfg.training_parameters.task
-        finetune_dataset = validate_and_format_dataset(cfg.dataset_path, self.wiki.id, task)
-        dataset_id = cfg.dataset_path.split("/")[-1]
-        scores_file = f"{self.local_path}/{self.experiment.experiment_id}.{dataset_id}.scores.txt" \
-            if self.local_path else None
+        if cfg.dataset_path:
+            finetune_dataset = validate_and_format_dataset(cfg.dataset_path, self.wiki.id, task, cfg.columns)
+        else:
+            finetune_dataset = validate_and_format_splits(cfg.train_path, cfg.valid_path, cfg.test_path, self.wiki.id, task, cfg.columns)
+        
+        dataset_id = cfg.dataset_path.split("/")[-1] if cfg.dataset_path else cfg.valid_path.split("/")[-1]
+        scores_file = f"{self.local_path}/{self.experiment.experiment_id}.{dataset_id}.scores.txt" if self.local_path else None
+        checkpoint_path = f"{self.local_path}/checkpoints/{dataset_id}" if cfg.checkpoint else None
 
         if task in ["ner", "pos"]:
             model = Tagger(
                 cfg.load_path,
-                cfg.training_parameters
+                cfg.training_parameters,
+                checkpoint_path = checkpoint_path
             )
-        elif task == "classification":
+        elif task in ["classification", "nli"]:
             model = Classifier(
                 cfg.load_path,
-                cfg.training_parameters
+                cfg.training_parameters,
+                checkpoint_path = checkpoint_path
             )
         else:
             raise ValueError("Invalid task. Please specify either `ner`, `pos`, or `classification`.")

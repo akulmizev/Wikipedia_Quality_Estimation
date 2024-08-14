@@ -16,7 +16,7 @@ class PreFilter:
 
 @dataclass
 class Partition:
-    metric: Union[str, List[str]]
+    metrics: Union[str, List[str]]
     method: Optional[str] = "balanced_chars"
     quality: Optional[bool] = True
     tokenizer: Optional[str] = None
@@ -52,7 +52,8 @@ class TokenizerConfig:
             "bos_token": "<s>",
             "eos_token": "</s>",
             "unk_token": "<unk>",
-            "pad_token": "<pad>"
+            "mask_token": "<mask>",
+            "pad_token": "<pad>",
         }
     )
 
@@ -152,6 +153,7 @@ class Dataset:
     pre_filter: Optional[Dict[str, str]] = None
     partition: Optional[Dict[str, str]] = None
     split: Optional[Dict[str, Any]] = None
+    columns: Optional[Dict[str, str]] = None
 
     def __post_init__(self):
         if self.pre_filter:
@@ -192,11 +194,16 @@ class Pretrain:
 @dataclass
 class Finetune:
     load_path: str
-    dataset_path: str
+    dataset_path: Optional[str] = None
+    train_path: Optional[str] = None
+    valid_path: Optional[str] = None
+    test_path: Optional[str] = None
+    columns: Optional[list] = None
     export: bool = False
     push_to_hub: bool = False
     do_train: bool = False
     training_parameters: Optional[Dict[str, Union[str, int, float, bool]]] = None
+    checkpoint: Optional[bool] = False
 
     def __post_init__(self):
         if self.training_parameters:

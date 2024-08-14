@@ -170,9 +170,9 @@ class ModelInitMixin:
         Probably needs more work.
         """
 
-        assert self.task in ["mlm", "clm", "pos", "ner", "classification"], \
+        assert self.task in ["mlm", "clm", "pos", "ner", "classification", "nli"], \
             (f"Provided invalid task type: {self.task}."
-             f"Must be one of 'mlm', 'clm', 'pos', 'ner', 'classification'.")
+             f"Must be one of 'mlm', 'clm', 'pos', 'ner', 'classification', 'nli.")
 
         assert self.padding_strategy in ["max_length", "longest"], \
             (f"Provided invalid padding type: {self.padding_strategy}. "

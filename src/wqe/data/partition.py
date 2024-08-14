@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import datasets
 import multiprocessing as mp
+from kneed import KneeLocator
 
 from sklearn.feature_extraction.text import HashingVectorizer
 from scipy.sparse import vstack, csr_matrix
@@ -149,6 +150,9 @@ class Partition:
 
         if self.join_method:
             dataset = self.join_partitions(dataset)
+        else:
+            indices = self.select_indices(dataset)
+            dataset = dataset.select(indices)
 
         return dataset
 
@@ -184,6 +188,8 @@ class Partition:
 
             partition_1 = sorted_indices[:partition_point]
             partition_2 = sorted_indices[partition_point:]
+        elif self.method == "elbow":
+            return metric_per_doc
         else:
             raise ValueError("Partition method not recognized.")
 
@@ -193,6 +199,8 @@ class Partition:
             return partition_1
 
     def join_partitions(self, dataset) -> List[int]:
+        if len(self.metrics) == 1:
+            logger.warning("Only one metric passed, but join_partitions specified.")
 
         partition_indices = [self.select_indices(dataset, metric) for metric in self.metrics]
 
@@ -200,8 +208,26 @@ class Partition:
             partition_indices = list(set.intersection(*map(set, partition_indices)))
         elif self.join_method == "union":
             partition_indices = list(set.union(*map(set, partition_indices)))
+        elif self.join_method == "scores":
+            assert self.method == 'elbow', "Currently, `scores` join_method can only be used in conjunction with the `elbow` method."
+            dataset = dataset.map(lambda x:{"all_scores": 0})
+            for metric in partition_indices:
+                scores = np.array(metric)
+                scores = (scores-np.min(scores))/(np.max(scores)-np.min(scores)) * 100
+                dataset = dataset.map(lambda x:{"all_scores": [x['all_scores'] + i for i in scores]})
+            dataset = dataset.sort("all_scores", ascending=False)
+        #     variances = [np.var(dataset['all_scores'][:i]) for i in range(1, len(dataset))]
+            n_values = np.arange(0, len(dataset["all_scores"])) #range starts from 1 if using variances
+            knee = KneeLocator(n_values, dataset["all_scores"], curve='convex', direction='decreasing', interp_method="polynomial")
+            logger.info(f"Knee point found at {knee.knee}")
+            if self.quality:
+                dataset = dataset.select(range(knee.knee, len(dataset))).remove_column
+                return dataset
+            else:
+                dataset = dataset.select(range(0, knee.knee))
+                return dataset
         else:
-            raise ValueError("Invalid join method. Please specify either 'intersection' or 'union'.")
+            raise ValueError("Invalid join method. Please specify either 'intersection', 'union' or 'scores'.")
 
         dataset = dataset.select(partition_indices)
 

@@ -424,10 +424,10 @@ class Classifier(ModelFromConfig):
         DataLoader
             A PyTorch DataLoader containing the tokenized and collated dataset.
         """
-
-        batched_dataset = dataset.map(
+        if "premise" in dataset.features:
+            batched_dataset = dataset.map(
             lambda examples: self.tokenizer(
-                examples["text"],
+                examples["premise"], examples['hypothesis'],
                 padding=self.padding_strategy,
                 max_length=self.max_length,
                 truncation=True
@@ -435,6 +435,17 @@ class Classifier(ModelFromConfig):
             batched=True,
             remove_columns=[column for column in dataset.column_names if column != "labels"]
         )
+        else:
+            batched_dataset = dataset.map(
+                lambda examples: self.tokenizer(
+                    examples["text"],
+                    padding=self.padding_strategy,
+                    max_length=self.max_length,
+                    truncation=True
+                ),
+                batched=True,
+                remove_columns=[column for column in dataset.column_names if column != "labels"]
+            )
 
         batched_dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
 
@@ -482,3 +493,4 @@ class Classifier(ModelFromConfig):
             # See note in `_init_metrics` method for why this is computed manually
             "f1": scores["precision"] * scores["recall"] / (scores["precision"] + scores["recall"]) * 2
         }
+    

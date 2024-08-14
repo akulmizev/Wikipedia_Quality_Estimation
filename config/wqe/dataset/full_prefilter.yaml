@@ -1,4 +1,4 @@
-# load_path: "WikiQuality/raw_wiki"
+load_path: "WikiQuality/raw_wiki"
 
 pre_filter:
   script_regex: true
@@ -13,5 +13,5 @@ split:
   seed: 42
   shuffle: true
 
-export: false
-push_to_hub: false
+export: true
+push_to_hub: true

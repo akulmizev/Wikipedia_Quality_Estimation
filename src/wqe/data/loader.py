@@ -7,6 +7,8 @@ import importlib.resources as pkg_resources
 from dataclasses import dataclass
 from typing import List, Dict, Any, Union
 
+import numpy as np
+from kneed import KneeLocator
 import datasets
 import fasttext
 import multiprocessing as mp
@@ -655,8 +657,9 @@ class WikiLoader:
         """
         Updates the dataset with a partition chosen by the specified metric.
 
-        If multiple metrics are specified, the intersection or union
-        of the returned document indices is used.
+        If multiple metrics are specified, a join method must be specified, where either the intersection or union
+        of the returned document indices is used, or each document is scored based on the given metrics and partitions 
+        are created based on the scores.
 
         TODO: eventually need to move much of this to the `wqe.dataset.partition` module.
 
@@ -687,6 +690,8 @@ class WikiLoader:
         """
 
         assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
+        self.data["train"] = datasets.concatenate_datasets([self.data["train"], self.data["test"]])
+        logger.info(f"Combining train and test splits to create partitions. Total articles : {len(self.data["train"])}")
 
         partition_params = locals()
         partition_params.pop("self")
