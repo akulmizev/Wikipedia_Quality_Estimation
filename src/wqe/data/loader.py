@@ -691,7 +691,7 @@ class WikiLoader:
 
         assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
         self.data["train"] = datasets.concatenate_datasets([self.data["train"], self.data["test"]])
-        logger.info(f"Combining train and test splits to create partitions. Total articles : {len(self.data["train"])}")
+        logger.info(f"Combining train and test splits to create partitions. Total articles : {len(self.data['train'])}")
 
         partition_params = locals()
         partition_params.pop("self")
