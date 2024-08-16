@@ -37,7 +37,8 @@ dependencies = [
     "seqeval",
     "wandb",
     "datasketch",
-    "submitit"
+    "submitit",
+    "kneed"
 ]
 
 [project.scripts]
