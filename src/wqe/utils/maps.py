@@ -18,28 +18,33 @@ from transformers import (
 from ..data.metrics import *
 
 
-PARTITION_MAP = {
+METRIC_MAP = {
     "length_chars": LengthCharacters,
     "length_words": LengthWords,
     "length_subwords": LengthSubwords,
     "unique_words": UniqueWords,
     "unique_trigrams": UniqueTrigrams,
     "unique_chars": UniqueCharacters,
-    "unique_char_trigrams": UniqueCharacterTrigrams,
     "unique_subwords": UniqueSubwords,
     "unique_subword_trigrams": UniqueSubwordTrigrams,
     "alpha_chars": AlphaChars,
+    "num_lines": NumLines,
     "frac_all_caps_words": FracAllCapsWords,
-    "frac_lines_end_ellipsis": FracLinesEndEllipsis,
-    "frac_no_alpha_words": FracNoAlphaWords,
+    "frac_no_script_words": FracNoScriptWords,
     "doc_mean_word_length": MeanWordLength,
     "frac_unique_words": FracUniqueWords,
-    "frac_unique_chars": FracUniqueChars,
+    "frac_unique_trigrams": FracUniqueTrigrams,
+    "frac_unique_chars": FracUniqueCharacters,
+    "frac_unique_subwords": FracUniqueSubwords,
+    "frac_unique_subword_trigrams": FracUniqueSubwordTrigrams,
     "unigram_entropy": UnigramEntropy,
     "trigram_entropy": TrigramEntropy,
+    "char_entropy": CharacterEntropy,
+    "subword_entropy": SubwordEntropy,
+    "subword_trigram_entropy": SubwordTrigramEntropy,
     "lines_end_with_punctuation": LinesEndWithPunctuation,
-    "num_lines": NumLines,
-    "num_words_per_line": NumWordsPerLine
+    "num_words_per_line": NumWordsPerLine,
+    "perplexity": Perplexity
 }
 
 TOKENIZER_PARAM_MAP = {

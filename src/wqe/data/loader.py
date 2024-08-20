@@ -4,8 +4,9 @@ import regex as re
 import os
 import importlib.resources as pkg_resources
 
+from collections import defaultdict
 from dataclasses import dataclass
-from typing import List, Dict, Any, Union
+from typing import Any, Dict, List, Pattern, Union
 
 import datasets
 import fasttext
@@ -126,6 +127,10 @@ class WikiLoader:
         self.regex_pattern = None
         self.cleanup_pattern = None
         self.lang_id_model = None
+        self.patterns = {
+            "whitespace": re.compile(r"\s+"),
+            "tokens": re.compile(r"[^\w\s]"),
+        }
         self.n_chars = 0
         self.n_docs = 0
 
@@ -426,7 +431,7 @@ class WikiLoader:
 
         if script_regex:
             self._make_regex()
-            logger.info(f"Filtering documents for accepted scripts: {self.wiki.scripts}")
+            logger.info(f"Filtering documents for accepted scripts: {', '.join(self.wiki.scripts)}")
 
         if lang_id:
             logger.info(f"Filtering documents for language: {self.wiki.alpha3}")
@@ -444,8 +449,7 @@ class WikiLoader:
         self.data = self.data.map(
             function=self._pre_filter_article,
             fn_kwargs={
-                "regex_pattern": self.regex_pattern,
-                "cleanup_pattern": self.cleanup_pattern,
+                "patterns": self.patterns,
                 "lang_id": lang_id,
                 "model": self.lang_id_model,
                 "alpha3": self.wiki.alpha3,
@@ -455,7 +459,8 @@ class WikiLoader:
                 "urls_to_remove": urls_to_remove,
                 "warn_percent": warn_percent
             },
-            num_proc=num_proc if not lang_id else 1
+            num_proc=num_proc if not lang_id else 1,
+            desc="Pre-filtering dataset.",
         )
 
         if deduplicate_exact_match:
@@ -468,22 +473,22 @@ class WikiLoader:
 
         if deduplicate_min_hash:
             logger.info(f"Filtering documents for MinHash duplicates with LSH.")
-            lsh = MinHashLSH(threshold=jaccard_threshold, num_perm=256)
+            lsh = MinHashLSH(threshold=jaccard_threshold, num_perm=64)
         else:
             lsh = None
 
         if char_cutoff > 0:
             logger.info(f"Character cutoff set to {char_cutoff}.")
 
-        logger.info(f"Removing documents.")
         self.data = self.data.filter(
-            function=self._remove_articles,
+            function=self._remove_article,
             fn_kwargs={
                 "unique_hashes": unique_hashes,
                 "lsh": lsh,
                 "char_cutoff": char_cutoff
             },
-            num_proc=num_proc
+            num_proc=num_proc,
+            desc="Removing articles."
         )
 
         self.data["train"] = self.data["train"].remove_columns(
@@ -501,8 +506,7 @@ class WikiLoader:
     @staticmethod
     def _pre_filter_article(
             article: Dict[str, Any],
-            regex_pattern: str = None,
-            cleanup_pattern: str = None,
+            patterns: Dict[str, Pattern],
             lang_id: bool = True,
             model: fasttext.FastText = None,
             alpha3: str = None,
@@ -523,10 +527,8 @@ class WikiLoader:
         ----------
         article : dict
             The article to pre-filter.
-        regex_pattern : str
-            The regex pattern for filtering the article.
-        cleanup_pattern : str
-            The regex pattern for cleaning up the article after regex.
+        patterns : dict
+            The regex patterns for filtering the article.
         lang_id : bool
             Whether to filter the article for the specified language.
         model : fasttext.FastText
@@ -560,40 +562,43 @@ class WikiLoader:
         filtered_lines = []
 
         for line in lines:
-            if all(pref not in line for pref in PREFIXES):
-                continue
-            if regex_pattern:
-                line = "".join(re.findall(regex_pattern, line))
-                if cleanup_pattern:
-                    line = re.sub(cleanup_pattern, lambda m: ' ' if m.group() else '', line)
+
             if not line.strip():
                 continue
+            else:
+                line = line.strip()
+            if "regex" in patterns:
+                line = "".join(re.findall(patterns["regex"], line))
+                if "cleanup" in patterns:
+                    line = re.sub(patterns["cleanup"], lambda x: " " if x.group(0) else "", line)
+                    line = re.sub(patterns["whitespace"], " ", line)
+                if not line.strip():
+                    continue
             if lang_id:
                 assert model is not None, "Language ID model must be specified for language filtering."
                 if model.predict(line)[0][0].split("_")[-2] != alpha3:
                     continue
 
-            filtered_lines.append(line.strip())
+            filtered_lines.append(line)
 
-        article["text"] = "\n".join(lines)
+        article["text"] = "\n".join(filtered_lines)
 
         if deduplicate_exact_match:
             article["hash"] =\
                 insecure_hashlib.md5(
-                    re.sub(re.compile(r"\s+"), "", article["text"]).encode("utf-8")
+                    re.sub(patterns["whitespace"], "", article["text"]).encode("utf-8")
                 ).hexdigest()
 
         if deduplicate_min_hash:
             if tokenizer is None:
-                text = re.sub(r'[^\w\s]', '', article["text"].lower())
+                text = re.sub(patterns["tokens"], '', article["text"].lower())
                 text = text.split()
             else:
                 text = tokenizer.tokenize(article["text"].lower())
 
-            minhash = MinHash(num_perm=256)
+            minhash = MinHash(num_perm=64)
             for word in text:
                 minhash.update(word.encode('utf-8'))
-
             article["minhash"] = minhash.digest()
 
         if warn_percent > 0.0:
@@ -604,7 +609,7 @@ class WikiLoader:
         return article
 
     @staticmethod
-    def _remove_articles(
+    def _remove_article(
             # self,
             article: str,
             unique_hashes: set,
@@ -614,33 +619,39 @@ class WikiLoader:
         """
         Apply deduplication and char_cutoff filters to dataset.
         """
+        if not article["text"].strip():
+            return False
+
+        if len(article["text"]) < char_cutoff:
+            return False
 
         if unique_hashes:
             if not article["hash"] in unique_hashes:
                 return False
             else:
                 unique_hashes.remove(article["hash"])
+
         if lsh:
             minhash = MinHash(hashvalues=article["minhash"])
             if lsh.query(minhash):
                 return False
             else:
                 lsh.insert(article["id"], minhash)
-        elif len(article["text"]) < char_cutoff:
-            return False
 
         return True
 
     def _make_regex(self):
 
         """
-        Makes regex for filtering the dataset for all accepted unicode scripts for a language.
+        Makes regex for filtering the dataset for all accepted Unicode scripts for a language.
         """
 
         scripts = "".join([f"\\p{{{script}}}" for script in self.wiki.scripts])
-        script_regex = fr"[\p{{P}}\p{{S}}\d{scripts}]*[\d{scripts}]+[\p{{P}}\p{{S}}\d{scripts}]*\s"
-        self.regex_pattern = re.compile(script_regex)
-        self.cleanup_pattern = re.compile(r"\s+[^\w\s]+\s+|(?<=\S)\s+(?=\.$)|\([^)]*\)|\[[^]]*\]|\{[^}]*\}")
+        accepted_characters = r"\p{M}\p{P}\p{S}\p{N}\p{Z}\p{C}"
+        script_regex = fr"[{accepted_characters}]*{scripts}+[{accepted_characters}]*"
+        self.patterns["scripts"] = re.compile(script_regex)
+        cleanup_pattern = rf"^(?!.*{scripts}).*$|(?<=\S)\s+(?=\.$)|\(\s*\)|\[\s*\]|\{{\s*\}}|^\s*\S+\s*$"
+        self.patterns["cleanup"] = re.compile(cleanup_pattern)
 
     def apply_partition(
             self,
@@ -649,7 +660,7 @@ class WikiLoader:
             quality: bool = True,
             join_method: str = None,
             thresholds: Dict[str, int] = None,
-            tokenizer: Union[str, None] = None
+            **kwargs
     ):
 
         """
@@ -682,8 +693,8 @@ class WikiLoader:
         thresholds : dict
             The thresholds for filtering by each metric, e.g. `length: 100`.
             If not specified, no threshold is applied.
-        tokenizer : str
-            The tokenization to use for partitioning the dataset. Required for certain metrics.
+        kwargs : dict
+            Additional keyword arguments for the partitioning method.
         """
 
         assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
@@ -694,8 +705,7 @@ class WikiLoader:
         raw_chars = self.n_chars
         raw_docs = self.n_docs
 
-        partition = Partition(**partition_params)
-        logger.info(f"Partitioning dataset by {', '.join(partition.metrics)}...")
+        partition = Partition(**partition_params, **kwargs)
         self.data["train"] = partition(self.data["train"])
 
         self.n_chars = len("".join(self.data["train"]["text"]))
