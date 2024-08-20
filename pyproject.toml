@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent"]
 dependencies = [
+    "lm_eval@git+https://github.com/EleutherAI/lm-evaluation-harness",
     "hydra-core",
     "datasets",
     "tokenizers",
@@ -35,7 +36,9 @@ dependencies = [
     "scikit-learn",
     "seqeval",
     "wandb",
-    "datasketch"
+    "datasketch",
+    "submitit",
+    "kneed"
 ]
 
 [project.scripts]

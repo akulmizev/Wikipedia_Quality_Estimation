@@ -213,6 +213,7 @@ class ModelFromConfig(ModelInitMixin):
         self._init_model_and_tokenizer(dataset=dataset, tokenizer=tokenizer)
         loaders = self._prepare_for_training(dataset)
         running_loss = torch.inf
+        running_f1 = 0
         progress_bar = tqdm(range(self.num_train_steps))
 
         logger.info(f"Training model for {self.num_train_epochs} epoch(s) ({self.num_train_steps} steps).")
@@ -251,10 +252,16 @@ class ModelFromConfig(ModelInitMixin):
                             logger.info(f"Step {step + (epoch * len(loaders['train']))} | {scores_str}")
 
                             if self.checkpoint_path:
-                                if scores["loss"] < running_loss:
-                                    logger.info(f"Saving model checkpoint at epoch {epoch}.")
-                                    self.accelerator.save_state(self.checkpoint_path, safe_serialization=False)
-                                    running_loss = scores["loss"]
+                                try:
+                                    if scores["loss"] < running_loss:
+                                        logger.info(f"Saving model checkpoint at epoch {epoch}.")
+                                        self.accelerator.save_state(self.checkpoint_path, safe_serialization=False)
+                                        running_loss = scores["loss"]
+                                except:
+                                    if scores['f1'] > running_f1:
+                                        logger.info(f"Saving model checkpoint at epoch {epoch}.")
+                                        self.accelerator.save_state(self.checkpoint_path, safe_serialization=False)
+                                        running_f1 = scores["f1"]
 
                             if self.wandb:
                                 wandb.log({"val": scores})
@@ -264,8 +271,14 @@ class ModelFromConfig(ModelInitMixin):
         progress_bar.close()
         logger.info("Training complete.")
         if self.checkpoint_path:
-            logger.info(f"Loading best model from {self.checkpoint_path}.")
-            self.accelerator.load_state(self.checkpoint_path)
+            # TODO: getting a:
+            # "RuntimeError: Error(s) in loading state_dict for PeftModel:Unexpected key(s) in state_dict"
+            # error when trying to load a peft model here. Have not found a solution yet.
+            if hasattr(self._model, 'peft_config') and (self._model.peft_config is not None):
+                logger.warning("Trying to load a peft model, this doesn't work yet.")
+            else:
+                logger.info(f"Loading best model from {self.checkpoint_path}.")
+                self.accelerator.load_state(self.checkpoint_path)
 
     def test(
             self,

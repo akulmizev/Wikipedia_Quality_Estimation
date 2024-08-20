@@ -16,7 +16,7 @@ class PreFilter:
 
 @dataclass
 class Partition:
-    metric: Union[str, List[str]]
+    metrics: Union[str, List[str]]
     method: Optional[str] = "balanced_chars"
     quality: Optional[bool] = True
     tokenizer: Optional[str] = None
@@ -52,7 +52,8 @@ class TokenizerConfig:
             "bos_token": "<s>",
             "eos_token": "</s>",
             "unk_token": "<unk>",
-            "pad_token": "<pad>"
+            "mask_token": "<mask>",
+            "pad_token": "<pad>",
         }
     )
 
@@ -85,9 +86,6 @@ class PeftConfig:
     lora_alpha: Optional[float] = 32.0
     bias: Optional[Union[str, float]] = "none"
     inference_mode: Optional[bool] = False
-    # TODO: The next two are not working yet, do we need them?
-    # modules_to_save: Optional[List[str]] = None
-    # peft_path: Optional[str] = None
 
 
 @dataclass
@@ -118,6 +116,33 @@ class Experiment:
     local_path: Optional[str] = None
     hub_path: Optional[str] = None
     wandb_entity: Optional[str] = None
+    experiment_folder: Optional[str] = None
+
+    def __post_init__(self):
+        if self.local_path:
+            self.experiment_folder = f"{self.local_path}/{self.experiment_id}/{self.wiki_id}"
+
+
+@dataclass
+class SlurmAdditional:
+    clusters: str
+    account: str
+    nodes: int
+    cpus_per_gpu: int
+    gpus_per_node: int
+    mail_user: str 
+    mail_type: str = "BEGIN,END,FAIL"
+
+
+@dataclass
+class Slurm:
+    slurm_partition: str
+    slurm_time: str  # with format 01:30:00 for 1.5 hours
+    slurm_additional_parameters: Dict[str, Union[str, int]]
+
+    def __post_init__(self):
+        if self.slurm_additional_parameters:
+            self.slurm_additional_parameters = SlurmAdditional(**self.slurm_additional_parameters)
 
 
 @dataclass
@@ -128,6 +153,7 @@ class Dataset:
     pre_filter: Optional[Dict[str, str]] = None
     partition: Optional[Dict[str, str]] = None
     split: Optional[Dict[str, Any]] = None
+    columns: Optional[Dict[str, str]] = None
 
     def __post_init__(self):
         if self.pre_filter:
@@ -168,15 +194,28 @@ class Pretrain:
 @dataclass
 class Finetune:
     load_path: str
-    dataset_path: str
+    dataset_path: Optional[str] = None
+    train_path: Optional[str] = None
+    valid_path: Optional[str] = None
+    test_path: Optional[str] = None
+    columns: Optional[list] = None
     export: bool = False
     push_to_hub: bool = False
     do_train: bool = False
     training_parameters: Optional[Dict[str, Union[str, int, float, bool]]] = None
+    checkpoint: Optional[bool] = False
 
     def __post_init__(self):
         if self.training_parameters:
             self.training_parameters = TrainingParameters(**self.training_parameters)
+
+
+@dataclass
+class LMEvaluation:
+    load_path: str
+    tasks: List[str]
+    log_samples: bool = False
+    num_fewshot: int = 0
 
 
 @dataclass
@@ -186,6 +225,8 @@ class MainConfig:
     tokenizer: Optional[Dict[str, Any]] = None
     pretrain: Optional[Dict[str, Any]] = None
     finetune: Optional[Dict[str, Any]] = None
+    slurm: Optional[Dict[str, Any]] = None
+    lm_eval: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
         self.experiment = Experiment(**self.experiment)
@@ -197,3 +238,7 @@ class MainConfig:
             self.pretrain = Pretrain(**self.pretrain)
         if self.finetune:
             self.finetune = Finetune(**self.finetune)
+        if self.slurm:
+            self.slurm = Slurm(**self.slurm)
+        if self.lm_eval:
+            self.lm_eval = LMEvaluation(**self.lm_eval)
