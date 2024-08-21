@@ -7,15 +7,12 @@ import datasets
 import multiprocessing as mp
 from kneed import KneeLocator
 
-from numpy.random import random_sample
-from sklearn.feature_extraction.text import HashingVectorizer
-from scipy.sparse import vstack, csr_matrix
-from scipy import stats, optimize
 from scipy.stats import gaussian_kde
 from transformers import PreTrainedTokenizerFast
 
 from .utils import tokenize
 from ..utils.maps import METRIC_MAP
+from ..utils.stats import normalize
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +110,7 @@ class Partition:
     def __init__(
             self,
             metrics: Union[str, List[str]],
-            method: str = "mean_cutoff",
+            method: str = None,
             quality: bool = True,
             join_method: Optional[str] = None,
             thresholds: Dict[str, int] = None,
@@ -125,6 +122,7 @@ class Partition:
         self.quality = quality
         self.join_method = join_method
         self.thresholds = thresholds
+        self.original_columns = None
 
         tokenizer = kwargs.get("tokenizer", None)
         if tokenizer:
@@ -144,6 +142,9 @@ class Partition:
         dataset: datasets.Dataset,
     ) -> datasets.Dataset:
 
+        self.original_columns = dataset.column_names
+
+        logger.info(f"Partition method set to '{self.method}'.")
         logger.info(f"Partitioning dataset by {', '.join(self.metrics)}...")
 
         if "perplexity" in self.metrics:
@@ -184,13 +185,19 @@ class Partition:
                 desc="Applying thresholds"
             )
 
-        if self.join_method:
-            dataset = self.join_partitions(dataset)
-        else:
-            indices = self.select_indices(dataset, self.metrics[0])
-            dataset = dataset.select(indices)
+        if self.method:
+            if self.join_method:
+                dataset = self.join_partitions(dataset)
+            else:
+                if len(self.metrics) > 1:
+                    logger.warning(f"Multiple metrics passed, but no join_method specified."
+                                   " Combining and scoring metrics instead.")
+                    dataset = self.combine_and_score_metrics(dataset)
+                    self.metrics = ["combined_metrics"]
+                indices = self.select_indices(dataset, self.metrics[0])
+                dataset = dataset.select(indices)
 
-        dataset = dataset.remove_columns(self.metrics)
+        dataset = dataset.select_columns(self.original_columns)
 
         return dataset
 
@@ -201,7 +208,10 @@ class Partition:
     ) -> List[int]:
 
         metric_per_doc = np.array(dataset[metric])
-        higher_is_better = METRIC_MAP[metric].HIGHER_IS_BETTER
+        if metric == "combined_metrics":
+            higher_is_better = True
+        else:
+            higher_is_better = METRIC_MAP[metric].HIGHER_IS_BETTER
 
         if self.method == "mean_cutoff":
             mean_cutoff = np.mean(metric_per_doc)  # + np.std(metric_per_doc)
@@ -220,24 +230,22 @@ class Partition:
             text_lengths = np.array([len(text) for text in dataset["text"]])
             total_chars = text_lengths.sum()
             char_budget = total_chars // 2
-
             cumulative_chars = np.cumsum(text_lengths[sorted_indices])
             partition_point = np.searchsorted(cumulative_chars, char_budget, side='right')
-
             partition_1 = sorted_indices[:partition_point]
             partition_2 = sorted_indices[partition_point:]
         elif self.method == "elbow":
             sorted_indices = np.argsort(metric_per_doc)[::-1]
-            scores = np.sort(metric_per_doc)[::-1]
+            scores = np.array(metric_per_doc[sorted_indices])
             # scores = (scores-np.min(scores))/(np.max(scores)-np.min(scores)) * 100
             n_values = np.arange(0, len(scores))
-            knee = KneeLocator(n_values, scores, curve='convex', direction='decreasing', interp_method="polynomial")
+            knee = KneeLocator(n_values, scores,
+                               curve='convex', direction='decreasing', interp_method="polynomial")
             logger.info(f"Knee point found at {knee.knee}")
-
-            partition_2 = sorted_indices[:knee.knee]
-            partition_1 = sorted_indices[knee.knee:]
+            partition_1 = sorted_indices[:knee.knee]
+            partition_2 = sorted_indices[knee.knee:]
         else:
-            raise ValueError("Partition method not recognized.")
+            raise ValueError(f"Partition method not recognized: {self.method}.")
 
         if (higher_is_better and self.quality) or (not higher_is_better and not self.quality):
             return partition_2
@@ -245,6 +253,7 @@ class Partition:
             return partition_1
 
     def join_partitions(self, dataset) -> List[int]:
+
         if len(self.metrics) == 1:
             logger.warning("Only one metric passed, but join_method specified.")
 
@@ -258,28 +267,22 @@ class Partition:
             partition_indices = list(set.union(*map(set, partition_indices)))
             dataset = dataset.select(partition_indices)
             return dataset
-        elif self.join_method == "scores":
-            assert self.method == 'elbow', "Currently, `scores` join_method can only be used in conjunction with the `elbow` method."
-            all_scores = np.zeros(len(dataset))
-            for metric in self.metrics:
-                scores = (dataset[metric] - np.min(dataset[metric])) / (np.max(dataset[metric]) - np.min(dataset[metric])) * 100
-                all_scores += scores
-            sorted_scores = np.sort(all_scores)[::-1]
-        #     variances = [np.var(dataset['all_scores'][:i]) for i in range(1, len(dataset))]
-            n_values = np.arange(0, len(sorted_scores)) #range starts from 1 if using variances
-            knee = KneeLocator(n_values, sorted_scores, curve='convex', direction='decreasing', interp_method="polynomial")
-            logger.info(f"Knee point found at {knee.knee}")
-            dataset = dataset.add_column("all_scores", all_scores)
-            sorted_indices = np.argsort(dataset["all_scores"])[::-1]
-            if self.quality:
-                dataset = dataset.select(sorted_indices[:knee.knee]).remove_columns("all_scores")
-                return dataset
-            else:
-                dataset = dataset.select(sorted_indices[knee.knee:]).remove_columns("all_scores")
-                return dataset
         else:
             raise ValueError("Invalid join method. Please specify either 'intersection', 'union' or 'scores'.")
 
+    def combine_and_score_metrics(
+        self,
+        dataset: datasets.Dataset
+    ):
+
+        combined_metrics = np.zeros(len(dataset))
+        for metric in self.metrics:
+            scores = np.array(dataset[metric])
+            norm_scores = normalize(scores)
+            combined_metrics += norm_scores
+        dataset = dataset.select_columns(self.original_columns)
+        dataset = dataset.add_column("combined_metrics", combined_metrics)
+        return dataset
 
     @staticmethod
     def apply_metrics(
@@ -336,41 +339,10 @@ class Partition:
         sampled_kde = gaussian_kde(sampled_values)
 
         if higher_is_better:
-            metric_values = np.linspace(min(sorted_values), max(sampled_values), 1000)
+            metric_values = np.linspace(min(sorted_values), max(sampled_values), n_docs)
             threshold = metric_values[np.argmax(value_kde(metric_values) - sampled_kde(metric_values))]
         else:
-            metric_values = np.linspace(min(sampled_values), max(sorted_values), 1000)
+            metric_values = np.linspace(min(sampled_values), max(sorted_values), n_docs)
             threshold = metric_values[np.argmin(value_kde(metric_values) - sampled_kde(metric_values))]
 
         return threshold
-
-    @staticmethod
-    def get_auto_threshold_optimized(
-            values: List[Union[int, float]],
-            higher_is_better: bool
-    ) -> float:
-        values = np.array(values)
-        n_docs = max(int(len(values) * 0.05), 2)  # Ensure at least 2 docs
-
-        if higher_is_better:
-            sorted_values = np.partition(values, n_docs)[:n_docs]
-        else:
-            sorted_values = np.partition(values, -n_docs)[-n_docs:]
-
-        if len(set(sorted_values)) == 1:
-            return sorted_values[0]
-
-        sampled_values = values[np.random.permutation(len(values))[:n_docs]]
-
-        value_kde = stats.gaussian_kde(sorted_values)
-        sampled_kde = stats.gaussian_kde(sampled_values)
-
-        if higher_is_better:
-            objective = lambda x: sampled_kde(x) - value_kde(x)
-            bounds = (min(sorted_values), max(sampled_values))
-        else:
-            objective = lambda x: value_kde(x) - sampled_kde(x)
-            bounds = (min(sampled_values), max(sorted_values))
-
-        result = optimize.minimize_scalar(objective, bounds=bounds, method='bounded')
-        return result.x

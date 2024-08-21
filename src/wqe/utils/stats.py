@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
+
 def ks_statistic(sample, full_data):
     return stats.ks_2samp(sample, full_data).statistic
 
@@ -26,6 +27,15 @@ def find_elbow(x, y):
     elbow_index = np.argmax(distances)
 
     return elbow_index
+
+
+def normalize(data):
+
+    z_scores = stats.zscore(data)
+
+    normalized = (z_scores - np.min(z_scores)) / (np.max(z_scores) - np.min(z_scores))
+
+    return normalized
 
 
 def get_representative_sample_size(distribution, metric="ks"):

@@ -4,12 +4,9 @@ import regex as re
 import os
 import importlib.resources as pkg_resources
 
-from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, List, Pattern, Union
 
-import numpy as np
-from kneed import KneeLocator
 import datasets
 import fasttext
 import multiprocessing as mp
@@ -135,6 +132,7 @@ class WikiLoader:
         }
         self.n_chars = 0
         self.n_docs = 0
+        self.columns = ["id", "url", "title", "text"]
 
     def __getattr__(self, attr: str):
         return getattr(self.data, attr)
@@ -428,7 +426,6 @@ class WikiLoader:
 
         raw_chars = self.n_chars
         raw_docs = self.n_docs
-
         num_proc = mp.cpu_count()
 
         if script_regex:
@@ -493,10 +490,7 @@ class WikiLoader:
             desc="Removing articles."
         )
 
-        self.data["train"] = self.data["train"].remove_columns(
-            {"hash", "minhash"} & set(self.data["train"].column_names)
-        )
-
+        self.data["train"] = self.data["train"].select_columns(self.columns)
         self.n_chars = len("".join(self.data["train"]["text"]))
         self.n_docs = len(self.data["train"])
 
@@ -569,8 +563,8 @@ class WikiLoader:
                 continue
             else:
                 line = line.strip()
-            if "regex" in patterns:
-                line = "".join(re.findall(patterns["regex"], line))
+            if "scripts" in patterns:
+                line = "".join(re.findall(patterns["scripts"], line))
                 if "cleanup" in patterns:
                     line = re.sub(patterns["cleanup"], lambda x: " " if x.group(0) else "", line)
                     line = re.sub(patterns["whitespace"], " ", line)
@@ -593,7 +587,7 @@ class WikiLoader:
 
         if deduplicate_min_hash:
             if tokenizer is None:
-                text = re.sub(patterns["tokens"], '', article["text"].lower())
+                text = re.sub(patterns["tokens"], "", article["text"].lower())
                 text = text.split()
             else:
                 text = tokenizer.tokenize(article["text"].lower())
@@ -648,17 +642,18 @@ class WikiLoader:
         Makes regex for filtering the dataset for all accepted Unicode scripts for a language.
         """
 
-        scripts = "".join([f"\\p{{{script}}}" for script in self.wiki.scripts])
+        scripts = "".join([fr"\p{{{script}}}" for script in self.wiki.scripts])
         accepted_characters = r"\p{M}\p{P}\p{S}\p{N}\p{Z}\p{C}"
         script_regex = fr"[{accepted_characters}]*{scripts}+[{accepted_characters}]*"
         self.patterns["scripts"] = re.compile(script_regex)
-        cleanup_pattern = rf"^(?!.*{scripts}).*$|(?<=\S)\s+(?=\.$)|\(\s*\)|\[\s*\]|\{{\s*\}}|^\s*\S+\s*$"
+        brackets = fr"\([^\p{{L}}]+\)|\[[^\p{{L}}]+\]|\{{[^\p{{L}}]+\}}"
+        cleanup_pattern = fr"^(?!.*{scripts}).*$|(?<=\S)\s+(?=\.$)|{brackets}|^\s*\S+\s*$"
         self.patterns["cleanup"] = re.compile(cleanup_pattern)
 
     def apply_partition(
             self,
             metrics: Union[List[str], str],
-            method: str = "balanced_chars",
+            method: str = None,
             quality: bool = True,
             join_method: str = None,
             thresholds: Dict[str, int] = None,
@@ -701,8 +696,14 @@ class WikiLoader:
         """
 
         assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
-        self.data["train"] = datasets.concatenate_datasets([self.data["train"], self.data["test"]])
-        logger.info(f"Combining train and test splits to create partitions. Total articles : {len(self.data['train'])}")
+
+        if "test" in self.data.keys():
+            self.data["train"] = datasets.concatenate_datasets([self.data["train"], self.data["test"]])
+
+        logger.info(
+            f"Combining train and test splits to create partitions."
+            f" Total articles: {len(self.data['train'])}"
+        )
 
         partition_params = locals()
         partition_params.pop("self")
