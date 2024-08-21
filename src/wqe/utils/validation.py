@@ -396,7 +396,7 @@ def validate_and_format_splits(
             if "label" in test.features:
                 test = test.rename_column("label", "labels")
 
-    dataset = DatasetDict({"train": train, "test": test, "valid": valid})
+    dataset = DatasetDict({"train": train, "test": test, "validation": valid})
     if task in ["pos", "ner"]:    
         dataset = dataset.cast_column("tags", ClassLabel(num_classes=len(set(dataset['train']['tags']))))
     else:
