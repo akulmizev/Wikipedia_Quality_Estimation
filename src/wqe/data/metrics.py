@@ -41,15 +41,6 @@ class LengthWords(BaseMetric):
         return example
 
 
-class LengthSubwords(BaseMetric):
-    ANNOTATION_TAG = "length_subwords"
-
-    @classmethod
-    def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        example[cls.ANNOTATION_TAG] = len(example["subwords"])
-        return example
-
-
 class UniqueWords(BaseMetric):
     ANNOTATION_TAG = "unique_words"
 
@@ -84,25 +75,6 @@ class UniqueCharacterTrigrams(BaseMetric):
     @classmethod
     def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         trigrams = list(compute_ngrams(example["text"], 3))
-        example[cls.ANNOTATION_TAG] = len(set(trigrams))
-        return example
-
-
-class UniqueSubwords(BaseMetric):
-    ANNOTATION_TAG = "unique_subwords"
-
-    @classmethod
-    def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        example[cls.ANNOTATION_TAG] = len(set(example["subwords"]))
-        return example
-
-
-class UniqueSubwordTrigrams(BaseMetric):
-    ANNOTATION_TAG = "unique_subword_trigrams"
-
-    @classmethod
-    def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        trigrams = list(compute_ngrams(example["subwords"], n=3))
         example[cls.ANNOTATION_TAG] = len(set(trigrams))
         return example
 
@@ -198,30 +170,6 @@ class FracUniqueTrigrams(BaseMetric):
         return example
 
 
-class FracUniqueSubwords(BaseMetric):
-    ANNOTATION_TAG = "frac_unique_subwords"
-    HIGHER_IS_BETTER = True
-
-    @classmethod
-    def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        example[cls.ANNOTATION_TAG] = len(set(example["subwords"])) / len(example["subwords"])
-        return example
-
-
-class FracUniqueSubwordTrigrams(BaseMetric):
-    ANNOTATION_TAG = "frac_unique_subword_trigrams"
-    HIGHER_IS_BETTER = True
-
-    @classmethod
-    def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        trigrams = list(compute_ngrams(example["subwords"], n=3))
-        if len(trigrams) == 0:
-            example[cls.ANNOTATION_TAG] = 0.0
-        else:
-            example[cls.ANNOTATION_TAG] = len(set(trigrams)) / len(trigrams)
-        return example
-
-
 class UnigramEntropy(BaseMetric):
     ANNOTATION_TAG = "unigram_entropy"
     HIGHER_IS_BETTER = True
@@ -279,44 +227,6 @@ class CharacterEntropy(BaseMetric):
         return example
 
 
-class SubwordEntropy(BaseMetric):
-    ANNOTATION_TAG = "subword_entropy"
-    HIGHER_IS_BETTER = True
-
-    @classmethod
-    def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        tokens = example["subwords"]
-        token_counts = Counter(tokens)  # Efficient counting
-        total_tokens = len(tokens)
-
-        # Calculate token probabilities
-        token_probs = {token: count / total_tokens for token, count in token_counts.items()}
-
-        # Calculate entropy
-        entropy = -sum(prob * math.log2(prob) for prob in token_probs.values())
-        example[cls.ANNOTATION_TAG] = entropy
-        return example
-
-
-class SubwordTrigramEntropy(BaseMetric):
-    ANNOTATION_TAG = "subword_trigram_entropy"
-    HIGHER_IS_BETTER = True
-
-    @classmethod
-    def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        trigrams = list(compute_ngrams(example["subwords"], 3))
-        trigram_counts = Counter(trigrams)  # Efficient counting
-        total_trigrams = len(trigrams)
-
-        # Calculate trigram probabilities
-        trigram_probs = {trigram: count / total_trigrams for trigram, count in trigram_counts.items()}
-
-        # Calculate entropy
-        entropy = -sum(prob * math.log2(prob) for prob in trigram_probs.values())
-        example[cls.ANNOTATION_TAG] = entropy
-        return example
-
-
 class LinesEndWithPunctuation(BaseMetric):
     ANNOTATION_TAG = "lines_end_with_punctuation"
     HIGHER_IS_BETTER = True
@@ -324,7 +234,8 @@ class LinesEndWithPunctuation(BaseMetric):
     @classmethod
     def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         lines = example["text"].split("\n")
-        example[cls.ANNOTATION_TAG] = sum(1 for line in lines if line.strip().endswith(tuple(ALL_PUNCTUATION))) / len(lines)
+        score = sum(1 for line in lines if line.strip().endswith(tuple(ALL_PUNCTUATION))) / len(lines)
+        example[cls.ANNOTATION_TAG] = score
         return example
 
 
