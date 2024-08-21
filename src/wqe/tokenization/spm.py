@@ -104,14 +104,6 @@ class HfSentencePieceTokenizerBase(PreTrainedTokenizer, BaseTokenizerMixin):
 
         if legacy is None:
             legacy = True
-            logger.warning(
-                f"You are using the default legacy behaviour of the {self.__class__}. This is expected, and simply"
-                " means that the `legacy` (previous) behavior will be used so nothing changes for you. If you want"
-                " to use the new behaviour, set `legacy=False`. This should only be set if you understand what it"
-                " means, and thoroughly read the reason why this was added as explained in"
-                " https://github.com/huggingface/transformers/pull/24565 - if you loaded a llama tokenization from a"
-                " GGUF file you can ignore this message"
-            )
 
         self.legacy = legacy
         self.vocab_file = vocab_file
@@ -225,9 +217,13 @@ class HfSentencePieceTokenizerBase(PreTrainedTokenizer, BaseTokenizerMixin):
         vocab_size = cls.predict_vocab_size(len("".join(dataset))) \
             if config.vocab_size == "auto" else config.vocab_size
 
+        logger.info(f"Setting vocab size to {vocab_size}.")
+
         normalization_rule_name = config.normalizer.type if config.normalizer else "nmt_nfkc"
         sp_special_tokens = cls.convert_special_token_mapping(config.special_tokens)
         sp_kwargs = config.sp_kwargs if config.sp_kwargs else {}
+
+        logger.info("Training SentencePiece tokenizer from config:")
 
         model = io.BytesIO()
         SentencePieceTrainer.train(

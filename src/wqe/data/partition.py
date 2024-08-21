@@ -7,11 +7,15 @@ import datasets
 import multiprocessing as mp
 from kneed import KneeLocator
 
+from numpy.random import random_sample
 from sklearn.feature_extraction.text import HashingVectorizer
 from scipy.sparse import vstack, csr_matrix
+from scipy import stats, optimize
+from scipy.stats import gaussian_kde
 from transformers import PreTrainedTokenizerFast
 
-from ..utils.maps import PARTITION_MAP
+from .utils import tokenize
+from ..utils.maps import METRIC_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -113,25 +117,43 @@ class Partition:
             quality: bool = True,
             join_method: Optional[str] = None,
             thresholds: Dict[str, int] = None,
-            tokenizer: str = None
+            **kwargs
     ):
 
         self.metrics = [metrics] if isinstance(metrics, str) else metrics
         self.method = method
         self.quality = quality
         self.join_method = join_method
-        self.thresholds = thresholds if thresholds else None
-        self.tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer) if tokenizer else None
+        self.thresholds = thresholds
+
+        tokenizer = kwargs.get("tokenizer", None)
+        if tokenizer:
+            if isinstance(tokenizer, str):
+                self.tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer)
+            elif isinstance(tokenizer, PreTrainedTokenizerFast):
+                self.tokenizer = tokenizer
+            else:
+                raise ValueError("Invalid tokenizer type. Pass a model string or a PreTrainedTokenizerFast object.")
+        else:
+            self.tokenizer = None
+
+        self.model = kwargs.get("model", None)
 
     def __call__(
         self,
-        dataset: datasets.Dataset
+        dataset: datasets.Dataset,
     ) -> datasets.Dataset:
+
+        logger.info(f"Partitioning dataset by {', '.join(self.metrics)}...")
+
+        if "perplexity" in self.metrics:
+            METRIC_MAP["perplexity"].init_metrics(dataset, model=self.model)
 
         dataset = dataset.map(
             self.apply_metrics,
             fn_kwargs={"metrics": self.metrics, "tokenizer": self.tokenizer},
-            num_proc=mp.cpu_count()
+            num_proc=mp.cpu_count(),
+            desc="Calculating metrics"
         )
 
         if self.thresholds:
@@ -139,13 +161,27 @@ class Partition:
                 if metric not in self.metrics:
                     raise ValueError(f"Threshold specified for non-existent metric: {metric}.")
 
+                higher_is_better = METRIC_MAP[metric].HIGHER_IS_BETTER
                 if threshold == "auto":
-                    self.thresholds[metric] = self.get_auto_threshold(dataset[metric], self.quality)
+                    self.thresholds[metric] = self.get_auto_threshold(dataset[metric], higher_is_better)
+                    if higher_is_better:
+                        n_docs_removed = len(np.where(dataset[metric] < self.thresholds[metric])[0])
+                        logger.info(
+                            f"Auto threshold for {metric} set at: <{self.thresholds[metric]:.2f} "
+                            f"({n_docs_removed} docs removed)"
+                        )
+                    else:
+                        n_docs_removed = len(np.where(dataset[metric] > self.thresholds[metric])[0])
+                        logger.info(
+                            f"Auto threshold for {metric} set at: >{self.thresholds[metric]:.2f} "
+                            f"({n_docs_removed} matching docs)"
+                        )
 
             dataset = dataset.filter(
                 self.apply_thresholds,
                 fn_kwargs={"thresholds": self.thresholds},
-                num_proc=mp.cpu_count()
+                num_proc=mp.cpu_count(),
+                desc="Applying thresholds"
             )
 
         if self.join_method:
@@ -153,6 +189,8 @@ class Partition:
         else:
             indices = self.select_indices(dataset, self.metrics[0])
             dataset = dataset.select(indices)
+
+        dataset = dataset.remove_columns(self.metrics)
 
         return dataset
 
@@ -163,7 +201,7 @@ class Partition:
     ) -> List[int]:
 
         metric_per_doc = np.array(dataset[metric])
-        higher_is_better = PARTITION_MAP[metric].HIGHER_IS_BETTER
+        higher_is_better = METRIC_MAP[metric].HIGHER_IS_BETTER
 
         if self.method == "mean_cutoff":
             mean_cutoff = np.mean(metric_per_doc)  # + np.std(metric_per_doc)
@@ -174,9 +212,9 @@ class Partition:
             partition_1 = np.where(metric_per_doc < median_cutoff)[0]
             partition_2 = np.where(metric_per_doc >= median_cutoff)[0]
         elif self.method == "balanced_docs":
-            half_point = len(dataset) // 2
-            partition_1 = np.argsort(metric_per_doc)[:half_point]
-            partition_2 = np.argsort(metric_per_doc)[half_point:]
+            partition_point = len(dataset) // 2
+            partition_1 = np.argsort(metric_per_doc)[:partition_point]
+            partition_2 = np.argsort(metric_per_doc)[partition_point:]
         elif self.method == "balanced_chars":
             sorted_indices = np.argsort(metric_per_doc)
             text_lengths = np.array([len(text) for text in dataset["text"]])
@@ -250,14 +288,14 @@ class Partition:
         tokenizer: PreTrainedTokenizerFast = None
     ) -> Dict[str, Any]:
 
+        if tokenizer:
+            example["tokens"] = tokenizer.tokenize(example["text"])
+        else:
+            example["tokens"] = tokenize(example["text"])
+
         for metric_name in metrics:
-            metric = PARTITION_MAP[metric_name]
-            if metric.NEEDS_TOKENIZER:
-                if not tokenizer:
-                    raise ValueError(f"{metric_name} requires a tokenizer.")
-                example[metric_name] = metric.calculate(example["text"], tokenize_fn=tokenizer.tokenize)
-            else:
-                example[metric_name] = metric.calculate(example["text"])
+            metric = METRIC_MAP[metric_name]
+            example = metric.calculate(example)
 
         return example
 
@@ -269,7 +307,7 @@ class Partition:
 
         for metric, threshold in thresholds.items():
 
-            higher_is_better = PARTITION_MAP[metric].HIGHER_IS_BETTER
+            higher_is_better = METRIC_MAP[metric].HIGHER_IS_BETTER
 
             if higher_is_better:
                 if example[metric] < threshold:
@@ -283,12 +321,56 @@ class Partition:
     @staticmethod
     def get_auto_threshold(
         values: List[Union[int, float]],
-        quality: bool
+        higher_is_better: bool
     ) -> int:
 
-        metric_values = np.array(values)
+        n_docs = int(len(values) * 0.05)
+        sorted_values = np.array(sorted(values)[:n_docs]) if higher_is_better else np.array(sorted(values)[n_docs:])
 
-        if quality:
-            return np.quantile(metric_values, 0.75)
+        if len(set(sorted_values)) == 1:
+            return sorted_values[0]
+
+        sampled_values = np.random.choice(values, n_docs, replace=False)
+
+        value_kde = gaussian_kde(sorted_values)
+        sampled_kde = gaussian_kde(sampled_values)
+
+        if higher_is_better:
+            metric_values = np.linspace(min(sorted_values), max(sampled_values), 1000)
+            threshold = metric_values[np.argmax(value_kde(metric_values) - sampled_kde(metric_values))]
         else:
-            return np.quantile(metric_values, 0.25)
+            metric_values = np.linspace(min(sampled_values), max(sorted_values), 1000)
+            threshold = metric_values[np.argmin(value_kde(metric_values) - sampled_kde(metric_values))]
+
+        return threshold
+
+    @staticmethod
+    def get_auto_threshold_optimized(
+            values: List[Union[int, float]],
+            higher_is_better: bool
+    ) -> float:
+        values = np.array(values)
+        n_docs = max(int(len(values) * 0.05), 2)  # Ensure at least 2 docs
+
+        if higher_is_better:
+            sorted_values = np.partition(values, n_docs)[:n_docs]
+        else:
+            sorted_values = np.partition(values, -n_docs)[-n_docs:]
+
+        if len(set(sorted_values)) == 1:
+            return sorted_values[0]
+
+        sampled_values = values[np.random.permutation(len(values))[:n_docs]]
+
+        value_kde = stats.gaussian_kde(sorted_values)
+        sampled_kde = stats.gaussian_kde(sampled_values)
+
+        if higher_is_better:
+            objective = lambda x: sampled_kde(x) - value_kde(x)
+            bounds = (min(sorted_values), max(sampled_values))
+        else:
+            objective = lambda x: value_kde(x) - sampled_kde(x)
+            bounds = (min(sampled_values), max(sorted_values))
+
+        result = optimize.minimize_scalar(objective, bounds=bounds, method='bounded')
+        return result.x
