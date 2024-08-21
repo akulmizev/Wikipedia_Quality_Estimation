@@ -105,6 +105,8 @@ class Tagger(ModelFromConfig):
         )
 
         self.tokenizer = tokenizer if tokenizer else PreTrainedTokenizerFast.from_pretrained(self.load_path)
+        if "pad_token" not in self.tokenizer.special_tokens_map:
+            self.tokenizer.add_special_tokens({"pad_token":"[PAD]"})
         self.collator = DataCollatorForTokenClassification(
             tokenizer=self.tokenizer,
             pad_to_multiple_of=self.pad_to_multiple_of
@@ -392,6 +394,8 @@ class Classifier(ModelFromConfig):
         )
 
         self.tokenizer = tokenizer if tokenizer else PreTrainedTokenizerFast.from_pretrained(self.load_path)
+        if "pad_token" not in self.tokenizer.special_tokens_map:
+            self.tokenizer.add_special_tokens({"pad_token":"[PAD]"})
         self.collator = DataCollatorWithPadding(
             tokenizer=self.tokenizer,
             pad_to_multiple_of=self.pad_to_multiple_of
