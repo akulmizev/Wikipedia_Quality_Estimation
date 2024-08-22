@@ -1,7 +1,7 @@
 load_path: "./experiments/my_experiment/ha/model"
-dataset_path: "masakhane/masakhapos" #train_path, validation_path, test_path
-columns: false #text column, label column
-#train_path, #valid_path, #test_path 
+dataset_path: "masakhane/masakhapos" # train_path, validation_path, test_path
+columns: false # text column, label column
+# train_path, # valid_path, # test_path
 training_parameters:
   model_type: "deberta"
   task: "pos"
