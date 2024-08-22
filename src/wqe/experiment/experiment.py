@@ -300,14 +300,18 @@ class ExperimentRunner:
         if "test" in finetune_dataset.keys():
             model.test(finetune_dataset, split="test", output_file=scores_file)
 
-    def process_lm_eval(self) -> None:
+    def process_lm_eval(self, tokenizer: Union[HfTokenizerFromConfig, HfTokenizerFromConfig, None] = None) -> None:
         cfg = self.lm_eval
-        scores_file = f"{self.local_path}/{self.experiment.experiment_id}.lm_eval.scores.json" \
+        scores_file = f"{self.local_path}/{self.experiment.experiment_id}.{cfg.num_fewshot}_shots.lm_eval.scores.json" \
             if self.local_path else None
-        
+
         results = lm_eval.simple_evaluate(
             model="hf",
-            model_args=f"pretrained={cfg.load_path}", # NOTE: we can add hf model arguments here if needed
+            model_args={
+                "pretrained": cfg.load_path,
+                "tokenizer": tokenizer,
+                **asdict(cfg.model_inference_config),
+            },
             tasks=cfg.tasks,
             log_samples=cfg.log_samples,
             num_fewshot=cfg.num_fewshot,
@@ -317,11 +321,11 @@ class ExperimentRunner:
             wandb_logger = lm_eval.loggers.WandbLogger(
                 project=f"{self.wiki.id}.{self.experiment.experiment_id}",
                 entity=self.experiment.wandb_entity,
+                name=f"eval-{cfg.num_fewshot}-shots",
                 job_type="eval"
             )
             wandb_logger.post_init(results)
             wandb_logger.log_eval_result()
-            wandb_logger.log_eval_samples(results["samples"])
         
         with open(scores_file, 'w') as f:
             json.dump(results, f, ensure_ascii=False, indent=2, default=np_encoder)
@@ -350,4 +354,4 @@ class ExperimentRunner:
             self.process_finetune()
         
         if self.lm_eval:
-            self.process_lm_eval()
+            self.process_lm_eval(tokenizer)
