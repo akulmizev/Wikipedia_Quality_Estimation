@@ -305,12 +305,13 @@ class ExperimentRunner:
         scores_file = f"{self.local_path}/{self.experiment.experiment_id}.{cfg.num_fewshot}_shots.lm_eval.scores.json" \
             if self.local_path else None
 
+        model_args = asdict(cfg.model_inference_config) if cfg.model_inference_config else dict()
         results = lm_eval.simple_evaluate(
             model="hf",
             model_args={
                 "pretrained": cfg.load_path,
                 "tokenizer": tokenizer,
-                **asdict(cfg.model_inference_config),
+                **model_args,
             },
             tasks=cfg.tasks,
             log_samples=cfg.log_samples,
