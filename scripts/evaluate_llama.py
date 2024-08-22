@@ -47,7 +47,7 @@ def run_experiment(config_dict: DictConfig) -> None:
         cfg['tokenizer']['load_path'] = model_id
 
         # NOTE: lm_eval/load_path refers to the base model if you're using peft.
-        # Peft weights come from somewhere else!
+        # Peft weights come from somewhere else (model_id in this case)!
         cfg['lm_eval']['model_inference_config']['peft'] = model_id
         cfg['lm_eval']['num_fewshot'] = n_shots
         cfg['lm_eval']['tasks'] = [
@@ -65,7 +65,6 @@ def run_experiment(config_dict: DictConfig) -> None:
         )
         job = slurm_executor.submit(runner.run_experiment)
         logger.info(f'Submitted job `{job.job_id}` to Slurm with config {config.slurm}.')
-        break
 
 
 if __name__ == "__main__":
