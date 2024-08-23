@@ -117,7 +117,8 @@ class FracNoScriptWords(BaseMetric):
 
     @classmethod
     def is_script(cls, char: str) -> bool:
-        return unicodedata.category(char).startswith('L')
+        char_category = unicodedata.category(char)
+        return char_category.startswith('L') or char_category.startswith('M')
 
     @classmethod
     def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
