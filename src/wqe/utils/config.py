@@ -209,13 +209,24 @@ class Finetune:
         if self.training_parameters:
             self.training_parameters = TrainingParameters(**self.training_parameters)
 
+@dataclass
+class ModelInferenceConfig:
+    peft: Optional[str] = None
+    load_in_4bit: Optional[bool] = None
+    dtype: Optional[Any] = None
+
 
 @dataclass
 class LMEvaluation:
     load_path: str
     tasks: List[str]
     log_samples: bool = False
-    num_fewshot: int = 0
+    num_fewshot: int = 1
+    model_inference_config: Optional[Dict[str, Any]] = None
+
+    def __post_init__(self):
+        if self.model_inference_config:
+            self.model_inference_config = ModelInferenceConfig(**self.model_inference_config)
 
 
 @dataclass

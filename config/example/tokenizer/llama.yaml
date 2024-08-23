@@ -1,0 +1,17 @@
+tokenizer_config:
+  model:
+    type: "bpe"
+  vocab_size: "auto"
+  use_sp_backend: true
+  sp_kwargs:
+    byte_fallback: false
+  special_tokens:
+    bos_token: "<s>"
+    eos_token: "</s>"
+    pad_token: "<pad>"
+    unk_token: "<unk>"
+
+merge_with: "meta-llama/Llama-2-7b-hf"
+
+export: true
+push_to_hub: true

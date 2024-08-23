@@ -4,9 +4,9 @@ training_parameters:
   model_type: "llama"
   task: "clm"
   max_length: 512
-  num_train_epochs: 5
-  batch_size: 16
-  lr: 1e-02 #DO NOT CHANGE THIS
+  num_train_epochs: 3
+  batch_size: 8
+  lr: 3e-4
   padding_strategy: "longest"
   grad_accumulation_steps: 1
   mixed_precision: "bf16"
@@ -14,11 +14,13 @@ training_parameters:
   peft_config:
     r: 8
     lora_alpha: 32
-    lora_dropout: 0.01
-    target_modules: "all-linear"
+    lora_dropout: 0.05
+    target_modules:
+      - "q_proj"
+      - "v_proj"
     bias: "none"
 
 test_path: "WikiQuality/raw_wiki"
-export: false
-push_to_hub: false
-checkpoint: false
+export: true
+push_to_hub: true
+checkpoint: true

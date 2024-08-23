@@ -16,8 +16,5 @@ tokenizer_config:
     sep_token: "[SEP]"
     mask_token: "[MASK]"
 
-
-# merge_with: "meta-llama/Llama-2-7b-hf"
-
 export: true
 push_to_hub: true
