@@ -6,7 +6,6 @@ pre_filter:
   deduplicate_exact_match: true
   deduplicate_min_hash: true
   jaccard_threshold: 0.85
-  num_proc: 16
 
 split:
   test_size: 0.1
