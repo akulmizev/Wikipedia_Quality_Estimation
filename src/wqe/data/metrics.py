@@ -1,4 +1,5 @@
 import math
+import regex as re
 import numpy as np
 import torch
 
@@ -8,7 +9,7 @@ from transformers import AutoModelForCausalLM, PreTrainedTokenizerFast
 from typing import Any, Dict
 from tqdm import tqdm
 
-from .utils import *
+from .utils import tokenize, compute_ngrams, get_all_punctuation
 
 ALL_PUNCTUATION = get_all_punctuation()
 
@@ -99,31 +100,39 @@ class FracAllCapsWords(BaseMetric):
         return example
 
 
-class FracLinesEndEllipsis(BaseMetric):
-    ANNOTATION_TAG = "frac_lines_end_ellipsis"
+class FracSymbolToWords(BaseMetric):
+    ANNOTATION_TAG = "frac_symbol_to_words"
     HIGHER_IS_BETTER = False
+    SYMBOLS = ("#", "...", "…")
 
     @classmethod
     def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        lines = example["text"].split("\n")
-        ellipsis_lines = [line for line in lines if line.endswith("...")]
-        example[cls.ANNOTATION_TAG] = len(ellipsis_lines) / len(lines)
+        symbol_words = [word for word in example["tokens"] if word in cls.SYMBOLS]
+        example[cls.ANNOTATION_TAG] = len(symbol_words) / len(example["tokens"])
+        return example
+
+
+class FracPipesInWords(BaseMetric):
+    ANNOTATION_TAG = "frac_pipes_in_words"
+    HIGHER_IS_BETTER = False
+    PIPE = "|"
+
+    @classmethod
+    def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        count_pipes = sum(1 for word in example["tokens"] if cls.PIPE in word)
+        example[cls.ANNOTATION_TAG] = count_pipes / len(example["text"])
         return example
 
 
 class FracNoScriptWords(BaseMetric):
     ANNOTATION_TAG = "frac_no_script_words"
     HIGHER_IS_BETTER = True
-
-    @classmethod
-    def is_script(cls, char: str) -> bool:
-        char_category = unicodedata.category(char)
-        return char_category.startswith('L') or char_category.startswith('M')
+    SCRIPT_REGEX = re.compile(r"[\p{L}\p{M}]", re.UNICODE)
 
     @classmethod
     def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        no_alpha_words = [word for word in example["tokens"] if not any(cls.is_script(char) for char in word)]
-        example[cls.ANNOTATION_TAG] = len(no_alpha_words) / len(example["tokens"])
+        n_script_words = float(sum(int(cls.SCRIPT_REGEX.match(word) is not None) for word in example["tokens"]))
+        example[cls.ANNOTATION_TAG] = n_script_words / len(example["tokens"])
         return example
 
 
@@ -133,7 +142,7 @@ class MeanWordLength(BaseMetric):
 
     @classmethod
     def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        example[cls.ANNOTATION_TAG] = sum(len(word) for word in example["tokens"]) / len(example["tokens"])
+        example[cls.ANNOTATION_TAG] = len(example["text"]) / len(example["tokens"])
         return example
 
 
@@ -178,13 +187,9 @@ class UnigramEntropy(BaseMetric):
     @classmethod
     def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         tokens = example["tokens"]
-        token_counts = Counter(tokens)  # Efficient counting
+        token_counts = Counter(tokens)
         total_tokens = len(tokens)
-
-        # Calculate token probabilities
         token_probs = {token: count / total_tokens for token, count in token_counts.items()}
-
-        # Calculate entropy
         entropy = -sum(prob * math.log2(prob) for prob in token_probs.values())
         example[cls.ANNOTATION_TAG] = entropy
         return example
@@ -199,11 +204,7 @@ class TrigramEntropy(BaseMetric):
         trigrams = list(compute_ngrams(example["tokens"], 3))
         trigram_counts = Counter(trigrams)  # Efficient counting
         total_trigrams = len(trigrams)
-
-        # Calculate trigram probabilities
         trigram_probs = {trigram: count / total_trigrams for trigram, count in trigram_counts.items()}
-
-        # Calculate entropy
         entropy = -sum(prob * math.log2(prob) for prob in trigram_probs.values())
         example[cls.ANNOTATION_TAG] = entropy
         return example
@@ -216,13 +217,9 @@ class CharacterEntropy(BaseMetric):
     @classmethod
     def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         chars = list(example["text"])
-        char_counts = Counter(chars)  # Efficient counting
+        char_counts = Counter(chars)
         total_chars = len(chars)
-
-        # Calculate character probabilities
         char_probs = {char: count / total_chars for char, count in char_counts.items()}
-
-        # Calculate entropy
         entropy = -sum(prob * math.log2(prob) for prob in char_probs.values())
         example[cls.ANNOTATION_TAG] = entropy
         return example
@@ -236,6 +233,19 @@ class LinesEndWithPunctuation(BaseMetric):
     def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         lines = example["text"].split("\n")
         score = sum(1 for line in lines if line.strip().endswith(tuple(ALL_PUNCTUATION))) / len(lines)
+        example[cls.ANNOTATION_TAG] = score
+        return example
+
+
+class FracLinesEndEllipsis(BaseMetric):
+    ANNOTATION_TAG = "frac_lines_end_ellipsis"
+    HIGHER_IS_BETTER = False
+    ELLIPSIS_SYMBOLS = ("...", "…")
+
+    @classmethod
+    def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        lines = example["text"].split("\n")
+        score = sum(1 for line in lines if line.strip().endswith(cls.ELLIPSIS_SYMBOLS)) / len(lines)
         example[cls.ANNOTATION_TAG] = score
         return example
 
@@ -257,7 +267,7 @@ class NumWordsPerLine(BaseMetric):
     @classmethod
     def calculate(cls, example: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         lines = example["text"].split("\n")
-        example[cls.ANNOTATION_TAG] = sum(len(line.split()) for line in lines) / len(lines)
+        example[cls.ANNOTATION_TAG] = sum(len(tokenize(line)) for line in lines) / len(lines)
         return example
 
 

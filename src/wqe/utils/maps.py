@@ -32,6 +32,8 @@ METRIC_MAP = {
     "frac_unique_words": FracUniqueWords,
     "frac_unique_trigrams": FracUniqueTrigrams,
     "frac_unique_chars": FracUniqueCharacters,
+    "frac_lines_end_ellipsis": FracLinesEndEllipsis,
+    "frac_symbol_to_words": FracSymbolToWords,
     "unigram_entropy": UnigramEntropy,
     "trigram_entropy": TrigramEntropy,
     "char_entropy": CharacterEntropy,

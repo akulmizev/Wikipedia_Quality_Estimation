@@ -1,33 +1,25 @@
 import json
 import logging
-import regex as re
 import os
 import importlib.resources as pkg_resources
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Pattern, Union
+from typing import Dict, List, Union
 
 import datasets
-import fasttext
-import multiprocessing as mp
 
 from datasets import load_dataset, DatasetDict
 from datasets.exceptions import DatasetNotFoundError
-from datasketch import MinHash, MinHashLSH
-from huggingface_hub import hf_hub_download
-from huggingface_hub.utils import insecure_hashlib
 from numpy.random import choice
 from transformers import PreTrainedTokenizerFast
 
 from . import resources
-from .partition import Partition
+from .processing import PreFilter, Deduplicate, Threshold, Partition
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 datasets.disable_caching()
-
-PREFIXES = ["'{\"type\":\"FeatureCollection\""]
 
 
 @dataclass
@@ -93,12 +85,6 @@ class WikiLoader:
         The WikiID instance for the specified language.
     data : datasets.DatasetDict
         The dataset loaded from `wikipedia/wikimedia` via `datasets.load_dataset`.
-    regex_pattern : re.Pattern
-        The regex pattern for filtering the dataset for accepted scripts.
-    cleanup_pattern : re.Pattern
-        The regex pattern for cleaning up the dataset after filtering.
-    lang_id_model : fasttext.FastText._FastText
-        The GlotLID model for predicting the language of a line.
     n_chars : int
         The total number of characters in the dataset.
     n_docs : int
@@ -123,13 +109,6 @@ class WikiLoader:
 
         self.wiki = WikiID(wiki_id)
         self.data = None
-        self.regex_pattern = None
-        self.cleanup_pattern = None
-        self.lang_id_model = None
-        self.patterns = {
-            "whitespace": re.compile(r"\s+"),
-            "tokens": re.compile(r"[^\w\s]"),
-        }
         self.n_chars = 0
         self.n_docs = 0
         self.columns = ["id", "url", "title", "text"]
@@ -191,6 +170,10 @@ class WikiLoader:
         for wiki_id, wiki in sorted(wiki_mappings.items(), key=lambda x: x[1]['language']):
             print(f"{wiki_id:<15}{wiki['language']:<40}{wiki['alpha3']:<10}{', '.join(wiki['scripts']):<30}")
 
+    def update_counts(self):
+        self.n_chars = len("".join(self.data["train"]["text"]))
+        self.n_docs = len(self.data["train"])
+
     @classmethod
     def from_dataset(
             cls,
@@ -218,9 +201,6 @@ class WikiLoader:
 
         instance = cls(wiki_id)
         instance.data = DatasetDict({"train": dataset})
-        instance.regex = None
-        instance.lang_id_model = None
-
         instance.n_chars = len("".join(instance.data["train"]["text"]))
         instance.n_docs = len(instance.data["train"])
 
@@ -278,8 +258,8 @@ class WikiLoader:
         else:
             split = "train"
 
-        self.n_chars = len("".join(self.data[split]["text"]))
-        self.n_docs = len(self.data[split])
+        self.n_chars = len("".join(self.data["train"]["text"]))
+        self.n_docs = len(self.data["train"])
 
         logger.info(f"Loaded {self.n_docs} articles with {self.n_chars} characters (train). Wiki: {self.wiki.id}")
 
@@ -315,8 +295,7 @@ class WikiLoader:
             seed=seed
         )
 
-        self.n_chars = len("".join(self.data["train"]["text"]))
-        self.n_docs = len(self.data["train"])
+        self.update_counts()
 
         logger.info(f"Generated new train split with {self.n_docs} articles and {self.n_chars} characters.")
 
@@ -326,14 +305,11 @@ class WikiLoader:
             self,
             script_regex: bool = False,
             lang_id: bool = False,
-            deduplicate_exact_match: bool = False,
-            deduplicate_min_hash: bool = False,
-            jaccard_threshold: float = 0.85,
-            tokenizer: str = None,
-            char_cutoff: int = 0,
+            apply_c4_filter: bool = False,
             urls_to_remove: List[str] = None,
-            warn_percent: float = 0.0
-    ) -> 'WikiLoader':
+            warn_percent: float = 0.0,
+            **kwargs
+    ):
 
         """
         Pre-filters the dataset using the following functions:
@@ -346,14 +322,10 @@ class WikiLoader:
         CAUTION: This is very slow and should be used sparingly, as it is not
         guaranteed to be accurate for lower-resourced languages.
 
-        - `deduplicate_exact_match`: Removes duplicate articles by hashing
-        the text of each article and removing exact match duplicates.
+        - `apply_c4_filter`: Removes lines from the dataset that do not meet the
+        Common Crawl C4 dataset criteria.
 
-        - `deduplicate_min_hash`: Removes duplicate articles by computing
-        the Jaccard similarity between article unigrams using MinHash-LSH,
-        and filtering based on the specified threshold. Can be used in conjunction
-        with a trained tokenization, if provided. Otherwise, will lowercase
-        and split on whitespace.
+
 
         - `char_cutoff`: Removes lines from the dataset that are below a certain
         character count. This is useful in conjunction with `script_regex`
@@ -374,8 +346,7 @@ class WikiLoader:
         loader.pre_filter(
             script_regex=True,
             lang_id=True,
-            deduplicate_exact_match=True,
-            deduplicate_min_hash=True
+            apply_c4_filter=True
         )
         ```
 
@@ -384,8 +355,9 @@ class WikiLoader:
         ```
         from wqe import WikiLoader
         loader = WikiLoader("ha")
-        loader.pre_filter(script_regex=True, lang_id=True)
-        loader.pre_filter(deduplicate_exact_match=True, deduplicate_min_hash=True)
+        loader.pre_filter(script_regex=True)
+        loader.pre_filter(lang_id=True)
+        loader.pre_filter(apply_c4_filter=True)
         ```
 
         It is recommended to use the `num_proc` parameter to speed up filtering
@@ -399,22 +371,10 @@ class WikiLoader:
             Default is False.
         lang_id : bool
             Whether to filter the dataset for the specified language.
+            Default is False
+        apply_c4_filter : bool
+            Whether to filter the dataset for the Common Crawl C4 dataset criteria.
             Default is False.
-        deduplicate_exact_match : bool
-            Whether to deduplicate articles via exact match.
-            Default is False.
-        deduplicate_min_hash : bool
-            Whether to deduplicate articles via MinHash-LSH.
-            Default is False.
-        jaccard_threshold : float
-            The Jaccard similarity threshold for deduplication.
-            Default is 0.85.
-        tokenizer : str
-            Path to tokenization to use in computing jaccard similarity between documents.
-            Optional for min_hash deduplication.
-        char_cutoff : int
-            The minimum number of characters required for a line to be kept.
-            Default is 50.
         urls_to_remove : list
             The list of URLs to remove from the dataset.
             Useful for buggy articles such as https://xh.wikipedia.org/wiki/Phi.
@@ -423,255 +383,146 @@ class WikiLoader:
         """
 
         assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
+        assert "train" in self.data.keys(), "Function requires a train split."
 
-        raw_chars = self.n_chars
-        raw_docs = self.n_docs
-        num_proc = mp.cpu_count()
+        scripts_to_keep = self.wiki.scripts if script_regex else None
+        langs_to_keep = [self.wiki.alpha3] if lang_id else None
 
-        if script_regex:
-            self._make_regex()
-            logger.info(f"Filtering documents for accepted scripts: {', '.join(self.wiki.scripts)}")
-
-        if lang_id:
-            logger.info(f"Filtering documents for language: {self.wiki.alpha3}")
-            logger.info(f"Loading GlotLID model.")
-            self.lang_id_model = fasttext.load_model(
-                hf_hub_download(
-                    repo_id="cis-lmu/glotlid",
-                    filename="model.bin",
-                    cache_dir=None
-                )
-            )
-
-        tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer) if tokenizer else None
-
-        self.data = self.data.map(
-            function=self._pre_filter_article,
-            fn_kwargs={
-                "patterns": self.patterns,
-                "lang_id": lang_id,
-                "model": self.lang_id_model,
-                "alpha3": self.wiki.alpha3,
-                "deduplicate_exact_match": deduplicate_exact_match,
-                "deduplicate_min_hash": deduplicate_min_hash,
-                "tokenizer": tokenizer,
-                "urls_to_remove": urls_to_remove,
-                "warn_percent": warn_percent
-            },
-            num_proc=num_proc if not lang_id else 1,
-            desc="Pre-filtering dataset.",
+        prefilter = PreFilter(
+            scripts_to_keep=scripts_to_keep,
+            langs_to_keep=langs_to_keep,
+            apply_c4_filter=apply_c4_filter
         )
 
-        if deduplicate_exact_match:
-            logger.info(f"Filtering documents for exact match duplicates.")
-            unique_hashes = set(self.data["train"].unique("hash"))
-            frac = len(unique_hashes) / len(self.data["train"])
-            logger.info(f"Fraction of exact duplicate articles: {1 - frac:.2%}")
-        else:
-            unique_hashes = None
-
-        if deduplicate_min_hash:
-            logger.info(f"Filtering documents for MinHash duplicates with LSH.")
-            lsh = MinHashLSH(threshold=jaccard_threshold, num_perm=64)
-        else:
-            lsh = None
-
-        if char_cutoff > 0:
-            logger.info(f"Character cutoff set to {char_cutoff}.")
-
-        self.data = self.data.filter(
-            function=self._remove_article,
-            fn_kwargs={
-                "unique_hashes": unique_hashes,
-                "lsh": lsh,
-                "char_cutoff": char_cutoff
-            },
-            num_proc=num_proc,
-            desc="Removing articles."
+        self.data["train"] = prefilter(
+            self.data["train"],
+            urls_to_remove=urls_to_remove,
+            warn_percent=warn_percent,
+            **kwargs
         )
 
-        self.data["train"] = self.data["train"].select_columns(self.columns)
-        self.n_chars = len("".join(self.data["train"]["text"]))
-        self.n_docs = len(self.data["train"])
-
-        logger.info(f"Removed {raw_chars - self.n_chars} chars ({1.0 - self.n_chars / raw_chars:.4f}%).")
-        logger.info(f"Removed {raw_docs - self.n_docs} documents ({1.0 - self.n_docs / raw_docs:.4f}%).")
+        self.update_counts()
 
         return self
 
-    @staticmethod
-    def _pre_filter_article(
-            article: Dict[str, Any],
-            patterns: Dict[str, Pattern],
-            lang_id: bool = True,
-            model: fasttext.FastText = None,
-            alpha3: str = None,
-            deduplicate_exact_match: bool = False,
-            deduplicate_min_hash: bool = False,
-            tokenizer: PreTrainedTokenizerFast = None,
-            urls_to_remove: List[str] = None,
-            warn_percent: float = 0.0
-    ) -> Dict[str, Any]:
+    def deduplicate(
+        self,
+        exact_match: bool = False,
+        min_hash: bool = False,
+        jaccard_threshold: float = 0.85,
+        n_shingles: int = 3,
+        tokenizer: str = None,
+        **kwargs
+    ):
 
         """
-        Pre-filters article using regex, lang_id, exact match,
-        and min-hash deduplication - in that order. Also accepts
-        a list of URLs to remove from the dataset, if necessary.
-        Primarily used for calling in the `datasets.Dataset.map` function.
+        Deduplicates the dataset using the following methods:
+
+        - `deduplicate_exact_match`: Removes duplicate articles by hashing
+        the text of each article and removing exact match duplicates.
+
+        - `deduplicate_min_hash`: Removes duplicate articles by computing
+        the Jaccard similarity between article unigrams using MinHash-LSH,
+        and filtering based on the specified threshold. Can be used in conjunction
+        with a trained tokenization, if provided. Otherwise, will lowercase
+        and split on whitespace.
+        -------
+        Parameters
+
+        exact_match : bool
+            Whether to deduplicate the dataset by exact match.
+            Default is False.
+        min_hash : bool
+            Whether to deduplicate the dataset by MinHash-LSH.
+            Default is False.
+        jaccard_threshold : float
+            The Jaccard (set) similarity threshold for MinHash-LSH.
+            Default is 0.85.
+        n_shingles : int
+            The number of shingles to use for MinHash-LSH.
+            Default is 3.
+        tokenizer : str
+            Tokenizer to use for MinHash-LSH.
+            If not provided, will split on whitespace
+        """
+
+        assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
+        assert "train" in self.data.keys(), "Function requires a train split."
+
+        tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer) if tokenizer else None
+
+        deduplicate = Deduplicate(
+            exact_match=exact_match,
+            min_hash=min_hash,
+            jaccard_threshold=jaccard_threshold,
+            n_shingles=n_shingles
+        )
+
+        self.data["train"] = deduplicate(self.data["train"], tokenizer=tokenizer, **kwargs)
+
+        self.update_counts()
+
+        return self
+
+    def apply_threshold(
+        self,
+        thresholds: Dict[str, Union[int, float, str]],
+        tokenizer: str = None,
+        **kwargs
+    ):
+
+        """
+        Filters the dataset based on the specified thresholds for each metric.
+        If a metric is not specified in the thresholds, no threshold is applied.
+        All implemented metrics can be found in the `wqe.data.metrics` module.
+
+        Thresholds can also be estimated automatically from the metric distribution
+        by specifying 'auto'. Implementation can be found in
+        `wqe.data.processing.Threshold._get_auto_threshold()`.
 
         Parameters
         ----------
-        article : dict
-            The article to pre-filter.
-        patterns : dict
-            The regex patterns for filtering the article.
-        lang_id : bool
-            Whether to filter the article for the specified language.
-        model : fasttext.FastText
-            The GlotLID model for predicting the language of a line.
-        alpha3 : str
-            The ISO 639-3 code for the language.
-        deduplicate_exact_match : bool
-            Whether to deduplicate the article via exact match.
-        deduplicate_min_hash : bool
-            Whether to deduplicate the article via MinHash-LSH.
-        tokenizer : PreTrainedTokenizerFast
-            The tokenization to use for computing jaccard similarity for min_hash.
-        urls_to_remove : list
-            The list of URLs to remove from the article.
-        warn_percent : float
-            Warn when the percentage of removed characters exceeds this value.
-
-        Returns
-        -------
-        dict
-            The pre-filtered article.
+        thresholds : dict
+            The thresholds for filtering by each metric, e.g. `length: 100`.
+            If not specified, no threshold is applied.
+        tokenizer : str
+            Tokenizer to use for various metrics, e.g. length in words.
+            If not provided, will split on whitespace.
         """
 
-        if urls_to_remove:
-            if article["url"] in urls_to_remove:
-                article["text"] = ""
-                return article
+        assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
+        assert "train" in self.data.keys(), "Function requires a train split."
 
-        article_length = len(article["text"])
-        lines = article["text"].splitlines()
-        filtered_lines = []
+        tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer) if tokenizer else None
 
-        for line in lines:
+        threshold = Threshold(thresholds)
+        self.data["train"] = threshold(self.data["train"], tokenizer=tokenizer, **kwargs)
 
-            if not line.strip():
-                continue
-            else:
-                line = line.strip()
-            if "scripts" in patterns:
-                line = "".join(re.findall(patterns["scripts"], line))
-                if "cleanup" in patterns:
-                    line = re.sub(patterns["cleanup"], lambda x: " " if x.group(0) else "", line)
-                    line = re.sub(patterns["whitespace"], " ", line)
-                if not line.strip():
-                    continue
-            if lang_id:
-                assert model is not None, "Language ID model must be specified for language filtering."
-                if model.predict(line)[0][0].split("_")[-2] != alpha3:
-                    continue
+        self.update_counts()
 
-            filtered_lines.append(line)
-
-        article["text"] = "\n".join(filtered_lines)
-
-        if deduplicate_exact_match:
-            article["hash"] =\
-                insecure_hashlib.md5(
-                    re.sub(patterns["whitespace"], "", article["text"]).encode("utf-8")
-                ).hexdigest()
-
-        if deduplicate_min_hash:
-            if tokenizer is None:
-                text = re.sub(patterns["tokens"], "", article["text"].lower())
-                text = text.split()
-            else:
-                text = tokenizer.tokenize(article["text"].lower())
-
-            minhash = MinHash(num_perm=64)
-            for word in text:
-                minhash.update(word.encode('utf-8'))
-            article["minhash"] = minhash.digest()
-
-        if warn_percent > 0.0:
-            removed_chars = article_length - len(article["text"])
-            if removed_chars / article_length > warn_percent:
-                logger.warning(f"Removed {removed_chars} characters from article: {article['url']}")
-
-        return article
-
-    @staticmethod
-    def _remove_article(
-            # self,
-            article: str,
-            unique_hashes: set,
-            lsh: MinHashLSH,
-            char_cutoff: int
-    ):
-        """
-        Apply deduplication and char_cutoff filters to dataset.
-        """
-        if not article["text"].strip():
-            return False
-
-        if len(article["text"]) < char_cutoff:
-            return False
-
-        if unique_hashes:
-            if not article["hash"] in unique_hashes:
-                return False
-            else:
-                unique_hashes.remove(article["hash"])
-
-        if lsh:
-            minhash = MinHash(hashvalues=article["minhash"])
-            if lsh.query(minhash):
-                return False
-            else:
-                lsh.insert(article["id"], minhash)
-
-        return True
-
-    def _make_regex(self):
-
-        """
-        Makes regex for filtering the dataset for all accepted Unicode scripts for a language.
-        """
-
-        scripts = "".join([fr"\p{{{script}}}" for script in self.wiki.scripts])
-        accepted_characters = r"\p{M}\p{P}\p{S}\p{N}\p{Z}\p{C}"
-        script_regex = fr"[{accepted_characters}]*{scripts}+[{accepted_characters}]*"
-        self.patterns["scripts"] = re.compile(script_regex)
-        brackets = fr"\([^\p{{L}}]+\)|\[[^\p{{L}}]+\]|\{{[^\p{{L}}]+\}}"
-        cleanup_pattern = fr"^(?!.*{scripts}).*$|(?<=\S)\s+(?=\.$)|{brackets}|^\s*\S+\s*$"
-        self.patterns["cleanup"] = re.compile(cleanup_pattern)
+        return self
 
     def apply_partition(
-            self,
-            metrics: Union[List[str], str],
-            method: str = None,
-            quality: bool = True,
-            join_method: str = None,
-            thresholds: Dict[str, int] = None,
-            **kwargs
+        self,
+        split_method: str,
+        metrics: Union[List[str], str],
+        quality: bool = True,
+        join_partitions_by: str = None,
+        tokenizer: str = None,
+        **kwargs
     ):
 
         """
         Updates the dataset with a partition chosen by the specified metric.
 
-        If multiple metrics are specified, a join method must be specified, where either the intersection or union
-        of the returned document indices is used, or each document is scored based on the given metrics and partitions 
+        If multiple metrics are specified, a join method must be specified,
+        where either the intersection or union of the returned document indices
+        is used, or each document is scored based on the given metrics and partitions
         are created based on the scores.
-
-        TODO: eventually need to move much of this to the `wqe.dataset.partition` module.
 
         Parameters
         ----------
-        method : str
+        split_method : str
             The method for choosing the boundary at which to split high-quality
             and low-quality partitions. Default is 'balanced_chars', which allocates
             approximately half of the dataset's total characters to each partition.
@@ -679,46 +530,40 @@ class WikiLoader:
             - 'mean_cutoff': split based on the mean value of the metric
             - 'median_cutoff': split based on the median value of the metric
             - 'balanced_docs': allocates equal number of documents to each partition
+            - 'elbow': uses the elbow method to determine the optimal cutoff for distribution
         metrics : list of str or str
             The metric(s) to use for partitioning the dataset.
         quality : bool
             Whether to return the higher-quality partition or the lower-quality partition.
             Default is True for higher-quality.
-        join_method : str
+        join_partitions_by : str
             If a list of metrics is specified, specifies how to join them.
             Set operations are performed on the dataset indices returned by each metric.
             Choice between 'intersection' and 'union'.
-        thresholds : dict
-            The thresholds for filtering by each metric, e.g. `length: 100`.
-            If not specified, no threshold is applied.
+        tokenizer : str
+            Tokenizer to use for various metrics, e.g. length in words.
+            If not provided, will split on whitespace.
         kwargs : dict
             Additional keyword arguments for the partitioning method.
         """
 
         assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
+        assert "train" in self.data.keys(), "Function requires a train split."
 
-        if "test" in self.data.keys():
-            self.data["train"] = datasets.concatenate_datasets([self.data["train"], self.data["test"]])
+        # if "test" in self.data.keys():
+        #     self.data["train"] = datasets.concatenate_datasets([self.data["train"], self.data["test"]])
 
-        logger.info(
-            f"Combining train and test splits to create partitions."
-            f" Total articles: {len(self.data['train'])}"
+        tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer) if tokenizer else None
+
+        partition = Partition(
+            split_method=split_method,
+            metrics=metrics,
+            quality=quality,
+            join_partitions_by=join_partitions_by
         )
+        self.data["train"] = partition(self.data["train"], tokenizer=tokenizer, **kwargs)
 
-        partition_params = locals()
-        partition_params.pop("self")
-
-        raw_chars = self.n_chars
-        raw_docs = self.n_docs
-
-        partition = Partition(**partition_params, **kwargs)
-        self.data["train"] = partition(self.data["train"])
-
-        self.n_chars = len("".join(self.data["train"]["text"]))
-        self.n_docs = len(self.data["train"])
-
-        logger.info(f"Removed {raw_chars - self.n_chars} chars ({1.0 - self.n_chars / raw_chars:.4f}%).")
-        logger.info(f"Removed {raw_docs - self.n_docs} docs ({1.0 - self.n_docs / raw_docs:.4f}%).")
+        self.update_counts()
 
         return self
 

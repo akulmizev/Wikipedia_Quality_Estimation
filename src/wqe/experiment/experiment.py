@@ -100,8 +100,15 @@ class ExperimentRunner:
         if cfg.pre_filter:
             dataset.pre_filter(**asdict(cfg.pre_filter))
 
+        if cfg.deduplicate:
+            dataset.deduplicate(**asdict(cfg.deduplicate))
+
+        if cfg.threshold:
+            keep_columns = True if cfg.partition else False
+            dataset.apply_threshold(**asdict(cfg.threshold), keep_columns=keep_columns)
+
         if cfg.partition:
-            dataset.apply_partition(**asdict(cfg.partition))
+            dataset.apply_partition(**asdict(cfg.partition), keep_columns=False)
 
         if cfg.split:
             dataset.generate_splits(**asdict(cfg.split))
@@ -202,7 +209,9 @@ class ExperimentRunner:
         save_path = f"{self.local_path}/model" if self.local_path else None
         checkpoint_path = save_path if cfg.checkpoint else None
         if cfg.checkpoint:
-            files = glob(checkpoint_path + '/*.pkl') + glob(checkpoint_path + '/*.bin') + glob(checkpoint_path + '/*.safetensors')
+            files = glob(checkpoint_path + '/*.pkl') + \
+                    glob(checkpoint_path + '/*.bin') + \
+                    glob(checkpoint_path + '/*.safetensors')
             if len(files) > 0:
                 for file in files:
                     os.remove(file)
@@ -266,23 +275,33 @@ class ExperimentRunner:
         if cfg.dataset_path:
             finetune_dataset = validate_and_format_dataset(cfg.dataset_path, self.wiki.id, task, cfg.columns)
         else:
-            finetune_dataset = validate_and_format_splits(cfg.train_path, cfg.valid_path, cfg.test_path, self.wiki.id, task, cfg.columns)
+            finetune_dataset = validate_and_format_splits(
+                cfg.train_path,
+                cfg.valid_path,
+                cfg.test_path,
+                self.wiki.id,
+                task,
+                cfg.columns
+            )
         
         dataset_id = cfg.dataset_path.split("/")[-1] if cfg.dataset_path else cfg.valid_path.split("/")[-1]
-        scores_file = f"{self.local_path}/{self.experiment.experiment_id}.{dataset_id}.scores.txt" if self.local_path else None
         checkpoint_path = f"{self.local_path}/checkpoints/{dataset_id}" if cfg.checkpoint else None
+        if self.local_path:
+            scores_file = f"{self.local_path}/{self.experiment.experiment_id}.{dataset_id}.scores.txt"
+        else:
+            scores_file = None
 
         if task in ["ner", "pos"]:
             model = Tagger(
                 cfg.load_path,
                 cfg.training_parameters,
-                checkpoint_path = checkpoint_path
+                checkpoint_path=checkpoint_path
             )
         elif task in ["classification", "nli"]:
             model = Classifier(
                 cfg.load_path,
                 cfg.training_parameters,
-                checkpoint_path = checkpoint_path
+                checkpoint_path=checkpoint_path
             )
         else:
             raise ValueError("Invalid task. Please specify either `ner`, `pos`, or `classification`.")

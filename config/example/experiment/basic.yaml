@@ -1,4 +1,4 @@
-wiki_id: "sw"
+wiki_id: "your-wiki"
 experiment_id: "your-id"
 wandb_entity: "wikiquality"
 local_path: "./experiments"

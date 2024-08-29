@@ -6,21 +6,35 @@ from typing import Any, Dict, List, Union, Optional
 class PreFilter:
     script_regex: Optional[bool] = False
     lang_id: Optional[bool] = False
-    char_cutoff: Optional[int] = 0
-    deduplicate_exact_match: Optional[bool] = False
-    deduplicate_min_hash: Optional[bool] = False
-    jaccard_threshold: Optional[float] = 0.85
-    tokenizer: Optional[str] = None
+    apply_c4_filter: Optional[bool] = False
     urls_to_remove: Optional[List[str]] = None
+    warn_percent: Optional[float] = 0.0
+
+
+@dataclass
+class Deduplicate:
+    exact_match: Optional[bool] = False
+    min_hash: Optional[bool] = False
+    jaccard_threshold: Optional[float] = 0.85
+    n_shingles: Optional[int] = 3
+    tokenizer: Optional[str] = None
+
+
+@dataclass
+class Threshold:
+    thresholds: Dict[str, Union[int, float, str]]
+    tokenizer: Optional[str] = None
+    model: Optional[str] = None
 
 
 @dataclass
 class Partition:
     metrics: Union[str, List[str]]
-    method: Optional[str] = "balanced_chars"
+    split_method: str
     quality: Optional[bool] = True
+    join_partitions_by: Optional[str] = None
     tokenizer: Optional[str] = None
-    join_method: Optional[str] = "union"
+    model: Optional[str] = None
 
 
 @dataclass
@@ -150,14 +164,20 @@ class Dataset:
     export: bool = False
     push_to_hub: bool = False
     load_path: Optional[str] = None
-    pre_filter: Optional[Dict[str, str]] = None
-    partition: Optional[Dict[str, str]] = None
+    pre_filter: Optional[Dict[str, Any]] = None
+    deduplicate: Optional[Dict[str, Any]] = None
+    threshold: Optional[Dict[str, Any]] = None
+    partition: Optional[Dict[str, Any]] = None
     split: Optional[Dict[str, Any]] = None
     columns: Optional[Dict[str, str]] = None
 
     def __post_init__(self):
         if self.pre_filter:
             self.pre_filter = PreFilter(**self.pre_filter)
+        if self.deduplicate:
+            self.deduplicate = Deduplicate(**self.deduplicate)
+        if self.threshold:
+            self.threshold = Threshold(**self.threshold)
         if self.partition:
             self.partition = Partition(**self.partition)
         if self.split:
@@ -208,6 +228,7 @@ class Finetune:
     def __post_init__(self):
         if self.training_parameters:
             self.training_parameters = TrainingParameters(**self.training_parameters)
+
 
 @dataclass
 class ModelInferenceConfig:
