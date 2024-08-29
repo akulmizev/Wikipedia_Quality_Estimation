@@ -64,7 +64,12 @@ def has_sentencepiece_backend(
     bool
     """
 
-    return hf_tokenizer.vocab_files_names.get("vocab_file").endswith(".model")
+    vocab_file = hf_tokenizer.vocab_files_names.get("vocab_file", None)
+
+    if vocab_file is None:
+        return False
+    else:
+        return vocab_file.endswith(".model")
 
 
 def merge_tokenizers(
