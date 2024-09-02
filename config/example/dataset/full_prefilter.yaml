@@ -1,15 +1,15 @@
-load_path: "your-load-path"
+#load_path: "your-load-path"
 
 pre_filter:
   script_regex: true
-  apply_c4_filter: true
+  apply_c4_filter: false
 
 deduplicate:
   exact_match: true
   min_hash: true
   jaccard_threshold: 0.85
   n_shingles: 3
-  tokenizer: "your-tokenizer"
+#  tokenizer: "your-tokenizer"
 
 threshold:
   thresholds: # Using gopher thresholds here
@@ -21,13 +21,14 @@ threshold:
 
 partition:
   metrics:
+    - "length_chars"
     - "length_words"
     - "doc_mean_word_length"
     - "frac_lines_end_ellipsis"
     - "frac_symbol_to_words"
     - "frac_no_script_words"
   split_method: "balanced_chars"
-  quality: false
+  quality: true
 
 export: true
 push_to_hub: true
