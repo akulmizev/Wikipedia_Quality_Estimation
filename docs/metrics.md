@@ -1,6 +1,7 @@
 # Quality Signal Metrics
 
-
+This is a list of the currently supported quality signal metrics for use in thresholding and partioning datasets.
+Several are based on Red-Pajama v2's subset of "natural language" metrics, which can be found [here](https://www.together.ai/blog/redpajama-data-v2).  
 
 | Annotation ID | Description                                    | Higher is Better |
 |---------------|------------------------------------------------|-------------------|
