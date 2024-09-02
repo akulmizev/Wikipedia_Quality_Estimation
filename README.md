@@ -10,7 +10,7 @@ data for training and evaluation of machine learning models.
 To install the package, simply run:
 
 ```
-git clone https://github.com/kushaltatariya/Wikipedia_Quality_Estimation
+git clone https://github.com/akulmizev/Wikipedia_Quality_Estimation
 cd Wikipedia_Quality_Estimation
 pip install . 
 ```
@@ -23,37 +23,54 @@ pip install -e .
 
 ## Example Usage in Python
 
-### Load and process the Hausa Wikipedia:
+### Load and process the Hausa Wikipedia
 
 ```python
-from wqe import WikiLoader
+from wqe import WikiLoader, GOPHER_THRESHOLDS
 
 # Load the Hausa wiki
 wiki = WikiLoader('ha')
 wiki.load_dataset()
-wiki.pre_filter(script_regex=True, char_cutoff=100)
+
+# Filter out non-official scripts
+wiki.pre_filter(script_regex=True)
+
+# Deduplicate via exact match and min-hash (3-grams)
+wiki.deduplicate(
+    exact_match=True, 
+    minhash=True, 
+    jaccard_threshold=0.8,
+    n_shingles=3
+)
+
+# Apply Gopher quality signal thresholds
+wiki.apply_threshold(GOPHER_THRESHOLDS)
+
+# Partition documents according to the longest articles 
 wiki.apply_partition(
-  ["length", "unique_trigrams"], 
-  method="median_cutoff",
-  quality=True
+    split_method="balanced_chars", 
+    metric="length_chars",
+    quality=True
 )
 ```
 This will load the Hausa wiki via `wikimedia/wikipedia`
-on the huggingface `datasets` hub, apply a regex filter to remove
-unrecognized scripts (e.g. not `Latn` for English), and filter out articles with less 
-than 100 characters. It will then apply a partition function to select the
-articles with the highest character and unique trigram counts. 
+on the huggingface `datasets` hub, filter out not-official scripts,
+deduplicate the articles, apply GOPHER thresholds, and partition the
+articles according to the longest articles. 
 
-The output should look like this:
+The output should look like this (note that partitioning by `balanced_chars` will split the data in half):
 ```
-[2024-06-11 09:53:13,765][wqe.data.loader][INFO] - Loaded 36492 articles with 74084110 characters (train). Wiki: ha
-[2024-06-11 09:53:13,765][wqe.data.loader][INFO] - Filtering documents for accepted scripts: ['Latn']
-[2024-06-11 09:53:19,282][wqe.data.loader][INFO] - Removing documents shorter than 100 characters.
-[2024-06-11 09:53:19,608][wqe.data.loader][INFO] - Removed 1499515 chars (0.0202%).
-[2024-06-11 09:53:19,608][wqe.data.loader][INFO] - Removed 3244 documents shorter than 100 characters.
-[2024-06-11 09:53:19,608][wqe.data.loader][INFO] - Partitioning dataset by length, unique_trigrams...
-[2024-06-11 09:53:29,460][wqe.data.loader][INFO] - Removed 37432666 chars (0.5157%).
-[2024-06-11 09:53:29,460][wqe.data.loader][INFO] - Removed 29425 docs (0.8850%).
+INFO:wqe.data.loader:Loaded 36492 articles with 74084110 characters (train). Wiki: ha
+INFO:wqe.data.processing:Filtering documents for accepted scripts: Latn
+INFO:wqe.data.utils:Deleted: 25 docs (0.07%), 1785514 chars (2.41%), 1.77 MB (2.49%)
+INFO:wqe.data.processing:Deduplicating dataset.
+WARNING:wqe.data.processing:No tokenizer specified. Splitting on whitespace for minhash.
+INFO:wqe.data.utils:Deleted: 1831 docs (5.02%), 745601 chars (1.03%), 0.72 MB (1.03%)
+INFO:wqe.data.processing:Thresholding dataset by length_words, doc_mean_word_length, frac_lines_end_ellipsis, frac_symbol_to_words, frac_no_script_words...
+INFO:wqe.data.utils:Deleted: 12315 docs (35.56%), 12839153 chars (17.94%), 12.35 MB (17.95%)
+INFO:wqe.data.processing:Partition splitting method set to 'balanced_chars'.
+INFO:wqe.data.processing:Partitioning dataset by length_chars...
+INFO:wqe.data.utils:Deleted: 19420 docs (87.00%), 29355328 chars (50.00%), 28.22 MB (49.98%)
 ```
 
 Currently supported partition functions are:
