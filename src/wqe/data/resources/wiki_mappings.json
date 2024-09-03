@@ -72,7 +72,9 @@
     "ja": {
         "alpha3": "jpn",
         "scripts": [
-            "Jpan"
+            "Hani",
+            "Hira",
+            "Kana"
         ],
         "language": "Japanese"
     },
@@ -455,7 +457,7 @@
     "zh-yue": {
         "alpha3": "yue",
         "scripts": [
-            "Hant"
+            "Hani"
         ],
         "language": "Cantonese"
     },
@@ -723,8 +725,7 @@
     "wuu": {
         "alpha3": "wuu",
         "scripts": [
-            "Hans",
-            "Hant"
+            "Hani"
         ],
         "language": "Wu Chinese"
     },
@@ -1074,7 +1075,7 @@
     "zh-classical": {
         "alpha3": "zho",
         "scripts": [
-            "Hant"
+            "Hani"
         ],
         "language": "Classical Chinese"
     },
@@ -1340,8 +1341,7 @@
     "gan": {
         "alpha3": "gan",
         "scripts": [
-            "Hans",
-            "Hant"
+            "Hani"
         ],
         "language": "Gan Chinese"
     },
@@ -1988,7 +1988,7 @@
     "cu": {
         "alpha3": "chu",
         "scripts": [
-            "Cyrs"
+            "Cyrl"
         ],
         "language": "Church Slavic"
     },
