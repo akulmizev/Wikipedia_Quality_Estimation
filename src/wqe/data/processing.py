@@ -198,7 +198,7 @@ class PreFilter:
         script_regex = fr"[{accepted_characters}]*[{scripts}]+[{accepted_characters}]*"
         self.patterns["scripts"] = re.compile(script_regex)
         brackets = r"[\(\[\{][^\p{L}]+[\)\]\}]"
-        cleanup_pattern = fr"^(?!.*{scripts}).*$|(?<=\S)\s+(?=\.$)|{brackets}|^\s*\S+\s*$"
+        cleanup_pattern = fr"^(?!.*[{scripts}]).*$|(?<=\S)\s+(?=\.$)|{brackets}|^\s*\S+\s*$"
         self.patterns["cleanup"] = re.compile(cleanup_pattern)
 
 
