@@ -116,8 +116,8 @@ class WikiLoader:
     def __getattr__(self, attr: str):
         return getattr(self.data, attr)
 
-    def __getitem__(self, idx: int):
-        return self.data[idx]
+    def __getitem__(self, split: str):
+        return self.data[split]
 
     def __repr__(self):
         return f"WikiLoader(wiki_id='{self.wiki.id}', n_docs={self.n_docs}, n_chars={self.n_chars})"
@@ -176,9 +176,9 @@ class WikiLoader:
 
     @classmethod
     def from_dataset(
-            cls,
-            dataset: datasets.Dataset,
-            wiki_id: str
+        cls,
+        dataset: datasets.Dataset,
+        wiki_id: str
     ):
 
         """
@@ -209,10 +209,10 @@ class WikiLoader:
         return instance
 
     def load_dataset(
-            self,
-            load_path: str = None,
-            split: str = None,
-            dump_date: str = "20231101"
+        self,
+        load_path: str = None,
+        split: str = None,
+        dump_date: str = "20231101"
     ) -> 'WikiLoader':
 
         """
@@ -266,10 +266,10 @@ class WikiLoader:
         return self
 
     def generate_splits(
-            self,
-            test_size: float = 0.1,
-            shuffle: bool = True,
-            seed: int = 42
+        self,
+        test_size: float = 0.1,
+        shuffle: bool = True,
+        seed: int = 42
     ) -> 'WikiLoader':
 
         """
@@ -302,13 +302,13 @@ class WikiLoader:
         return self
 
     def pre_filter(
-            self,
-            script_regex: bool = False,
-            lang_id: bool = False,
-            apply_c4_filter: bool = False,
-            urls_to_remove: List[str] = None,
-            warn_percent: float = 0.0,
-            **kwargs
+        self,
+        script_regex: bool = False,
+        lang_id: bool = False,
+        apply_c4_filter: bool = False,
+        urls_to_remove: List[str] = None,
+        warn_percent: float = 0.0,
+        **kwargs
     ):
 
         """
@@ -324,12 +324,6 @@ class WikiLoader:
 
         - `apply_c4_filter`: Removes lines from the dataset that do not meet the
         Common Crawl C4 dataset criteria.
-
-
-
-        - `char_cutoff`: Removes lines from the dataset that are below a certain
-        character count. This is useful in conjunction with `script_regex`
-        or `lang_id`, as it can remove documents that were shortened due to filtering.
 
         - `urls_to_remove`: Removes articles with specified URLs from the dataset.
 
@@ -495,7 +489,7 @@ class WikiLoader:
 
         tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer) if tokenizer else None
 
-        threshold = Threshold(thresholds)
+        threshold = Threshold(thresholds, **kwargs)
         self.data["train"] = threshold(self.data["train"], tokenizer=tokenizer, **kwargs)
 
         self.update_counts()
@@ -559,7 +553,8 @@ class WikiLoader:
             split_method=split_method,
             metrics=metrics,
             quality=quality,
-            join_partitions_by=join_partitions_by
+            join_partitions_by=join_partitions_by,
+            **kwargs
         )
         self.data["train"] = partition(self.data["train"], tokenizer=tokenizer, **kwargs)
 

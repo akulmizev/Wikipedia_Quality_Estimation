@@ -5,4 +5,3 @@ GOPHER_THRESHOLDS = {
     "frac_symbol_to_words": 0.1,
     "frac_no_script_words": 0.8,
 }
-

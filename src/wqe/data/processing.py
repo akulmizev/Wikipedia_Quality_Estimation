@@ -1,12 +1,15 @@
+import logging
 import numpy as np
+import regex as re
 import pickle
 
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Pattern, Union
 
 import fasttext
 import multiprocessing as mp
 import tqdm
 
+from datasets import Dataset, DatasetDict
 from datasketch import MinHash, LeanMinHash, MinHashLSH
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import insecure_hashlib
@@ -15,7 +18,7 @@ from numpy import ndarray
 from scipy.stats import gaussian_kde
 from transformers import PreTrainedTokenizerFast
 
-from .utils import *
+from .utils import c4_filter, compute_ngrams, tokenize, measure_deletion
 from ..utils.maps import METRIC_MAP
 from ..utils.stats import normalize
 
@@ -64,11 +67,11 @@ class PreFilter:
     @measure_deletion
     def __call__(
         self,
-        dataset: Union[datasets.Dataset, datasets.DatasetDict],
+        dataset: Union[Dataset, DatasetDict],
         urls_to_remove: List[str] = None,
         warn_percent: float = 0.0,
         num_proc: int = mp.cpu_count()
-    ) -> datasets.Dataset:
+    ) -> Dataset:
 
         if self.scripts_to_keep:
             logger.info(f"Filtering documents for accepted scripts: {', '.join(self.scripts_to_keep)}")
@@ -221,10 +224,10 @@ class Deduplicate:
     @measure_deletion
     def __call__(
         self,
-        dataset: Union[datasets.Dataset, datasets.DatasetDict],
+        dataset: Union[Dataset, DatasetDict],
         tokenizer: Optional[PreTrainedTokenizerFast] = None,
         num_proc: int = mp.cpu_count(),
-    ) -> datasets.Dataset:
+    ) -> Dataset:
 
         columns_to_keep = dataset.column_names
 
@@ -251,7 +254,6 @@ class Deduplicate:
 
         for doc in tqdm.tqdm(dataset, desc="Querying hashing indices for duplicates."):
             keep_doc = True
-
             if self.exact_match:
                 if doc["hash"] not in unique_hashes:
                     keep_doc = False
@@ -339,11 +341,12 @@ class Threshold:
     @measure_deletion
     def __call__(
         self,
-        dataset: datasets.Dataset,
+        dataset: Dataset,
         tokenizer: PreTrainedTokenizerFast = None,
         keep_columns: bool = False,
-        num_proc: int = mp.cpu_count()
-    ) -> datasets.Dataset:
+        num_proc: int = mp.cpu_count(),
+        **kwargs
+    ) -> Dataset:
 
         metrics_to_calculate = [metric for metric in self.metrics if metric not in dataset.column_names]
 
@@ -390,7 +393,7 @@ class Threshold:
         )
 
         if not keep_columns:
-            columns_to_keep = list(set(dataset.column_names) - set(self.metrics))
+            columns_to_keep = list(set(dataset.column_names) - set(self.metrics + ["tokens"]))
             dataset = dataset.select_columns(columns_to_keep)
 
         return dataset
@@ -485,11 +488,12 @@ class Partition:
     @measure_deletion
     def __call__(
         self,
-        dataset: datasets.Dataset,
+        dataset: Dataset,
         tokenizer: PreTrainedTokenizerFast = None,
         keep_columns: bool = False,
-        num_proc: int = mp.cpu_count()
-    ) -> datasets.Dataset:
+        num_proc: int = mp.cpu_count(),
+        **kwargs
+    ) -> Dataset:
 
         metrics_to_calculate = [metric for metric in self.metrics if metric not in dataset.column_names]
 
@@ -519,17 +523,18 @@ class Partition:
                 self.metrics = ["combined_metrics"]
             indices = self.select_indices(dataset, self.metrics[0])
             dataset = dataset.select(indices)
-            dataset = dataset.remove_columns(["combined_metrics"])
+            if "combined_metrics" in dataset.column_names:
+                dataset = dataset.remove_columns(["combined_metrics"])
 
         if not keep_columns:
-            columns_to_keep = list(set(dataset.column_names) - set(self.metrics))
+            columns_to_keep = list(set(dataset.column_names) - set(self.metrics + ["tokens"]))
             dataset = dataset.select_columns(columns_to_keep)
 
         return dataset
 
     def select_indices(
         self,
-        dataset: datasets.Dataset,
+        dataset: Dataset,
         metric: str,
     ) -> ndarray[Any]:
 
@@ -603,7 +608,7 @@ class Partition:
 
     def combine_and_score_metrics(
         self,
-        dataset: datasets.Dataset
+        dataset: Dataset
     ):
 
         combined_metrics = np.zeros(len(dataset))

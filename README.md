@@ -73,16 +73,7 @@ INFO:wqe.data.processing:Partitioning dataset by length_chars...
 INFO:wqe.data.utils:Deleted: 19420 docs (87.00%), 29355328 chars (50.00%), 28.22 MB (49.98%)
 ```
 
-Currently supported partition functions are:
-
-- `length`: article length in characters
-- `unique_trigrams`: number of unique trigrams in the article
-- `unique_words`: number of unique words
-- `unique_chars`: number of unique characters
-- `unique_character_trigrams`: number of unique character trigrams
-- `unique_subwords`: number of unique subwords (tokenizer required)
-- `unique_subword_trigrams`: number of unique subword trigrams (tokenizer required)
-- `alpha_chars`: number of alphabetic characters in the article (`[a-zA-Z]`)
+Currently supported quality signals can be found in [./docs/metrics.md](./docs/metrics.md).
 
 To see which languages are supported, call:
 

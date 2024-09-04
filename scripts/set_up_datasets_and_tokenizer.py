@@ -1,15 +1,12 @@
-import sys
+from datasets import concatenate_datasets
 
-from wqe import WikiLoader, HfTokenizerFromConfig
+from wqe import WikiLoader, HfSentencePieceTokenizer, GOPHER_THRESHOLDS
 from wqe.utils.config import TokenizerConfig
 
-WIKI_ID = sys.argv[1]
-EXPERIMENT_DIR = sys.argv[2]
-HUB_PATH = sys.argv[3]
+WIKI_ID = "ha"
+HUB_PATH = "WikiQuality"
 
-LANGS = ["ha", "yo", "ig", "sw", "pcm"]
-
-ALL_LANGS = [
+ALL_MASAKHANE_LANGS = [
     'sw', 'ha', 'yo', 'ig', 'am',
     'sn', 'zu', 'ary', 'so', 'rw',
     'tw', 'ln', 'lg', 'xh', 'wo',
@@ -17,12 +14,20 @@ ALL_LANGS = [
     'bm', 'ts', 'rn', 'fon', 'ti'
 ]
 
-PARTITIONS = [
-    "length",
-    "unique_trigrams",
+METRICS = [
+    "length_chars",
     "unique_words",
-    "unique_character_trigrams"
+    "unique_trigrams",
+    "frac_unique_words",
+    "frac_unique_trigrams",
+    "unigram_entropy",
+    "trigram_entropy"
 ]
+
+TOKENIZER_CONFIG = TokenizerConfig(
+    model={"type": "unigram"},
+    vocab_size="auto"
+)
 
 
 def make_datasets(wiki_id: str) -> None:
@@ -32,71 +37,54 @@ def make_datasets(wiki_id: str) -> None:
         shuffle=True,
         seed=42
     )
-
-    raw_wiki.save(f"{EXPERIMENT_DIR}/raw_wiki/{wiki_id}/data")
     raw_wiki.push_to_hub(f"{HUB_PATH}/raw_wiki", wiki_id)
 
-    raw_wiki_train = WikiLoader.from_dataset(raw_wiki["train"], wiki_id)
-    pre_filtered = raw_wiki_train.pre_filter(
-        script_regex=True,
-        lang_id=False,
-        char_cutoff=100
+    tokenizer = HfSentencePieceTokenizer.train_from_config(raw_wiki["train"]["text"], TOKENIZER_CONFIG)
+    tokenizer.push_to_hub(f"{HUB_PATH}/raw_wiki.{wiki_id}")
+
+    pre_filtered = WikiLoader.from_dataset(raw_wiki["train"], wiki_id)
+    pre_filtered = pre_filtered.pre_filter(script_regex=True)
+    pre_filtered = pre_filtered.deduplicate(
+        exact_match=True,
+        min_hash=True,
+        jaccard_threshold=0.85,
+        n_shingles=3
     )
     pre_filtered.generate_splits(
         test_size=0.05,
         shuffle=True,
         seed=42
     )
-
-    pre_filtered.save(f"{EXPERIMENT_DIR}/pre_filtered/{wiki_id}/data")
     pre_filtered.push_to_hub(f"{HUB_PATH}/pre_filtered", wiki_id)
 
-    tokenizer_config = TokenizerConfig(
-        model={"type": "unigram"},
-        trainer={"type": "unigram"},
-        normalizer={"type": "nfkc"},
-        pre_tokenizer=[
-            {"type": "digits", "individual_digits": True},
-            {"type": "metaspace"}
-        ],
-        decoder={"type": "metaspace"},
-        vocab_size="auto"
-    )
-    tokenizer = HfTokenizerFromConfig.train_from_config(pre_filtered["train"]["text"], tokenizer_config)
-    tokenizer.save_pretrained(f"{EXPERIMENT_DIR}/pre_filtered/{wiki_id}/model")
+    tokenizer = HfSentencePieceTokenizer.train_from_config(pre_filtered["train"]["text"], TOKENIZER_CONFIG)
     tokenizer.push_to_hub(f"{HUB_PATH}/pre_filtered.{wiki_id}")
 
+    pre_filtered_concat = concatenate_datasets([pre_filtered["train"], pre_filtered["test"]])
+
+    thresholded = pre_filtered.apply_threshold(GOPHER_THRESHOLDS, keep_columns=False)
+    thresholded.push_to_hub(f"{HUB_PATH}/gopher", wiki_id)
+
     # Make high/low quality partitions for each partitioning method
-    for partition in PARTITIONS:
+    for metric in METRICS:
         for quality in [True, False]:
-            pre_filtered_train = WikiLoader.from_dataset(pre_filtered["train"], wiki_id)
-            partitioned = pre_filtered_train.apply_partition(partition, quality=quality)
+            pre_filtered_train = WikiLoader.from_dataset(pre_filtered_concat, wiki_id)
+            partitioned = pre_filtered_train.apply_partition(
+                split_method="balanced_chars",
+                metrics=metric,
+                quality=quality,
+                keep_columns=False
+            )
             partitioned.generate_splits(
                 test_size=0.05,
                 shuffle=True,
                 seed=42
             )
 
-            qual_id = "hi" if quality else "lo"
-
-            partitioned.save(f"{EXPERIMENT_DIR}/{partition}_{qual_id}/{wiki_id}/data")
-            partitioned.push_to_hub(f"{HUB_PATH}/{partition}_{qual_id}", wiki_id)
-
-    # Make high/low quality partitions for combined methods
-    for quality in [True, False]:
-        pre_filtered_train = WikiLoader.from_dataset(pre_filtered["train"], wiki_id)
-        partitioned = pre_filtered_train.apply_partition(PARTITIONS, quality=quality)
-        partitioned.generate_splits(
-            test_size=0.05,
-            shuffle=True,
-            seed=42
-        )
-
-        qual_id = "hi" if quality else "lo"
-
-        partitioned.save(f"{EXPERIMENT_DIR}/all_methods_{qual_id}/{wiki_id}/data")
-        partitioned.push_to_hub(f"{HUB_PATH}/all_methods_{qual_id}", wiki_id)
+            quality_id = "hi" if quality else "lo"
+            partitioned.push_to_hub(f"{HUB_PATH}/{metric}_{quality_id}", wiki_id)
 
 
 if __name__ == "__main__":
-    make_datasets(WIKI_ID)
+    for lang in ALL_MASAKHANE_LANGS:
+        make_datasets(lang)
