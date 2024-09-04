@@ -195,7 +195,7 @@ class PreFilter:
 
         scripts = "".join([fr"\p{{{script}}}" for script in self.scripts_to_keep])
         accepted_characters = r"\p{M}\p{P}\p{S}\p{N}\p{Z}\p{C}"
-        script_regex = fr"[{accepted_characters}]*{scripts}+[{accepted_characters}]*"
+        script_regex = fr"[{accepted_characters}]*[{scripts}]+[{accepted_characters}]*"
         self.patterns["scripts"] = re.compile(script_regex)
         brackets = r"[\(\[\{][^\p{L}]+[\)\]\}]"
         cleanup_pattern = fr"^(?!.*{scripts}).*$|(?<=\S)\s+(?=\.$)|{brackets}|^\s*\S+\s*$"
