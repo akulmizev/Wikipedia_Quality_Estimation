@@ -258,10 +258,10 @@ class WikiLoader:
         else:
             split = "train"
 
-        self.n_chars = len("".join(self.data["train"]["text"]))
-        self.n_docs = len(self.data["train"])
+        self.n_chars = len("".join(self.data[split]["text"]))
+        self.n_docs = len(self.data[split])
 
-        logger.info(f"Loaded {self.n_docs} articles with {self.n_chars} characters (train). Wiki: {self.wiki.id}")
+        logger.info(f"Loaded {self.n_docs} articles with {self.n_chars} characters ({split}). Wiki: {self.wiki.id}")
 
         return self
 
