@@ -45,7 +45,7 @@ dependencies = [
 wqe = "wqe.cli.cli:run_experiment"
 
 [project.urls]
-"Homepage" = "https://github.com/kushaltatariya/Wikipedia_Quality_Estimation"
+"Homepage" = "https://github.com/akulmizev/Wikipedia_Quality_Estimation"
 
 [tool.setuptools.packages.find]
 where = ["src"]
