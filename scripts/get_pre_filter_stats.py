@@ -1,6 +1,10 @@
 import sys
-
+import importlib.resources as pkg_resources
 from wqe import WikiLoader
+from wqe.data import resources
+import os
+import json
+import re
 
 URLS_TO_REMOVE = ["https://xh.wikipedia.org/wiki/Phi"]
 
@@ -12,7 +16,7 @@ def get_stats(language, stats_dir):
 
     dataset = WikiLoader(language)
     dataset.load_dataset()
-    dataset.pre_filter(num_proc=32, urls_to_remove=URLS_TO_REMOVE)
+    # dataset.pre_filter(num_proc=32, urls_to_remove=URLS_TO_REMOVE)
 
     stats_dict = {
         "current_chars": dataset.n_chars,
@@ -25,19 +29,15 @@ def get_stats(language, stats_dir):
 
     stats_out.write(f"{language}\traw\t{stats_dict['current_chars']}\t{stats_dict['current_docs']}\t{1.0}\t{1.0}\n")
 
-    dataset.pre_filter(deduplicate_exact_match=True, num_proc=32)
-    stats_dict = update_stats_dict(stats_dict, dataset.n_chars, dataset.n_docs)
-    write_line(stats_out, language, "exact_match", stats_dict)
-
-    dataset.pre_filter(char_cutoff=15, num_proc=32)
-    stats_dict = update_stats_dict(stats_dict, dataset.n_chars, dataset.n_docs)
-    write_line(stats_out, language, "char_cutoff_15", stats_dict)
-
-    dataset.pre_filter(script_regex=True, char_cutoff=15, num_proc=32)
+    dataset.pre_filter(script_regex=True, urls_to_remove=URLS_TO_REMOVE)
     stats_dict = update_stats_dict(stats_dict, dataset.n_chars, dataset.n_docs)
     write_line(stats_out, language, "script_regex", stats_dict)
 
-    dataset.pre_filter(lang_id=False, deduplicate_min_hash=True, jaccard_threshold=0.85, num_proc=32)
+    dataset.deduplicate(exact_match=True)
+    stats_dict = update_stats_dict(stats_dict, dataset.n_chars, dataset.n_docs)
+    write_line(stats_out, language, "exact_match", stats_dict)
+
+    dataset.deduplicate(min_hash=True)
     stats_dict = update_stats_dict(stats_dict, dataset.n_chars, dataset.n_docs)
     write_line(stats_out, language, "jaccard_085", stats_dict)
 
@@ -86,5 +86,20 @@ def write_line(stats_out, lang, process, stats_dict):
 if __name__ == "__main__":
     lang = sys.argv[1]
     stats_dir = sys.argv[2]
-    get_stats(lang, stats_dir)
+
+    # if lang == 'all_wikis':
+    #     with pkg_resources.open_text(resources, 'wiki_mappings.json') as file:
+    #         wiki_mappings = json.load(file)
+        
+    #     wikis_done = os.listdir("/lustre1/project/stg_00120/kushal/Wikipedia_Quality_Estimation/stats")
+    #     regex = re.compile(r'.*?\.(.*?)\.txt')
+    #     wikis_done = [regex.findall(wiki)[0] for wiki in wikis_done]
+
+    #     for wiki_id, _ in wiki_mappings.items():
+    #         if wiki_id not in wikis_done:
+    #             get_stats(wiki_id, stats_dir)
+
+    # else:
+    for lang in ['ja', 'zh', 'wuu', 'cu']:
+        get_stats(lang, stats_dir)
     

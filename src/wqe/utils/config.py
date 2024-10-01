@@ -215,6 +215,7 @@ class Pretrain:
 class Finetune:
     load_path: str
     dataset_path: Optional[str] = None
+    dataset_config: Optional[str] = None
     train_path: Optional[str] = None
     valid_path: Optional[str] = None
     test_path: Optional[str] = None

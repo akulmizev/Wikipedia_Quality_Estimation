@@ -11,24 +11,28 @@ deduplicate:
   n_shingles: 3
 #  tokenizer: "your-tokenizer"
 
-threshold:
-  thresholds: # Using gopher thresholds here
-    length_words: 5
-    doc_mean_word_length: 3
-    frac_lines_end_ellipsis: 0.3
-    frac_symbol_to_words: 0.1
-    frac_no_script_words: 0.8
+split:
+  test_size: 0.1
+  seed: 42
+  shuffle: true
 
-partition:
-  metrics:
-    - "length_chars"
-    - "length_words"
-    - "doc_mean_word_length"
-    - "frac_lines_end_ellipsis"
-    - "frac_symbol_to_words"
-    - "frac_no_script_words"
-  split_method: "balanced_chars"
-  quality: true
+# threshold:
+#   thresholds: # Using gopher thresholds here
+#     length_words: 5
+#     doc_mean_word_length: 3
+#     frac_lines_end_ellipsis: 0.3
+#     frac_symbol_to_words: 0.1
+#     frac_no_script_words: 0.8
+
+# partition:
+#   metrics:
+#     - "length_words"
+#     - "doc_mean_word_length"
+#     - "frac_lines_end_ellipsis"
+#     - "frac_symbol_to_words"
+#     - "frac_no_script_words"
+#   split_method: "balanced_chars"
+#   quality: false
 
 export: true
 push_to_hub: true

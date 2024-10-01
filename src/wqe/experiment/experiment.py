@@ -272,8 +272,12 @@ class ExperimentRunner:
 
         cfg = self.finetune
         task = cfg.training_parameters.task
+        
         if cfg.dataset_path:
-            finetune_dataset = validate_and_format_dataset(cfg.dataset_path, self.wiki.id, task, cfg.columns)
+            if cfg.dataset_config:
+                finetune_dataset = validate_and_format_dataset(cfg.dataset_path, cfg.dataset_config, task, cfg.columns)
+            else:
+                finetune_dataset = validate_and_format_dataset(cfg.dataset_path, self.wiki.id, task, cfg.columns)
         else:
             finetune_dataset = validate_and_format_splits(
                 cfg.train_path,
@@ -347,8 +351,8 @@ class ExperimentRunner:
             wandb_logger.post_init(results)
             wandb_logger.log_eval_result()
         
-        with open(scores_file, 'w') as f:
-            json.dump(results, f, ensure_ascii=False, indent=2, default=np_encoder)
+    #     with open(scores_file, 'w') as f:
+    #         json.dump(results, f, ensure_ascii=False, indent=2, default=np_encoder)
 
     def run_experiment(self):
 

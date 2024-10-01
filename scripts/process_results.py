@@ -5,7 +5,7 @@ SCORES_DIR = sys.argv[1]
 
 def main():
 
-    with open("all_scores_20.csv", "w") as outfile:
+    with open("all_scores.csv", "w") as outfile:
         outfile.write("metric,score,lang,partition,task\n")
         for partition in os.listdir(SCORES_DIR):
             for lang in ["pcm", "ha", "ig", "sw", "yo"]:

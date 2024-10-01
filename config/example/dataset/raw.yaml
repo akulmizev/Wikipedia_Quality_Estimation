@@ -1,8 +1,0 @@
-# load_path: "WikiQuality/raw_wiki"
-split:
-  test_size: 0.05
-  seed: 42
-  shuffle: true
-
-export: true
-push_to_hub: true

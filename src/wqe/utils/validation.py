@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def validate_and_format_dataset(
         load_path: str,
-        wiki: str,
+        config: str,
         task: str,
         columns: list,
 ) -> DatasetDict:
@@ -41,12 +41,11 @@ def validate_and_format_dataset(
         The loaded and formatted dataset.
     """
 
-    wiki = WikiID(wiki)
-
     try:
-        logger.info(f"Attempting to load dataset at {load_path} by wiki id: {wiki.id}.")
-        dataset = load_dataset(load_path, wiki.id, trust_remote_code=True)
+        logger.info(f"Attempting to load dataset at {load_path} by wiki id/config: {config}.")
+        dataset = load_dataset(load_path, config, trust_remote_code=True)
     except ValueError:
+        wiki = WikiID(config)
         try:
             logger.warning(f"Dataset not found. Attempting to load dataset by alpha3 code: {wiki.alpha3}.")
             dataset = load_dataset(load_path, wiki.alpha3, trust_remote_code=True)
@@ -65,6 +64,7 @@ def validate_and_format_dataset(
                 dataset = dataset.rename_column(columns[0], "text")
             if columns[1] != 'tags':
                 dataset = dataset.rename_column(columns[1], "tags")
+                dataset = dataset.cast_column("tags", ClassLabel(num_classes=len(set(dataset['train']['tags']))))
             logger.info('Renaming columns to "text" and "tags"')
         else:
             assert any(feature in dataset["train"].features for feature in ["tags", "ner_tags", "upos"]), \
@@ -72,6 +72,7 @@ def validate_and_format_dataset(
             for column in ["ner_tags", "upos"]:
                 if column in dataset["train"].features:
                     dataset = dataset.rename_column(column, "tags")
+
     elif task == "nli":
         if columns:
             if columns[0] != "premise":
@@ -80,17 +81,24 @@ def validate_and_format_dataset(
                 dataset = dataset.rename_column(columns[0], "hypothesis")
             if columns[2] != "labels":
                 dataset = dataset.rename_column(columns[0], "labels")
+                dataset = dataset.cast_column("labels", ClassLabel(num_classes=len(set(dataset['train']['labels'])), 
+                                                                   names=list(set(dataset['train']['labels']))))
         else:
             assert all(feature in dataset["train"].features for feature in ["premise", "hypothesis"]), \
                 "Dataset must have `premise` and `hypothesis` columns formatted as features."
             if "label" in dataset["train"].features:
                 dataset = dataset.rename_column("label", "labels")
+
     else:
         if columns:
             if columns[0] != 'text':
                 dataset = dataset.rename_column(columns[0], "text")
             if columns[1] != 'labels':
                 dataset = dataset.rename_column(columns[1], "labels")
+                dataset = dataset.cast_column("labels", ClassLabel(num_classes=len(set(dataset['train']['labels'])), 
+                                                                   names=list(set(dataset['train']['labels']))))
+
+                
             logger.info('Renaming columns to "text" and "labels"')
         else:
             assert ("label" in dataset["train"].features) or ("labels" in dataset["train"].features), \
@@ -99,6 +107,7 @@ def validate_and_format_dataset(
                 dataset = dataset.rename_column("label", "labels")
             if "tweet" in dataset["train"].features:
                 dataset = dataset.rename_column("tweet", "text")
+
 
     return dataset
 

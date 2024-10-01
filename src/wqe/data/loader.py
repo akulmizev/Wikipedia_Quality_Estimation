@@ -255,6 +255,7 @@ class WikiLoader:
                 raise ValueError(f"Split {split} not found in dataset. Please specify a valid split.")
             else:
                 self.data = DatasetDict({split: self.data[split]})
+
         else:
             split = "train"
 
@@ -544,8 +545,10 @@ class WikiLoader:
         assert self.data is not None, "Dataset not loaded. Run `load_dataset()` first."
         assert "train" in self.data.keys(), "Function requires a train split."
 
-        # if "test" in self.data.keys():
-        #     self.data["train"] = datasets.concatenate_datasets([self.data["train"], self.data["test"]])
+        if "test" in self.data.keys():
+            logger.info("Concatenating train and test for partitioning...")
+            self.data['train'] = datasets.concatenate_datasets([self.data["train"], self.data["test"]])
+            
 
         tokenizer = PreTrainedTokenizerFast.from_pretrained(tokenizer) if tokenizer else None
 

@@ -552,7 +552,7 @@
         ],
         "language": "Malayalam"
     },
-    "be-tarask": {
+    "be-x-old": {
         "alpha3": "bel",
         "scripts": [
             "Cyrl"
@@ -969,7 +969,8 @@
     "bug": {
         "alpha3": "bug",
         "scripts": [
-            "Bugi"
+            "Bugi",
+            "Latn"
         ],
         "language": "Buginese"
     },
@@ -1935,13 +1936,6 @@
         ],
         "language": "Lojban"
     },
-    "zgh": {
-        "alpha3": "zgh",
-        "scripts": [
-            "Tfng"
-        ],
-        "language": "Standard Moroccan Tamazight"
-    },
     "tn": {
         "alpha3": "tsn",
         "scripts": [
@@ -2075,13 +2069,6 @@
         ],
         "language": "Nigerian Pidgin"
     },
-    "dga": {
-        "alpha3": "dga",
-        "scripts": [
-            "Latn"
-        ],
-        "language": "Dagaare"
-    },
     "st": {
         "alpha3": "sot",
         "scripts": [
@@ -2158,13 +2145,6 @@
             "Latn"
         ],
         "language": "Venda"
-    },
-    "bbc": {
-        "alpha3": "bbc",
-        "scripts": [
-            "Latn"
-        ],
-        "language": "Batak Toba"
     },
     "chy": {
         "alpha3": "chy",
