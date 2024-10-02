@@ -1,0 +1,22 @@
+load_path: "WikiQuality/pr"
+
+pre_filter:
+  script_regex: true
+  lang_id: false
+  deduplicate_exact_match: true
+  deduplicate_min_hash: true
+  num_proc: 16
+  char_cutoff: 10
+
+partition:
+  method: "balanced_chars"
+  metric: ["length", "unique_trigrams", "unique_words", "unique_characters", "unique_character_trigrams"]
+  join_method: "intersection"
+
+split:
+  test_size: 0.1
+  seed: 42
+  shuffle: true
+
+export: false
+push_to_hub: false

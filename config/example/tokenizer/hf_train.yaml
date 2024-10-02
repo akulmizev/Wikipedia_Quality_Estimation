@@ -1,0 +1,19 @@
+#load_path: "./experiments/test/ha/model"
+
+tokenizer_config:
+  model:
+    type: "unigram"
+  trainer:
+    type: "unigram"
+  normalizer:
+  - type: "nfkc"
+  pre_tokenizer:
+  - type: "digits"
+    individual_digits: false
+  - type: "metaspace"
+  decoder:
+    type: "metaspace"
+  vocab_size: "auto"
+
+export: true
+push_to_hub: true
