@@ -148,13 +148,13 @@ class ExperimentRunner:
         save_path = f"{self.local_path}/model" if self.local_path else None
 
         if self.finetune:
-            logger.info(f"Loading tokenizer from {self.finetune.load_path}")
-            tokenizer = HfTokenizerFromConfig.from_pretrained(self.finetune.load_path)
+            logger.info(f"Loading tokenizer from {cfg.load_path}")
+            tokenizer = AutoTokenizer.from_pretrained(cfg.load_path)
 
         else:
             if cfg.load_path:
                 logger.info(f"Loading tokenization from {cfg.load_path}")
-                tokenizer = HfTokenizerFromConfig.from_pretrained(cfg.load_path)
+                tokenizer = AutoTokenizer.from_pretrained(cfg.load_path)
 
             elif cfg.tokenizer_config:
                 assert dataset is not None, \
@@ -264,7 +264,7 @@ class ExperimentRunner:
                 "Please specify `hub_path` in experiment config for pushing the model to the hub."
             model.push_to_hub(f"{self.hub_path}.{self.wiki.id}", private=True)
 
-    def process_finetune(self) -> None:
+    def process_finetune(self, tokenizer) -> None:
 
         """
         Perform fine-tuning according to config.
@@ -318,7 +318,7 @@ class ExperimentRunner:
             )
 
         eval_split = "validation" if "validation" in finetune_dataset.keys() else None
-        model.train(finetune_dataset, eval_split=eval_split)
+        model.train(finetune_dataset, tokenizer=tokenizer, eval_split=eval_split)
 
         if "test" in finetune_dataset.keys():
             model.test(finetune_dataset, split="test", output_file=scores_file)
@@ -375,7 +375,7 @@ class ExperimentRunner:
             self.process_pretrain(dataset, tokenizer)
 
         if self.finetune:
-            self.process_finetune()
+            self.process_finetune(tokenizer)
         
         if self.lm_eval:
             self.process_lm_eval(tokenizer)

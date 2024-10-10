@@ -1,0 +1,17 @@
+load_path: "FacebookAI/xlm-roberta-base"
+
+training_parameters:
+  model_type: "xlm-roberta"
+  task: "mlm"
+  max_length: 512
+  mask_prob: 0.15
+  num_train_epochs: 3
+  batch_size: 8
+  lr: 5e-5
+  padding_strategy: "longest"
+  grad_accumulation_steps: 1
+
+test_path: "WikiQuality/raw_wiki"
+export: true
+push_to_hub: true
+checkpoint: true

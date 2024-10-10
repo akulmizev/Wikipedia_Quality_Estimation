@@ -12,7 +12,8 @@ from transformers import (
     AutoModelForSequenceClassification,
     DataCollatorForTokenClassification,
     DataCollatorWithPadding,
-    PreTrainedTokenizerFast
+    PreTrainedTokenizerFast,
+    AutoTokenizer
 )
 
 from .base import ModelFromConfig
@@ -104,7 +105,7 @@ class Tagger(ModelFromConfig):
             label2id={label: i for i, label in enumerate(self.label_set)}
         )
 
-        self.tokenizer = tokenizer if tokenizer else PreTrainedTokenizerFast.from_pretrained(self.load_path)
+        self.tokenizer = tokenizer if tokenizer else AutoTokenizer.from_pretrained(self.load_path)
         if "pad_token" not in self.tokenizer.special_tokens_map:
             self.tokenizer.add_special_tokens({"pad_token":"[PAD]"})
         self.collator = DataCollatorForTokenClassification(
@@ -393,7 +394,7 @@ class Classifier(ModelFromConfig):
             label2id={label: i for i, label in enumerate(self.label_set)}
         )
 
-        self.tokenizer = tokenizer if tokenizer else PreTrainedTokenizerFast.from_pretrained(self.load_path)
+        self.tokenizer = tokenizer if tokenizer else AutoTokenizer.from_pretrained(self.load_path)
         if "pad_token" not in self.tokenizer.special_tokens_map:
             self.tokenizer.add_special_tokens({"pad_token":"[PAD]"})
         self.collator = DataCollatorWithPadding(

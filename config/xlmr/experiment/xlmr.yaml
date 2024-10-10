@@ -1,0 +1,5 @@
+wiki_id: "hi"
+experiment_id: "xlmr"
+wandb_entity: false
+local_path: "./experiments"
+hub_path: "WikiQuality"

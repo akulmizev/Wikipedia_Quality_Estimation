@@ -1,0 +1,17 @@
+load_path: "./experiments/my_experiment/ha/model"
+dataset_path: "Davlan/sib200" # train_path, validation_path, test_path
+columns: ["text", "category"] # text column, label column
+dataset_config: "ace_Arab"
+# train_path, # valid_path, # test_path
+training_parameters:
+  model_type: "xlm-roberta"
+  task: "classification"
+  max_length: 128
+  num_train_epochs: 20
+  batch_size: 8
+  lr: 5e-05 # do not change this for sentiment analysis
+  padding_strategy: "max_length"
+
+export: false
+push_to_hub: false
+checkpoint: true

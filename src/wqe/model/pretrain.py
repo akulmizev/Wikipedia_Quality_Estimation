@@ -15,7 +15,8 @@ from transformers import (
     AutoModelForMaskedLM,
     AutoModelForCausalLM,
     DataCollatorForLanguageModeling,
-    PreTrainedTokenizerFast
+    PreTrainedTokenizerFast,
+    AutoTokenizer
 )
 
 from .base import ModelFromConfig
@@ -115,7 +116,7 @@ class MLM(ModelFromConfig):
         else:
             if not tokenizer:
                 logger.warning("Tokenizer not provided. Loading tokenization from hub.")
-                self.tokenizer = PreTrainedTokenizerFast.from_pretrained(f"{self.load_path}")
+                self.tokenizer = AutoTokenizer.from_pretrained(f"{self.load_path}")
             else:
                 self.tokenizer = tokenizer
 
@@ -125,8 +126,12 @@ class MLM(ModelFromConfig):
                 quantization_config=self.quantization_config
             )
 
-            if len(self.tokenizer) > model.get_input_embeddings().num_embeddings:
-                model.resize_token_embeddings(len(self.tokenizer))
+            emb_size = model.get_input_embeddings().num_embeddings
+            if len(self.tokenizer) > emb_size:
+                logger.info(f"Resizing embedding layer from {emb_size} to {len(self.tokenizer)}")
+                raise AssertionError("Embedding size is not the same as the tokenizer size!")
+                # Commented out for now since this should be an error with xlm-r!
+                # model.resize_token_embeddings(len(self.tokenizer) + 2)
 
             if self.quantization_config:
                 model = prepare_model_for_kbit_training(model)

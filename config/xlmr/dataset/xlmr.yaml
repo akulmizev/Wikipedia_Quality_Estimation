@@ -1,0 +1,4 @@
+load_path: "WikiQuality/raw_wiki"
+
+export: false
+push_to_hub: false

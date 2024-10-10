@@ -1,0 +1,18 @@
+tokenizer_config:
+  model:
+    type: "unigram"
+  vocab_size: "auto"
+  use_sp_backend: true
+  sp_kwargs:
+    byte_fallback: false
+  special_tokens:
+   bos_token: "<s>"
+   eos_token: "</s>"
+   pad_token: "<pad>"
+   mask_token: "<mask>"
+   unk_token: "<unk>"
+
+merge_with: "FacebookAI/xlm-roberta-base"
+
+export: true
+push_to_hub: true
