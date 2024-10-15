@@ -5,7 +5,7 @@ import pickle
 
 from typing import Any, Dict, List, Optional, Pattern, Union
 
-import fasttext
+# import fasttext
 import multiprocessing as mp
 import tqdm
 
@@ -48,19 +48,19 @@ class PreFilter:
         else:
             self.scripts_to_keep = None
 
-        if langs_to_keep:
-            self.lang_id = True
-            self.langs_to_keep = langs_to_keep
-            self.lang_id_model = fasttext.load_model(
-                hf_hub_download(
-                    repo_id="cis-lmu/glotlid",
-                    filename="model.bin",
-                    cache_dir=None
-                )
-            )
-        else:
-            self.langs_to_keep = None
-            self.lang_id_model = None
+        # if langs_to_keep:
+        #     self.lang_id = True
+        #     self.langs_to_keep = langs_to_keep
+        #     self.lang_id_model = fasttext.load_model(
+        #         hf_hub_download(
+        #             repo_id="cis-lmu/glotlid",
+        #             filename="model.bin",
+        #             cache_dir=None
+        #         )
+        #     )
+        # else:
+        self.langs_to_keep = None
+        self.lang_id_model = None
 
         self.apply_c4_filter = apply_c4_filter
 
@@ -106,7 +106,8 @@ class PreFilter:
     def _pre_filter_doc(
         doc: Dict[str, Any],
         patterns: Dict[str, Pattern],
-        model: fasttext.FastText = None,
+        # model: fasttext.FastText = None,
+        model: Any = None,
         langs_to_keep: List[str] = None,
         apply_c4_filter: bool = False,
         urls_to_remove: List[str] = None,

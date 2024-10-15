@@ -66,7 +66,10 @@ def run_experiment(config_dict: DictConfig) -> None:
         logger.error("Experiment config must be provided, e.g. `+experiment=basic`.")
         exit(1)
 
-    partitions = ["raw_wiki", "pre_filtered"]
+    partitions = ["threhsolded_wiki", 
+                  "entropy_hi", "entropy_lo",
+                  "absolute_hi", "absolute_lo",
+                  "fraction_hi", "fraction_lo"]
 
     params = list(itertools.product(*[SAMPLE, partitions]))
 
