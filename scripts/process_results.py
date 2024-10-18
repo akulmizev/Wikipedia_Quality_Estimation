@@ -64,7 +64,7 @@ SAMPLE = [
 partitions = ["raw_wiki", "pre_filtered", "thresholded_wiki",
                   "absolute_lo", "absolute_hi",
                   "fraction_lo", "fraction_hi",
-                  "entropy_lo", "entropy_hi"]
+                  "entropy_lo", "entropy_hi", "baseline"]
 params = list(itertools.product(*[SAMPLE, partitions]))
 def main():
 
@@ -106,5 +106,24 @@ def main_2():
                     if metric == "f1":
                         outfile.write(f"{score},{wiki_id},{partition},{task}\n")
 
+def main_3():
+
+    with open("roberta_tokmerge.csv", "w") as outfile:
+        outfile.write("score,lang,partition,task\n")
+        for wiki_id, partition in params:
+            folder = f"{SCORES_DIR}/roberta_eval_{partition}_tokmerge/{wiki_id}"
+            file = glob(f"{folder}/*.txt")
+            if not file:
+                continue
+            task = "sib200"
+            with open (file[0], "r") as infile:
+                for line in infile.readlines():
+                    line = line.strip()
+                    metric = line.split("\t")[0]
+                    score = line.split("\t")[1]
+                    if metric == "f1":
+                        outfile.write(f"{score},{wiki_id},{partition},{task}\n")
+
+
 if __name__ == "__main__":
-    main_2()
+    main_3()

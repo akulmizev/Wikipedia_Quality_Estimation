@@ -129,9 +129,9 @@ class MLM(ModelFromConfig):
             emb_size = model.get_input_embeddings().num_embeddings
             if len(self.tokenizer) > emb_size:
                 logger.info(f"Resizing embedding layer from {emb_size} to {len(self.tokenizer)}")
-                raise AssertionError("Embedding size is not the same as the tokenizer size!")
+                # raise AssertionError("Embedding size is not the same as the tokenizer size!")
                 # Commented out for now since this should be an error with xlm-r!
-                # model.resize_token_embeddings(len(self.tokenizer) + 2)
+                model.resize_token_embeddings(len(self.tokenizer))
 
             if self.quantization_config:
                 model = prepare_model_for_kbit_training(model)
