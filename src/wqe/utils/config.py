@@ -115,6 +115,7 @@ class TrainingParameters:
     mixed_precision: str = "no"
     mask_prob: Optional[float] = None
     num_eval_steps: Optional[int] = None
+    seed: Optional[int] = None
     quantize_4bit: Optional[bool] = False
     peft_config: Optional[Dict[str, Optional[Union[str, int, float, List[str]]]]] = None
 

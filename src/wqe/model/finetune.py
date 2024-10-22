@@ -12,7 +12,8 @@ from transformers import (
     AutoModelForSequenceClassification,
     DataCollatorForTokenClassification,
     DataCollatorWithPadding,
-    PreTrainedTokenizerFast
+    PreTrainedTokenizerFast,
+    set_seed
 )
 
 from .base import ModelFromConfig
@@ -386,6 +387,9 @@ class Classifier(ModelFromConfig):
 
         self.label_set = dataset["train"].features["labels"].names
 
+        if self.seed:
+            set_seed(seed=self.seed)
+
         self._model = AutoModelForSequenceClassification.from_pretrained(
             self.load_path,
             num_labels=len(self.label_set),
@@ -428,6 +432,7 @@ class Classifier(ModelFromConfig):
         DataLoader
             A PyTorch DataLoader containing the tokenized and collated dataset.
         """
+
         if "premise" in dataset.features:
             batched_dataset = dataset.map(
             lambda examples: self.tokenizer(
@@ -456,7 +461,7 @@ class Classifier(ModelFromConfig):
         loader = DataLoader(
             batched_dataset,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=False,
             collate_fn=self.collator,
             pin_memory=True
         )

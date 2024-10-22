@@ -78,6 +78,7 @@ class ModelInitMixin:
             mixed_precision: Optional[str] = "no",
             num_eval_steps: Optional[int] = None,
             checkpoint_path: Optional[Union[str, None]] = None,
+            seed: Optional[int] = None,
             quantize_4bit: Optional[bool] = False,
             peft_config: Optional[Union[dict, PeftConfig]] = None
     ):
@@ -95,6 +96,7 @@ class ModelInitMixin:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         # self.torch_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float32
         self.checkpoint_path = checkpoint_path
+        self.seed = seed
         self.label_set = None
         self.wandb = False
 
@@ -103,7 +105,7 @@ class ModelInitMixin:
         self.accelerator = Accelerator(
             project_dir=self.checkpoint_path if self.checkpoint_path else None,
             mixed_precision=self.mixed_precision,
-            device_placement=True
+            device_placement=True,
         )
 
         if self.batch_size > self.MAX_GPU_BATCH_SIZE:
