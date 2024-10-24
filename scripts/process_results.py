@@ -90,14 +90,14 @@ def main():
 
 def main_2():
     
-    with open("twitter-1.csv", "w") as outfile:
+    with open("ner-4.csv", "w") as outfile:
         outfile.write("score,lang,partition,task\n")
         for wiki_id, partition in params:
-            folder = f"{SCORES_DIR}/{partition}.twitter/{wiki_id}"
+            folder = f"{SCORES_DIR}/{partition}.ner.4/{wiki_id}"
             file = glob(f"{folder}/*.txt")
             if not file:
                 continue
-            task = "twitter"
+            task = "ner"
             with open (file[0], "r") as infile:
                 for line in infile.readlines():
                     line = line.strip()
