@@ -97,6 +97,9 @@ class Tagger(ModelFromConfig):
         """
 
         self.label_set = dataset["train"].features["tags"].feature.names
+        
+        if self.seed:
+            set_seed(seed=self.seed)
 
         self._model = AutoModelForTokenClassification.from_pretrained(
             self.load_path,
@@ -461,7 +464,7 @@ class Classifier(ModelFromConfig):
         loader = DataLoader(
             batched_dataset,
             batch_size=self.batch_size,
-            shuffle=False,
+            shuffle=True,
             collate_fn=self.collator,
             pin_memory=True
         )
